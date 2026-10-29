@@ -59,9 +59,9 @@ class EngineUpgradesTest {
     private fun scene(block: Boolean): CameraFrame {
         val w = 320
         val h = 240
-        val y = ByteArray(w * h) { 130 }
-        val u = ByteArray((w / 2) * (h / 2)) { 120 }
-        val v = ByteArray((w / 2) * (h / 2)) { 150 }
+        val y = ByteArray(w * h) { 130.toByte() }
+        val u = ByteArray((w / 2) * (h / 2)) { 120.toByte() }
+        val v = ByteArray((w / 2) * (h / 2)) { 150.toByte() }
         if (block) {
             for (py in (0.62f * h).toInt() until (0.82f * h).toInt()) for (px in (0.44f * w).toInt() until (0.56f * w).toInt()) {
                 y[py * w + px] = 40
