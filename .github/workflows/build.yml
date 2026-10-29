@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basir-run-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      # Replaces the "latest" release so the newest APK is always at the same link.
+      - name: Publish latest APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk basir-run.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest basir-run.apk --prerelease \
+            --title "أحدث نسخة تجريبية" \
+            --notes "تُبنى تلقائياً من آخر تعديل على الفرع main."
