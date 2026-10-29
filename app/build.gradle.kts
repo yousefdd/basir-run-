@@ -12,8 +12,8 @@ android {
         applicationId = "com.basir.run"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     signingConfigs {
@@ -28,6 +28,11 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // The obstacle model is memory-mapped by MediaPipe, so it must stay uncompressed.
+    androidResources {
+        noCompress += "tflite"
     }
 
     compileOptions {
@@ -58,6 +63,9 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraX")
     implementation("androidx.camera:camera-lifecycle:$cameraX")
     implementation("androidx.camera:camera-view:$cameraX")
+
+    // On-device object detection (Apache 2.0).
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 
     testImplementation("junit:junit:4.13.2")
 }

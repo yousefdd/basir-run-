@@ -1,5 +1,6 @@
 package com.basir.run
 
+import com.basir.run.tracking.GpsDiagnostics
 import kotlinx.coroutines.flow.MutableStateFlow
 
 data class RunRecord(val startedAt: Long, val distanceM: Float, val durationMs: Long) {
@@ -20,6 +21,7 @@ data class RunState(
     val distanceM: Float = 0f,
     val accuracyM: Float? = null,
     val paceSecPerKm: Int? = null,
+    val gps: GpsDiagnostics = GpsDiagnostics(),
     val finished: RunRecord? = null,
 )
 

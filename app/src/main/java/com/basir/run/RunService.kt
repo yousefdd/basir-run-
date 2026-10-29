@@ -21,6 +21,8 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.basir.run.tracking.DistanceTracker
+import com.basir.run.tracking.Fix
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +49,8 @@ class RunService : Service() {
     private var nextAnnouncementM = 0
     private var tickJob: Job? = null
     private var shutdownJob: Job? = null
+    // During a guided session the guidance owns the voice; distance is only recorded.
+    private var quiet = false
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -69,7 +73,10 @@ class RunService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> start()
+            ACTION_START -> {
+                quiet = intent.getBooleanExtra(EXTRA_QUIET, false)
+                start()
+            }
             ACTION_STOP -> stop()
         }
         return START_NOT_STICKY
@@ -115,7 +122,7 @@ class RunService : Service() {
         client.removeLocationUpdates(callback)
         tickJob?.cancel()
 
-        val record = RunRecord(startedAtWall, tracker.distanceM, elapsed())
+        val record = RunRecord(startedAtWall, tracker.distanceM.toFloat(), elapsed())
         if (record.durationMs >= MIN_SAVED_RUN_MS) RunStore(this).add(record)
         RunSession.state.value = RunState(finished = record)
         announce("انتهى الجري. ${spokenDistance(record.distanceM)} في ${spokenDuration(record.durationMs)}")
@@ -129,11 +136,23 @@ class RunService : Service() {
     }
 
     private fun onLocation(location: Location) {
-        tracker.accept(location, elapsed())
-        RunSession.state.value = RunSession.state.value.copy(accuracyM = location.accuracy)
+        tracker.accept(
+            Fix(
+                timeNanos = location.elapsedRealtimeNanos,
+                lat = location.latitude,
+                lon = location.longitude,
+                accuracyM = if (location.hasAccuracy()) location.accuracy else null,
+                speedMps = if (location.hasSpeed()) location.speed else null,
+                speedAccuracyMps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond else null,
+            )
+        )
+        RunSession.state.value = RunSession.state.value.copy(
+            accuracyM = if (location.hasAccuracy()) location.accuracy else null,
+            gps = tracker.diagnostics,
+        )
         if (tracker.distanceM >= nextAnnouncementM) {
             announce("${nextAnnouncementM} متر. الزمن ${spokenDuration(elapsed())}")
-            if (prefs.vibrateOn) Haptics.pulse(this)
+            if (prefs.vibrateOn && !quiet) Haptics.pulse(this)
             nextAnnouncementM += prefs.announceEveryM
         }
         publish()
@@ -144,7 +163,7 @@ class RunService : Service() {
         if (!current.active) return
         RunSession.state.value = current.copy(
             elapsedMs = elapsed(),
-            distanceM = tracker.distanceM,
+            distanceM = tracker.distanceM.toFloat(),
             paceSecPerKm = tracker.currentPaceSecPerKm(),
         )
         notifications.notify(NOTIFICATION_ID, buildNotification())
@@ -153,7 +172,7 @@ class RunService : Service() {
     private fun elapsed() = SystemClock.elapsedRealtime() - startedAtElapsed
 
     private fun announce(text: String) {
-        if (prefs.voiceOn) speaker.say(text)
+        if (prefs.voiceOn && !quiet) speaker.say(text)
     }
 
     private fun buildNotification(): Notification {
@@ -193,6 +212,7 @@ class RunService : Service() {
     companion object {
         const val ACTION_START = "com.basir.run.START"
         const val ACTION_STOP = "com.basir.run.STOP"
+        const val EXTRA_QUIET = "quiet"
         private const val CHANNEL_ID = "run"
         private const val NOTIFICATION_ID = 7
         private const val MIN_SAVED_RUN_MS = 10_000L

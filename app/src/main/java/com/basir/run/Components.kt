@@ -28,6 +28,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.heading
 
 // A large button that acts only on a long press, so a stray touch cannot stop a run
 // or call for help. A short tap says how to use it instead.
@@ -122,4 +131,32 @@ fun accuracyLabel(accuracyM: Float?): String = when {
     accuracyM <= 8f -> "إشارة ممتازة · ±${accuracyM.toInt()} م"
     accuracyM <= 15f -> "إشارة جيدة · ±${accuracyM.toInt()} م"
     else -> "إشارة ضعيفة · ±${accuracyM.toInt()} م"
+}
+
+@Composable
+fun screenModifier(): Modifier = Modifier
+    .fillMaxSize()
+    .background(MaterialTheme.colorScheme.background)
+    .windowInsetsPadding(WindowInsets.safeDrawing)
+
+@Composable
+fun ScreenHeader(title: String, onBack: (() -> Unit)?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = Modifier.size(56.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.semantics { heading() },
+        )
+    }
+}
+
+/** Hardware volume keys during a guided session: down pauses or resumes, up repeats. */
+object VolumeKeys {
+    @Volatile var handler: ((up: Boolean) -> Boolean)? = null
 }

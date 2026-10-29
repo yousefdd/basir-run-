@@ -21,6 +21,16 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # EfficientDet-Lite0 from the MediaPipe model catalogue (Apache 2.0). If the download fails the
+      # app still builds, reports obstacle detection as unavailable and refuses guided runs.
+      - name: Download obstacle model
+        run: |
+          mkdir -p app/src/main/assets
+          curl -fL --retry 3 -o app/src/main/assets/efficientdet_lite0.tflite \
+            https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/1/efficientdet_lite0.tflite \
+            || echo "::warning::Obstacle model download failed"
+          ls -l app/src/main/assets || true
+
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
 
