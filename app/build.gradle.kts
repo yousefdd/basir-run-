@@ -12,8 +12,8 @@ android {
         applicationId = "com.basir.run"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5"
+        versionCode = 6
+        versionName = "0.6"
     }
 
     signingConfigs {
@@ -28,6 +28,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // The obstacle model is memory-mapped by MediaPipe, so it must stay uncompressed.

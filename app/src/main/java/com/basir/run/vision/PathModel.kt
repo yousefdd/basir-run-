@@ -32,6 +32,8 @@ data class Calibration(
     val runnerX: Float = 0.5f,
     /** Half the path width on the bottom row, in frame fractions, as measured; null before calibration. */
     val halfWidth: Float? = null,
+    /** Camera angle below the horizon when calibrated; guidance stops if it changes a lot. */
+    val pitchDeg: Float? = null,
 )
 
 data class PathEstimate(

@@ -20,10 +20,10 @@ class HapticEngine(context: Context, private val prefs: Prefs) {
     val available: Boolean get() = vibrator?.hasVibrator() == true
 
     /** Returns false when nothing could be played (no motor or vibration turned off). */
-    fun play(h: Haptic, now: Long = SystemClock.elapsedRealtime()): Boolean {
+    fun play(h: Haptic, level: Int = 1, now: Long = SystemClock.elapsedRealtime()): Boolean {
         val v = vibrator ?: return false
         if (!available || !prefs.vibrateOn) return false
-        val wave = HapticPatterns.waveform(h, prefs.hapticStrength, prefs.hapticDuration)
+        val wave = HapticPatterns.waveform(h, prefs.hapticStrength, prefs.hapticDuration, level)
         val verdict = scheduler.decide(h, wave.totalMs, now)
         if (verdict is HapticScheduler.Verdict.Play) {
             if (verdict.cancelCurrent) v.cancel()

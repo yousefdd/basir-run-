@@ -8,76 +8,100 @@ import org.junit.Test
 class AnnouncementPolicyTest {
 
     private val centred = Decision(SystemState.PathTracked, Severity.Info, Cue.Centered)
-    private val correctRight = Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, Side.Right, 1)
+    private val slightRight = Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, Side.Right, 1)
+    private val slightLeft = Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, Side.Left, 1)
+    private val nearEdgeLeft = Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, Side.Left, 2)
     private val lost = Decision(SystemState.TrackingLost, Severity.Critical, Cue.LostStop)
+    private val unclear = Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear)
 
     private fun said(out: List<Output>) = out.filterIsInstance<Output.Say>().map { it.phrase }
+    private fun buzzes(out: List<Output>) = out.filterIsInstance<Output.Buzz>().map { it.haptic }
 
     @Test
-    fun stopInterruptsAndRepeatsEveryThreeSeconds() {
+    fun stopInterruptsWithTheLongVibrationAndRepeats() {
         val p = AnnouncementPolicy()
         val first = p.next(lost, 0)
         assertEquals(listOf(Phrase.CannotVerifyStop), said(first))
         assertTrue((first.first() as Output.Say).interrupt)
-        assertTrue(first.contains(Output.Buzz(Haptic.Stop)))
+        assertEquals(listOf(Haptic.Stop), buzzes(first))
         assertTrue(said(p.next(lost, 1000)).isEmpty())
         assertEquals(listOf(Phrase.CannotVerifyStop), said(p.next(lost, 3100)))
     }
 
     @Test
-    fun correctionIsNotRepeatedEveryFrame() {
-        val p = AnnouncementPolicy()
-        assertEquals(listOf(Phrase.CorrectRight), said(p.next(correctRight, 0)))
-        for (t in 100L..3900L step 100) assertTrue(said(p.next(correctRight, t)).isEmpty())
-        assertEquals(listOf(Phrase.CorrectRight), said(p.next(correctRight, 4000)))
+    fun obstacleUsesThreeQuickPulsesAndWords() {
+        val out = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle), 0)
+        assertEquals(listOf(Haptic.Attention), buzzes(out))
+        assertEquals(listOf(Phrase.Obstacle), said(out))
     }
 
     @Test
-    fun steeringVibrationFollowsItsOwnRate() {
-        val p = AnnouncementPolicy()
-        var buzzes = 0
-        for (t in 0L..2900L step 100) buzzes += p.next(correctRight, t).count { it is Output.Buzz }
-        // Level 1 steers once a second, with a single short pulse each time.
-        assertEquals(3, buzzes)
-        val p2 = AnnouncementPolicy()
-        assertTrue(p2.next(correctRight, 0).contains(Output.Buzz(Haptic.Correction)))
-        assertTrue(p2.next(correctRight, 0).none { it is Output.Tone && it.side != Side.Right })
+    fun unclearPathIsSpokenWithThreeQuickPulses() {
+        val out = AnnouncementPolicy().next(unclear, 0)
+        assertEquals(listOf(Phrase.PathUnclear), said(out))
+        assertEquals(listOf(Haptic.Attention), buzzes(out))
     }
 
     @Test
-    fun obstacleUsesTheHazardPatternAndAStopUsesTheLongOne() {
-        val hazard = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle), 0)
-        assertTrue(hazard.contains(Output.Buzz(Haptic.Hazard)))
+    fun steeringIsSilentByDefaultAndUsesOneOrTwoPulses() {
+        val p = AnnouncementPolicy()
+        val right = p.next(slightRight, 0)
+        assertTrue(said(right).isEmpty())
+        assertEquals(listOf(Haptic.SteerRight), buzzes(right))
+        val left = AnnouncementPolicy().next(slightLeft, 0)
+        assertEquals(listOf(Haptic.SteerLeft), buzzes(left))
+    }
+
+    @Test
+    fun steeringRateFollowsTheDrift() {
+        val slight = AnnouncementPolicy()
+        val near = AnnouncementPolicy()
+        var a = 0
+        var b = 0
+        for (t in 0L..2900L step 100) {
+            a += buzzes(slight.next(slightRight, t)).size
+            b += buzzes(near.next(nearEdgeLeft, t)).size
+        }
+        assertEquals(3, a) // every 1.2 s
+        assertEquals(5, b) // every 0.6 s
+        assertTrue("larger drift is not spoken by default", said(near.next(nearEdgeLeft, 5000)).isEmpty())
+    }
+
+    @Test
+    fun directionDoesNotFlipWithinAMoment() {
+        val p = AnnouncementPolicy()
+        p.next(slightRight, 0)
+        assertTrue(buzzes(p.next(slightLeft, 600)).isEmpty())
+        assertEquals(listOf(Haptic.SteerLeft), buzzes(p.next(slightLeft, 1300)))
+    }
+
+    @Test
+    fun noSteeringDuringAStop() {
         val edgeStop = AnnouncementPolicy().next(Decision(SystemState.StopAndCheck, Severity.Critical, Cue.AtEdgeStop, Side.Left, 3), 0)
-        assertTrue(edgeStop.contains(Output.Buzz(Haptic.Stop)))
-        assertTrue("no steering pulses during a stop", edgeStop.none { it == Output.Buzz(Haptic.Correction) || it is Output.Tone })
+        assertEquals(listOf(Haptic.Stop), buzzes(edgeStop))
+        assertTrue(edgeStop.none { it is Output.Tone })
     }
 
     @Test
-    fun pathLossSaysThePlainStopSentence() {
-        val out = AnnouncementPolicy().next(lost, 0)
-        assertEquals(listOf(Phrase.CannotVerifyStop), said(out))
-    }
-
-    @Test
-    fun centredIsConfirmedAfterACorrection() {
+    fun bendGetsTheSwellOnce() {
         val p = AnnouncementPolicy()
-        p.next(correctRight, 0)
+        val bend = Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, curve = Side.Right)
+        assertEquals(listOf(Haptic.BendAhead), buzzes(p.next(bend, 0)))
+        assertTrue(buzzes(p.next(bend, 500)).isEmpty())
+        assertTrue(said(p.next(bend, 600)).isEmpty())
+    }
+
+    @Test
+    fun verboseModeAddsWords() {
+        val p = AnnouncementPolicy(verbose = true)
+        assertEquals(listOf(Phrase.CorrectRight), said(p.next(slightRight, 0)))
         assertEquals(listOf(Phrase.Centered), said(p.next(centred, 2000)))
-        assertTrue(said(p.next(centred, 4000)).isEmpty())
-    }
-
-    @Test
-    fun centredIsNotChattyWhenNothingHappened() {
-        val p = AnnouncementPolicy()
-        p.next(centred, 0) // first heartbeat
-        for (t in 100L..19_000L step 500) assertTrue(said(p.next(centred, t)).isEmpty())
     }
 
     @Test
     fun repeatGivesTheLastImportantInstruction() {
         val p = AnnouncementPolicy()
-        p.next(correctRight, 0)
+        p.next(slightRight, 0)
         p.next(centred, 2000)
         assertEquals(Phrase.CorrectRight, p.repeatLast()?.phrase)
     }

@@ -24,6 +24,9 @@ class MotionMonitor(context: Context) : SensorEventListener {
         private set
     @Volatile var shakeRadPerS: Float? = null
         private set
+    /** Instant rotation rate, unsmoothed, so a single jolt of the harness is seen at once. */
+    @Volatile var rotationRadPerS: Float? = null
+        private set
 
     fun start() {
         gravity?.let { sensors?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
@@ -43,7 +46,9 @@ class MotionMonitor(context: Context) : SensorEventListener {
                 if (g > 1f) pitchBelowHorizonDeg = Math.toDegrees(asin((z / g).coerceIn(-1f, 1f).toDouble())).toFloat()
             }
             Sensor.TYPE_GYROSCOPE -> {
-                meanSquare = meanSquare * 0.95f + (x * x + y * y + z * z) * 0.05f
+                val sq = x * x + y * y + z * z
+                rotationRadPerS = sqrt(sq)
+                meanSquare = meanSquare * 0.95f + sq * 0.05f
                 shakeRadPerS = sqrt(meanSquare)
             }
         }

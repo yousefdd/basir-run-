@@ -4,22 +4,26 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /**
- * Vibration patterns, independent of the vision code. Default meanings (to be checked with
- * users, and taught before the first run):
- * - one short pulse: small correction of direction
- * - two short pulses: attention, a bend or the edge of the path is near
- * - three quick pulses: possible hazard ahead (always with a spoken warning)
- * - one long vibration: stop now
- * Higher priority patterns cut lower ones short; a stop is never interrupted by a correction.
+ * The vibration language, independent of the vision code. Vibration is the main channel of
+ * guidance; speech is kept for the start, for hazards and for losing the path.
+ *
+ * Starting design, to be checked with users and taught before the first run:
+ * - one short pulse: move a little to the left
+ * - two short pulses: move a little to the right
+ * - a rising swell: a bend is coming
+ * - three quick pulses: obstacle or something that needs attention now
+ * - one long vibration: stop running now
+ * - a soft tick-tock: confirmation (calibration done, session started or ended)
+ *
+ * A higher priority pattern cuts a lower one short; a steering pulse never interrupts a stop.
  */
 enum class Haptic(val priority: Int) {
-    Correction(1),
-    Attention(2),
-    Hazard(3),
+    SteerLeft(1),
+    SteerRight(1),
+    BendAhead(2),
+    Confirm(2),
+    Attention(3),
     Stop(4),
-    SessionStart(2),
-    Calibrated(2),
-    SessionEnd(2),
 }
 
 class Waveform(val timings: LongArray, val amplitudes: IntArray) {
@@ -34,25 +38,35 @@ object HapticPatterns {
     const val MAX_DURATION = 1.6f
 
     /**
-     * timings alternate off and on, starting with an off delay. [strength] scales amplitude,
-     * [durationScale] scales the length of each pulse; the gaps stay fixed so rhythm is kept.
+     * timings alternate off and on, starting with an off delay; consecutive "on" segments with
+     * no gap make one continuous vibration with changing strength (the swell).
+     * [strength] scales amplitude, [durationScale] the length of each pulse; gaps stay fixed so
+     * the rhythm is kept. [level] 2 makes steering pulses firmer for a larger drift.
      */
-    fun waveform(h: Haptic, strength: Float, durationScale: Float): Waveform {
-        val (pulses, base) = when (h) {
-            Haptic.Correction -> listOf(0L, 90L) to 150
-            Haptic.Attention -> listOf(0L, 90L, 110L, 90L) to 190
-            Haptic.Hazard -> listOf(0L, 70L, 70L, 70L, 70L, 70L) to 255
-            Haptic.Stop -> listOf(0L, 900L) to 255
-            Haptic.SessionStart -> listOf(0L, 150L, 100L, 400L) to 180
-            Haptic.Calibrated -> listOf(0L, 400L, 120L, 150L) to 180
-            Haptic.SessionEnd -> listOf(0L, 400L, 200L, 400L) to 180
+    fun waveform(h: Haptic, strength: Float, durationScale: Float, level: Int = 1): Waveform {
+        // (duration ms, amplitude 0..255); amplitude 0 is a gap.
+        val segments: List<Pair<Long, Int>> = when (h) {
+            Haptic.SteerLeft -> listOf(90L to 160)
+            Haptic.SteerRight -> listOf(90L to 160, 110L to 0, 90L to 160)
+            Haptic.BendAhead -> listOf(150L to 70, 150L to 140, 150L to 230)
+            Haptic.Attention -> listOf(70L to 255, 70L to 0, 70L to 255, 70L to 0, 70L to 255)
+            Haptic.Stop -> listOf(900L to 255)
+            Haptic.Confirm -> listOf(40L to 120, 90L to 0, 140L to 180)
         }
-        val s = strength.coerceIn(MIN_STRENGTH, MAX_STRENGTH)
+        val gentle = h.priority == 1 && level < 2
+        val s = strength.coerceIn(MIN_STRENGTH, MAX_STRENGTH) * if (gentle) LEVEL_ONE_SCALE else 1f
         val d = durationScale.coerceIn(MIN_DURATION, MAX_DURATION)
-        val timings = LongArray(pulses.size) { i -> if (i % 2 == 1) (pulses[i] * d).roundToLong() else pulses[i] }
-        val amplitudes = IntArray(pulses.size) { i -> if (i % 2 == 1) (base * s).roundToInt().coerceIn(1, 255) else 0 }
+        val timings = LongArray(segments.size + 1)
+        val amplitudes = IntArray(segments.size + 1)
+        segments.forEachIndexed { i, (ms, amp) ->
+            timings[i + 1] = if (amp > 0) (ms * d).roundToLong() else ms
+            amplitudes[i + 1] = if (amp > 0) (amp * s).roundToInt().coerceIn(1, 255) else 0
+        }
         return Waveform(timings, amplitudes)
     }
+
+    /** Steering at level 1 is gentler than at level 2; other patterns use full strength. */
+    private const val LEVEL_ONE_SCALE = 0.8f
 }
 
 /** Decides whether a new pattern may play now, so stops always win over corrections. */

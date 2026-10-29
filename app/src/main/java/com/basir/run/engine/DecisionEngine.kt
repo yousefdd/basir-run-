@@ -72,6 +72,8 @@ data class EngineInput(
     val processingP90Ms: Float = 0f,
     /** Camera angle below the horizon from the gravity sensor, or null if unknown. */
     val cameraPitchDeg: Float? = null,
+    /** The angle measured at calibration; when known, the check is relative to it. */
+    val calibratedPitchDeg: Float? = null,
 )
 
 data class EngineConfig(
@@ -84,6 +86,8 @@ data class EngineConfig(
     val pitchMinDeg: Float = 15f,
     val pitchMaxDeg: Float = 75f,
     val angleGraceMs: Long = 1000,
+    /** Largest change from the calibrated angle before guidance stops. */
+    val pitchToleranceDeg: Float = 15f,
     val slight: Float = 0.2f,
     val nearEdge: Float = 0.45f,
     val atEdge: Float = 0.75f,
@@ -118,7 +122,12 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         if (q != null && q.blocked) return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.CameraStop)
 
         val pitch = i.cameraPitchDeg
-        if (pitch != null && (pitch < cfg.pitchMinDeg || pitch > cfg.pitchMaxDeg)) {
+        val reference = i.calibratedPitchDeg
+        val angleBad = pitch != null && (
+            pitch < cfg.pitchMinDeg || pitch > cfg.pitchMaxDeg ||
+                (reference != null && kotlin.math.abs(pitch - reference) > cfg.pitchToleranceDeg)
+            )
+        if (angleBad) {
             if (angleBadSince < 0) angleBadSince = i.nowMs
             if (i.nowMs - angleBadSince >= cfg.angleGraceMs) {
                 return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.AngleStop)

@@ -21,7 +21,14 @@ enum class ObstacleLevel {
     Hazard,
 }
 
-data class ObstacleFinding(val detection: Detection, val overlap: Float, val level: ObstacleLevel)
+enum class ObstacleMotion { Unknown, Still, Approaching, Crossing }
+
+data class ObstacleFinding(
+    val detection: Detection,
+    val overlap: Float,
+    val level: ObstacleLevel,
+    val motion: ObstacleMotion = ObstacleMotion.Unknown,
+)
 
 /**
  * How much a detection matters for the runner. A box being in the picture is not a hazard by
@@ -99,4 +106,54 @@ class ObstacleTracker {
     }
 
     fun reset() = recent.clear()
+}
+
+/**
+ * Follows detections from one detector run to the next (same label, overlapping boxes) to see
+ * whether an object is approaching (its box grows and its bottom moves down the frame) or
+ * crossing towards the corridor. A possible obstacle that approaches or crosses is raised to a
+ * hazard. This is a direction of change in the image, not a measured speed or distance.
+ */
+class ObstacleMotionTracker {
+    private var previous: List<Detection> = emptyList()
+
+    fun reset() {
+        previous = emptyList()
+    }
+
+    fun annotate(findings: List<ObstacleFinding>, all: List<Detection>, corridorCenter: Float): List<ObstacleFinding> {
+        val result = findings.map { f ->
+            val d = f.detection
+            val before = previous.filter { it.label == d.label }.maxByOrNull { iou(it, d) }?.takeIf { iou(it, d) >= MIN_IOU }
+            if (before == null) return@map f
+            val grew = (d.bottom - d.top) > (before.bottom - before.top) * (1 + GROWTH) || d.bottom - before.bottom > DROP
+            val oldGap = kotlin.math.abs((before.left + before.right) / 2 - corridorCenter)
+            val newGap = kotlin.math.abs((d.left + d.right) / 2 - corridorCenter)
+            val motion = when {
+                grew -> ObstacleMotion.Approaching
+                oldGap - newGap > SIDEWAYS -> ObstacleMotion.Crossing
+                else -> ObstacleMotion.Still
+            }
+            val level = if (f.level == ObstacleLevel.Possible && motion != ObstacleMotion.Still) ObstacleLevel.Hazard else f.level
+            f.copy(level = level, motion = motion)
+        }
+        previous = all
+        return result
+    }
+
+    private fun iou(a: Detection, b: Detection): Float {
+        val w = kotlin.math.min(a.right, b.right) - kotlin.math.max(a.left, b.left)
+        val h = kotlin.math.min(a.bottom, b.bottom) - kotlin.math.max(a.top, b.top)
+        if (w <= 0f || h <= 0f) return 0f
+        val inter = w * h
+        val union = (a.right - a.left) * (a.bottom - a.top) + (b.right - b.left) * (b.bottom - b.top) - inter
+        return inter / union
+    }
+
+    companion object {
+        private const val MIN_IOU = 0.3f
+        private const val GROWTH = 0.08f
+        private const val DROP = 0.02f
+        private const val SIDEWAYS = 0.02f
+    }
 }

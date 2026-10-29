@@ -2,7 +2,6 @@ package com.basir.run.vision
 
 import android.os.SystemClock
 import androidx.camera.core.ImageProxy
-import com.basir.run.engine.RouteMode
 import kotlin.math.ceil
 
 /** Everything measured on one frame, handed from the camera thread to the screen. */
@@ -12,23 +11,35 @@ data class FrameSnapshot(
     val path: TrackedPath,
     /** The multi-point running path built from this frame only; nothing is carried over from older frames. */
     val virtualPath: VirtualPath,
+    /** Which kind of scene the path came from (painted lines or a walkable surface), or null if none yet. */
+    val environment: PathSource?,
     val detections: List<Detection>,
     val findings: List<ObstacleFinding>,
     val obstacle: ObstacleLevel,
     val obstacleDetectorReady: Boolean,
+    val shaky: Boolean,
     val framesPerSecond: Float,
     val processingP50Ms: Float,
     val processingP90Ms: Float,
 )
 
 /**
- * Runs on the camera analysis thread: copies the frame, checks its quality, finds the path for
- * the chosen route mode, smooths it over time and, on every third frame, looks for obstacles.
+ * The Virtual Running Path engine, run on the camera analysis thread for every frame:
+ * 1. copy the frame and measure its quality;
+ * 2. run both path detectors (painted lines and walkable surface) and let the environment
+ *    selector keep the one that fits this scene, with no mode chosen by the user;
+ * 3. smooth the path over time, damped while the gyroscope reports a sharp jolt;
+ * 4. on every third frame, look for obstacles: the object model plus surface changes inside the
+ *    corridor, with motion between runs and a short confirmation;
+ * 5. build the multi-point virtual path from this frame only.
  * Processing time per frame is measured here and reported, not assumed.
  */
-class GuidancePipeline(private val obstacles: ObstacleDetector) {
+class GuidancePipeline(
+    private val obstacles: ObstacleDetector,
+    /** Current rotation rate of the phone in rad/s, or null if there is no gyroscope. */
+    private val rotationRate: () -> Float?,
+) {
 
-    @Volatile var mode: RouteMode = RouteMode.Track
     @Volatile var calibration = Calibration()
         set(value) {
             field = value
@@ -38,7 +49,10 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
 
     private val lanes = LaneDetector()
     private val surfaces = PathRegionDetector()
+    private val selector = EnvironmentSelector()
     private val tracker = PathTracker()
+    private val intrusions = IntrusionDetector()
+    private val motion = ObstacleMotionTracker()
     private val obstacleTracker = ObstacleTracker()
     private val copier = FrameCopier()
     private val durations = ArrayDeque<Long>()
@@ -50,8 +64,12 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
 
     fun reset() {
         lanes.reset()
+        selector.reset()
         tracker.reset()
+        motion.reset()
         obstacleTracker.reset()
+        lastDetections = emptyList()
+        lastFindings = emptyList()
         obstacle = ObstacleLevel.None
     }
 
@@ -59,21 +77,17 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
         val start = SystemClock.elapsedRealtime()
         val frame = copier.copy(image)
         val quality = FrameQuality.of(frame)
-        val estimate = when (mode) {
-            RouteMode.Track, RouteMode.Indoor -> lanes.detect(frame)
-            RouteMode.Park -> surfaces.detect(frame)
-            RouteMode.Unknown -> {
-                // Use whichever method gives a tracked path with more confidence; never mix them.
-                val a = lanes.detect(frame)
-                val b = surfaces.detect(frame)
-                listOf(a, b).filter { it.status == PathStatus.Tracked }.maxByOrNull { it.confidence } ?: a
-            }
-        }
-        val path = tracker.update(estimate)
+        val estimate = selector.choose(lanes.detect(frame), surfaces.detect(frame))
+        val shaky = (rotationRate() ?: 0f) > JOLT_RAD_PER_S
+        val path = tracker.update(estimate, shaky)
 
-        if (obstacles.ready && frameIndex % OBSTACLE_EVERY == 0L) {
-            lastDetections = obstacles.detect(image.toBitmap(), image.imageInfo.rotationDegrees)
-            lastFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, calibration.runnerX) }
+        if (frameIndex % OBSTACLE_EVERY == 0L) {
+            lastDetections = if (obstacles.ready) obstacles.detect(image.toBitmap(), image.imageInfo.rotationDegrees) else emptyList()
+            val runnerX = calibration.runnerX
+            val modelFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, runnerX) }
+            val surfaceFindings = if (path.stable) intrusions.detect(frame, path.estimate, runnerX) else emptyList()
+            val centre = path.estimate.center?.x(1f) ?: runnerX
+            lastFindings = motion.annotate(modelFindings, lastDetections, centre) + surfaceFindings
             obstacle = obstacleTracker.update(lastFindings)
         }
         frameIndex++
@@ -91,10 +105,12 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
             quality = quality,
             path = path,
             virtualPath = VirtualPath.from(path, MIN_GUIDE_CONFIDENCE),
+            environment = selector.active,
             detections = lastDetections,
             findings = lastFindings,
             obstacle = obstacle,
             obstacleDetectorReady = obstacles.ready,
+            shaky = shaky,
             framesPerSecond = fps,
             processingP50Ms = percentile(sorted, 0.5),
             processingP90Ms = percentile(sorted, 0.9),
@@ -106,9 +122,11 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
 
     companion object {
         private const val OBSTACLE_EVERY = 3L
+        private const val WINDOW = 60
+        /** Rotation faster than this blurs the frame and swings the view; such frames count less. */
+        private const val JOLT_RAD_PER_S = 2.5f
         /** Same threshold the decision engine uses before giving any direction. */
         const val MIN_GUIDE_CONFIDENCE = 0.5f
-        private const val WINDOW = 60
     }
 }
 

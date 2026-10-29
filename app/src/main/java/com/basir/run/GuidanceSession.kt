@@ -43,9 +43,11 @@ class GuidanceSession(
     private val tone: ToneGuide,
     private val prefs: Prefs,
     private val motion: MotionMonitor,
+    /** Camera angle measured when the path was confirmed; the angle check is relative to it. */
+    private val calibratedPitchDeg: Float?,
 ) {
     private val engine = DecisionEngine()
-    private val policy = AnnouncementPolicy()
+    private val policy = AnnouncementPolicy(verbose = prefs.verboseVoice)
 
     var snapshot by mutableStateOf<FrameSnapshot?>(null)
         private set
@@ -68,13 +70,12 @@ class GuidanceSession(
     var logFile: java.io.File? = null
         private set
 
+    /** The run screen has already confirmed the path with the confirmation pulse and voice. */
     fun start(now: Long) {
         startedAt = now
         lastEvalAt = now
         engine.reset()
         policy.reset()
-        voice.say(Phrase.SessionStart, interrupt = true)
-        if (!haptics.play(Haptic.SessionStart, now) && prefs.vibrateOn) voice.say(Phrase.HapticsUnavailable)
         logFile = log.open(now)
     }
 
@@ -109,9 +110,12 @@ class GuidanceSession(
         policy.repeatLast()?.let { voice.say(it.phrase, interrupt = true) }
     }
 
+    /** Closes the log if the screen goes away without a normal finish (for example an emergency). */
+    fun close() = log.close()
+
     fun finish(now: Long): SessionSummary {
         voice.say(Phrase.SessionEnded, interrupt = true)
-        haptics.play(Haptic.SessionEnd, now)
+        haptics.play(Haptic.Confirm, now = now)
         log.close()
         return SessionSummary(
             durationMs = (now - startedAt).coerceAtLeast(0),
@@ -138,6 +142,7 @@ class GuidanceSession(
                 obstacle = s?.obstacle ?: com.basir.run.vision.ObstacleLevel.None,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
+                calibratedPitchDeg = calibratedPitchDeg,
             )
         )
         decision = d
@@ -150,14 +155,14 @@ class GuidanceSession(
         }
         if (d.cue != lastCue) {
             if (d.severity == Severity.Critical) stopAlerts++
-            if (d.cue == Cue.Obstacle) obstacleAlerts++
+            if (d.cue == Cue.Obstacle || d.cue == Cue.ObstacleNear) obstacleAlerts++
             lastCue = d.cue
         }
 
         for (out in policy.next(d, now)) when (out) {
             // Stops and warnings are spoken even with voice guidance turned off.
-            is Output.Say -> if (prefs.voiceOn || out.interrupt) voice.say(out.phrase, out.interrupt)
-            is Output.Buzz -> haptics.play(out.haptic, now)
+            is Output.Say -> voice.say(out.phrase, out.interrupt)
+            is Output.Buzz -> haptics.play(out.haptic, out.level, now)
             is Output.Tone -> if (prefs.guideTones) {
                 tone.play(if (out.side == Side.Left) -1f else 1f, durationMs = 110, frequency = TONE_HZ[out.level.coerceIn(1, 3)])
             }

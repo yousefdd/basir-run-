@@ -131,6 +131,16 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun angleIsCheckedAgainstTheCalibration() {
+        val e = DecisionEngine()
+        // 50 degrees is inside the absolute range but 20 away from the calibrated 30.
+        val base = EngineInput(0, false, 50, good, tracked(0f), cameraPitchDeg = 50f, calibratedPitchDeg = 30f)
+        assertEquals(Cue.Centered, e.decide(base).cue)
+        assertEquals(Cue.AngleStop, e.decide(base.copy(nowMs = 1200)).cue)
+        assertEquals(Cue.Centered, DecisionEngine().decide(base.copy(cameraPitchDeg = 38f, nowMs = 5000)).cue)
+    }
+
+    @Test
     fun slowProcessingWarnsThenStops() {
         val e = DecisionEngine()
         assertEquals(Cue.LatencySlow, e.decide(input(p90 = 200f)).cue)
