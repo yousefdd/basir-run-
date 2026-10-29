@@ -31,8 +31,14 @@ jobs:
             || echo "::warning::Obstacle model download failed"
           ls -l app/src/main/assets || true
 
+      # Compile errors and failed tests are also raised as annotations, readable through the API.
       - name: Test and build debug APK
-        run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest assembleDebug --no-daemon 2>&1 | tee build.log || {
+            grep -E "^e: |FAILED|AssertionError|Exception:" build.log | head -40 | while IFS= read -r line; do echo "::error::${line//%/%25}"; done
+            exit 1
+          }
 
       # Test counts in the job summary and the raw reports as an artifact, pass or fail.
       - name: Test summary
