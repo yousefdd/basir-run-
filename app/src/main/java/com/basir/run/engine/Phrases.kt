@@ -18,13 +18,12 @@ enum class Phrase(val id: String, val ar: String) {
 
     // Warnings and stops
     Obstacle("obstacle", "يوجد عائق محتمل أمامك. خفف سرعتك وتوقف للتحقق"),
+    ObstacleNear("obstacle_near", "انتبه، يوجد جسم قريب من مسارك. خفف سرعتك"),
     PathUnclear("path_unclear", "المسار غير واضح. خفف سرعتك"),
     EdgeOnly("edge_only", "أرى حداً واحداً فقط للمسار. خفف سرعتك"),
     EdgeNearStop("edge_near_stop", "اقتربت من حد المسار ولا أرى الجهة الأخرى. توقف وتحقق"),
-    LostStop("lost_stop", "فقدت القدرة على تحديد المسار. توقف في مكانك"),
-    CameraStop("camera_stop", "الكاميرا لا ترى المسار. توقف في مكانك"),
+    CannotVerifyStop("cannot_verify_stop", "توقف، لم أتمكن من التحقق من المسار"),
     AngleStop("angle_stop", "تغيرت زاوية الهاتف. توقف وأعد المعايرة"),
-    VisibilityStop("visibility_stop", "الرؤية ضعيفة. توقف في مكانك"),
     LatencySlow("latency_slow", "النظام بطيء الآن. خفف سرعتك"),
     LatencyStop("latency_stop", "النظام بطيء جداً. توقف في مكانك"),
 
@@ -39,6 +38,12 @@ enum class Phrase(val id: String, val ar: String) {
     SessionEnded("session_ended", "انتهت الجلسة"),
     HoldToStop("hold_to_stop", "اضغط مطولاً لإنهاء الجلسة"),
     HoldForSos("hold_for_sos", "اضغط مطولاً لتفعيل الطوارئ"),
+    HapticsUnavailable("haptics_unavailable", "الاهتزاز غير متاح في هذا الهاتف. سأعتمد على الصوت"),
+    TrainingIntro("training_intro", "تعرّف على أنماط الاهتزاز قبل الجري. سأشغّل كل نمط وأشرح معناه"),
+    PatternCorrection("pattern_correction", "نبضة قصيرة واحدة: تصحيح بسيط للاتجاه"),
+    PatternAttention("pattern_attention", "نبضتان قصيرتان: انتبه، منحنى أو اقتراب من حد المسار"),
+    PatternHazard("pattern_hazard", "ثلاث نبضات سريعة: خطر محتمل أمامك"),
+    PatternStop("pattern_stop", "اهتزاز طويل: توقف فوراً"),
 
     // Emergency
     SosActivated("sos_activated", "تم تفعيل الطوارئ"),
@@ -57,13 +62,13 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.AtEdgeStop -> AtEdgeStop
             Cue.CurveAhead -> curve(d.curve)
             Cue.Obstacle -> Obstacle
+            Cue.ObstacleNear -> ObstacleNear
             Cue.PathUnclear -> PathUnclear
             Cue.EdgeOnlyCaution -> EdgeOnly
             Cue.EdgeNearStop -> EdgeNearStop
-            Cue.LostStop -> LostStop
-            Cue.CameraStop -> CameraStop
+            // The same plain sentence whenever the path cannot be verified, whatever the cause.
+            Cue.LostStop, Cue.CameraStop, Cue.VisibilityStop -> CannotVerifyStop
             Cue.AngleStop -> AngleStop
-            Cue.VisibilityStop -> VisibilityStop
             Cue.LatencySlow -> LatencySlow
             Cue.LatencyStop -> LatencyStop
             Cue.None, Cue.Paused -> null

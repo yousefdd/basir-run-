@@ -1,6 +1,7 @@
 package com.basir.run.engine
 
 import com.basir.run.vision.FrameQuality
+import com.basir.run.vision.ObstacleLevel
 import com.basir.run.vision.PathStatus
 import com.basir.run.vision.Side
 import com.basir.run.vision.TrackedPath
@@ -34,6 +35,7 @@ enum class Cue {
     AtEdgeStop,
     CurveAhead,
     Obstacle,
+    ObstacleNear,
     PathUnclear,
     EdgeOnlyCaution,
     EdgeNearStop,
@@ -65,8 +67,8 @@ data class EngineInput(
     val frameAgeMs: Long,
     val quality: FrameQuality?,
     val path: TrackedPath?,
-    /** An obstacle confirmed inside the runnable area on recent frames. */
-    val obstacleAhead: Boolean = false,
+    /** Obstacle in the running corridor, as confirmed over recent detector runs. */
+    val obstacle: ObstacleLevel = ObstacleLevel.None,
     val processingP90Ms: Float = 0f,
     /** Camera angle below the horizon from the gravity sensor, or null if unknown. */
     val cameraPitchDeg: Float? = null,
@@ -126,7 +128,9 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         }
 
         if (i.processingP90Ms > cfg.latencyStopMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
-        if (i.obstacleAhead) return Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
+        // No way around an obstacle is offered: the space beside it has not been assessed.
+        if (i.obstacle == ObstacleLevel.Hazard) return Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
+        if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
 
         val p = i.path
         val trusted = p != null && p.estimate.status == PathStatus.Tracked && p.stable &&

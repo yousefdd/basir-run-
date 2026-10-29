@@ -313,12 +313,13 @@ fun SummaryScreen(run: RunRecord, onDone: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(prefs: Prefs, voice: Voice, tone: ToneGuide, history: List<RunRecord>, onTestVibration: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(prefs: Prefs, voice: Voice, tone: ToneGuide, history: List<RunRecord>, onTraining: () -> Unit, onBack: () -> Unit) {
     var every by remember { mutableIntStateOf(prefs.announceEveryM) }
     var voiceOn by remember { mutableStateOf(prefs.voiceOn) }
     var vibrate by remember { mutableStateOf(prefs.vibrateOn) }
     var tones by remember { mutableStateOf(prefs.guideTones) }
     var gps by remember { mutableStateOf(prefs.recordGps) }
+    var developer by remember { mutableStateOf(prefs.developerMode) }
 
     Column(
         modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
@@ -337,6 +338,7 @@ fun SettingsScreen(prefs: Prefs, voice: Voice, tone: ToneGuide, history: List<Ru
         SettingSwitch("الاهتزاز", "أنماط مميزة للتوجيه والتحذير والتوقف", vibrate) { vibrate = it; prefs.vibrateOn = it }
         SettingSwitch("نغمات الاتجاه", "نغمة في الأذن التي يجب أن تتجه نحوها", tones) { tones = it; prefs.guideTones = it }
         SettingSwitch("تسجيل المسافة بـ GPS", "للسجل فقط. لا يُستخدم GPS في التوجيه داخل المسار", gps) { gps = it; prefs.recordGps = it }
+        SettingSwitch("وضع المطوّر", "يعرض نقاط المسار ومخرجات النموذج والثقة والتوقيت فوق الكاميرا", developer) { developer = it; prefs.developerMode = it }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SectionTitle("إعلان المسافة كل")
@@ -358,14 +360,14 @@ fun SettingsScreen(prefs: Prefs, voice: Voice, tone: ToneGuide, history: List<Ru
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TestButton("صوت التوجيه", Modifier.weight(1f)) { voice.say(com.basir.run.engine.Phrase.Centered, interrupt = true) }
-            TestButton("أنماط الاهتزاز", Modifier.weight(1f), onTestVibration)
+            TestButton("أنماط الاهتزاز وتخصيصها", Modifier.weight(1f), onTraining)
         }
 
         if (history.isNotEmpty()) {
             SectionTitle("سجل الجري")
             history.forEach { HistoryRow(it) }
         }
-        Text("بصير ران 0.4", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("بصير ران 0.5", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

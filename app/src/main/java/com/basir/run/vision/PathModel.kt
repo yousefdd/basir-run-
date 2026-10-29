@@ -13,6 +13,9 @@ enum class PathStatus {
 
 enum class PathSource { PaintedLines, SurfaceRegion }
 
+/** What the detector actually saw on one sampled row: edge positions as frame fractions, or null. */
+data class RowEvidence(val y: Float, val left: Float?, val right: Float?)
+
 /** x = a·y² + b·y + c in frame fractions: x 0 = left edge, y 0 = top, y 1 = nearest the runner. */
 data class Curve(val a: Float, val b: Float, val c: Float) {
     fun x(y: Float) = a * y * y + b * y + c
@@ -51,6 +54,8 @@ data class PathEstimate(
     val ambiguous: Boolean = false,
     val roiTop: Float = 0.45f,
     val aspect: Float = 0.75f,
+    /** Raw per-row observations behind the fitted curves, for the virtual path and the debug view. */
+    val evidence: List<RowEvidence> = emptyList(),
 ) {
     companion object {
         fun unclear(source: PathSource, aspect: Float, ambiguous: Boolean = false) =

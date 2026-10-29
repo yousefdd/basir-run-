@@ -17,11 +17,11 @@ class AnnouncementPolicyTest {
     fun stopInterruptsAndRepeatsEveryThreeSeconds() {
         val p = AnnouncementPolicy()
         val first = p.next(lost, 0)
-        assertEquals(listOf(Phrase.LostStop), said(first))
+        assertEquals(listOf(Phrase.CannotVerifyStop), said(first))
         assertTrue((first.first() as Output.Say).interrupt)
         assertTrue(first.contains(Output.Buzz(Haptic.Stop)))
         assertTrue(said(p.next(lost, 1000)).isEmpty())
-        assertEquals(listOf(Phrase.LostStop), said(p.next(lost, 3100)))
+        assertEquals(listOf(Phrase.CannotVerifyStop), said(p.next(lost, 3100)))
     }
 
     @Test
@@ -37,8 +37,26 @@ class AnnouncementPolicyTest {
         val p = AnnouncementPolicy()
         var buzzes = 0
         for (t in 0L..2900L step 100) buzzes += p.next(correctRight, t).count { it is Output.Buzz }
-        // Level 1 steers once a second.
+        // Level 1 steers once a second, with a single short pulse each time.
         assertEquals(3, buzzes)
+        val p2 = AnnouncementPolicy()
+        assertTrue(p2.next(correctRight, 0).contains(Output.Buzz(Haptic.Correction)))
+        assertTrue(p2.next(correctRight, 0).none { it is Output.Tone && it.side != Side.Right })
+    }
+
+    @Test
+    fun obstacleUsesTheHazardPatternAndAStopUsesTheLongOne() {
+        val hazard = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle), 0)
+        assertTrue(hazard.contains(Output.Buzz(Haptic.Hazard)))
+        val edgeStop = AnnouncementPolicy().next(Decision(SystemState.StopAndCheck, Severity.Critical, Cue.AtEdgeStop, Side.Left, 3), 0)
+        assertTrue(edgeStop.contains(Output.Buzz(Haptic.Stop)))
+        assertTrue("no steering pulses during a stop", edgeStop.none { it == Output.Buzz(Haptic.Correction) || it is Output.Tone })
+    }
+
+    @Test
+    fun pathLossSaysThePlainStopSentence() {
+        val out = AnnouncementPolicy().next(lost, 0)
+        assertEquals(listOf(Phrase.CannotVerifyStop), said(out))
     }
 
     @Test

@@ -10,8 +10,11 @@ data class FrameSnapshot(
     val timeMs: Long,
     val quality: FrameQuality,
     val path: TrackedPath,
+    /** The multi-point running path built from this frame only; nothing is carried over from older frames. */
+    val virtualPath: VirtualPath,
     val detections: List<Detection>,
-    val obstacleAhead: Boolean,
+    val findings: List<ObstacleFinding>,
+    val obstacle: ObstacleLevel,
     val obstacleDetectorReady: Boolean,
     val framesPerSecond: Float,
     val processingP50Ms: Float,
@@ -36,19 +39,20 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
     private val lanes = LaneDetector()
     private val surfaces = PathRegionDetector()
     private val tracker = PathTracker()
-    private val confirmation = ObstacleConfirmation()
+    private val obstacleTracker = ObstacleTracker()
     private val copier = FrameCopier()
     private val durations = ArrayDeque<Long>()
     private val arrivals = ArrayDeque<Long>()
     private var frameIndex = 0L
     private var lastDetections = emptyList<Detection>()
-    private var obstacleAhead = false
+    private var lastFindings = emptyList<ObstacleFinding>()
+    private var obstacle = ObstacleLevel.None
 
     fun reset() {
         lanes.reset()
         tracker.reset()
-        confirmation.reset()
-        obstacleAhead = false
+        obstacleTracker.reset()
+        obstacle = ObstacleLevel.None
     }
 
     fun process(image: ImageProxy): FrameSnapshot {
@@ -69,8 +73,8 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
 
         if (obstacles.ready && frameIndex % OBSTACLE_EVERY == 0L) {
             lastDetections = obstacles.detect(image.toBitmap(), image.imageInfo.rotationDegrees)
-            val relevant = lastDetections.any { ObstacleFilter.isRelevant(it, path.estimate, calibration.runnerX) }
-            obstacleAhead = confirmation.update(relevant)
+            lastFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, calibration.runnerX) }
+            obstacle = obstacleTracker.update(lastFindings)
         }
         frameIndex++
 
@@ -86,8 +90,10 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
             timeMs = end,
             quality = quality,
             path = path,
+            virtualPath = VirtualPath.from(path, MIN_GUIDE_CONFIDENCE),
             detections = lastDetections,
-            obstacleAhead = obstacleAhead,
+            findings = lastFindings,
+            obstacle = obstacle,
             obstacleDetectorReady = obstacles.ready,
             framesPerSecond = fps,
             processingP50Ms = percentile(sorted, 0.5),
@@ -100,6 +106,8 @@ class GuidancePipeline(private val obstacles: ObstacleDetector) {
 
     companion object {
         private const val OBSTACLE_EVERY = 3L
+        /** Same threshold the decision engine uses before giving any direction. */
+        const val MIN_GUIDE_CONFIDENCE = 0.5f
         private const val WINDOW = 60
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -113,6 +114,8 @@ fun CalibrationScreen(
     prefs: Prefs,
     pipeline: GuidancePipeline,
     motion: MotionMonitor,
+    haptics: HapticEngine,
+    developer: Boolean,
     onReady: (Calibration) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -121,6 +124,7 @@ fun CalibrationScreen(
     var cameraError by remember { mutableStateOf<String?>(null) }
     var results by remember { mutableStateOf<List<CheckResult>>(emptyList()) }
     var ready by remember { mutableStateOf(false) }
+    var clockMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     val timer = remember { ReadinessTimer() }
 
     DisposableEffect(mode) {
@@ -139,6 +143,7 @@ fun CalibrationScreen(
         val started = SystemClock.elapsedRealtime()
         while (true) {
             val now = SystemClock.elapsedRealtime()
+            clockMs = now
             val s = snapshot
             val fresh = s != null && now - s.timeMs < 700
             results = Readiness.evaluate(
@@ -154,7 +159,7 @@ fun CalibrationScreen(
             )
             val nowReady = timer.update(results, now)
             if (nowReady && !ready) {
-                if (prefs.vibrateOn) Haptics.play(context, Haptic.Calibrated)
+                haptics.play(Haptic.Calibrated, now)
                 voice.say(Phrase.CalibrationDone, interrupt = true)
             }
             ready = nowReady
@@ -169,8 +174,7 @@ fun CalibrationScreen(
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (cameraError == null) {
             CameraHost(pipeline, onSnapshot = { snapshot = it }, onError = { cameraError = it })
-            val pathOk = results.firstOrNull { it.check == Check.Path }?.passed == true
-            PathOverlay(snapshot, trusted = pathOk, runnerX = 0.5f, modifier = Modifier.fillMaxSize())
+            PathOverlay(snapshot, clockMs, runnerX = 0.5f, developer = developer, modifier = Modifier.fillMaxSize())
         }
         Column(
             modifier = Modifier
@@ -188,6 +192,7 @@ fun CalibrationScreen(
                 )
                 cameraError?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error) }
             }
+            if (developer) DeveloperReadout(snapshot, clockMs)
             Spacer(Modifier.weight(1f))
             Panel {
                 results.forEach { ChecklistRow(it) }
@@ -261,10 +266,12 @@ fun SessionScreen(
     pipeline: GuidancePipeline,
     calibration: Calibration,
     gpsText: String?,
+    developer: Boolean,
     onEnd: () -> Unit,
     onSos: () -> Unit,
 ) {
     var cameraError by remember { mutableStateOf<String?>(null) }
+    var clockMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
 
     DisposableEffect(Unit) {
         VolumeKeys.handler = { up ->
@@ -278,7 +285,8 @@ fun SessionScreen(
         session.start(SystemClock.elapsedRealtime())
         while (true) {
             delay(250)
-            session.tick(SystemClock.elapsedRealtime())
+            clockMs = SystemClock.elapsedRealtime()
+            session.tick(clockMs)
         }
     }
 
@@ -290,10 +298,13 @@ fun SessionScreen(
         if (cameraError == null) {
             CameraHost(
                 pipeline,
-                onSnapshot = { session.onSnapshot(it, SystemClock.elapsedRealtime()) },
+                onSnapshot = {
+                    clockMs = SystemClock.elapsedRealtime()
+                    session.onSnapshot(it, clockMs)
+                },
                 onError = { cameraError = it },
             )
-            PathOverlay(session.snapshot, trusted, calibration.runnerX, Modifier.fillMaxSize())
+            PathOverlay(session.snapshot, clockMs, calibration.runnerX, developer, Modifier.fillMaxSize())
         }
         Column(
             modifier = Modifier
@@ -313,6 +324,7 @@ fun SessionScreen(
                 }
             }
             gpsText?.let { StatusPill(it, Good) }
+            if (developer) DeveloperReadout(session.snapshot, clockMs)
             cameraError?.let { Panel { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error) } }
 
             // The middle of the screen repeats the last instruction when touched.
@@ -431,7 +443,7 @@ private fun stateColor(severity: Severity) = when (severity) {
 // ---------- Session summary ----------
 
 @Composable
-fun SessionSummaryScreen(summary: SessionSummary, distanceText: String?, onDone: () -> Unit) {
+fun SessionSummaryScreen(summary: SessionSummary, distanceText: String?, onShareLog: (() -> Unit)?, onDone: () -> Unit) {
     Column(
         modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -456,6 +468,14 @@ fun SessionSummaryScreen(summary: SessionSummary, distanceText: String?, onDone:
         }
         MetricTile("إطارات محللة", "${summary.frames}", Modifier.fillMaxWidth())
         distanceText?.let { MetricTile("المسافة (GPS)", it, Modifier.fillMaxWidth()) }
+        if (onShareLog != null) {
+            Button(
+                onClick = onShareLog,
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface),
+            ) { Text("مشاركة سجل القياسات (CSV، بلا صور)", style = MaterialTheme.typography.labelLarge) }
+        }
         Button(
             onClick = onDone,
             modifier = Modifier.fillMaxWidth().height(72.dp),

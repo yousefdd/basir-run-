@@ -28,7 +28,11 @@ class LaneDetector {
     private var lastLeft: Curve? = null
     private var lastRight: Curve? = null
 
-    fun detect(frame: CameraFrame): PathEstimate {
+    fun detect(frame: CameraFrame): PathEstimate = detectRaw(frame).let { it.copy(evidence = lastEvidence) }
+
+    private var lastEvidence: List<RowEvidence> = emptyList()
+
+    private fun detectRaw(frame: CameraFrame): PathEstimate {
         val w = frame.uprightWidth
         val h = frame.uprightHeight
         val aspect = w.toFloat() / h
@@ -40,6 +44,7 @@ class LaneDetector {
 
         val leftPts = ArrayList<Pt>()
         val rightPts = ArrayList<Pt>()
+        val evidence = ArrayList<RowEvidence>(ROWS)
         var ambiguousRows = 0
         var rowsWithPaint = 0
 
@@ -56,12 +61,14 @@ class LaneDetector {
             if (left != null && right != null && right - left < MIN_LANE_WIDTH) continue
             left?.let { leftPts.add(Pt(it, y)) }
             right?.let { rightPts.add(Pt(it, y)) }
+            evidence.add(RowEvidence(y, left, right))
             val crowded = listOfNotNull(left, right).any { chosen ->
                 centers.any { it != chosen && abs(it - chosen) < CROWDED_GAP }
             }
             if (crowded) ambiguousRows++
         }
 
+        lastEvidence = evidence
         val leftFit = CurveFit.fit(leftPts)
         val rightFit = CurveFit.fit(rightPts)
         lastLeft = leftFit?.curve

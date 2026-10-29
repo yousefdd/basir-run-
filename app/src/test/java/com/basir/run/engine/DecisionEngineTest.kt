@@ -1,6 +1,7 @@
 package com.basir.run.engine
 
 import com.basir.run.vision.FrameQuality
+import com.basir.run.vision.ObstacleLevel
 import com.basir.run.vision.PathEstimate
 import com.basir.run.vision.PathSource
 import com.basir.run.vision.PathStatus
@@ -27,7 +28,7 @@ class DecisionEngineTest {
         path: TrackedPath? = tracked(0f),
         quality: FrameQuality? = good,
         frameAge: Long = 50,
-        obstacle: Boolean = false,
+        obstacle: ObstacleLevel = ObstacleLevel.None,
         p90: Float = 60f,
         pitch: Float? = 40f,
         paused: Boolean = false,
@@ -100,9 +101,13 @@ class DecisionEngineTest {
 
     @Test
     fun obstacleMeansStopWithoutASidewaysDirection() {
-        val d = DecisionEngine().decide(input(obstacle = true, path = tracked(0.3f)))
+        val d = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)))
         assertEquals(SystemState.ObstacleAhead, d.state)
+        assertEquals(Severity.Critical, d.severity)
         assertNull(d.moveTo)
+        val near = DecisionEngine().decide(input(obstacle = ObstacleLevel.Possible, path = tracked(0.3f)))
+        assertEquals(Cue.ObstacleNear, near.cue)
+        assertNull(near.moveTo)
     }
 
     @Test
@@ -142,7 +147,7 @@ class DecisionEngineTest {
 
     @Test
     fun pausedIsSilent() {
-        val d = DecisionEngine().decide(input(paused = true, obstacle = true))
+        val d = DecisionEngine().decide(input(paused = true, obstacle = ObstacleLevel.Hazard))
         assertEquals(SystemState.Paused, d.state)
         assertEquals(Severity.Silent, d.severity)
     }

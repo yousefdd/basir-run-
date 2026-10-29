@@ -32,7 +32,12 @@ class PathRegionDetector {
     private val inside = BooleanArray(COLS * ROWS)
     private val queue = IntArray(COLS * ROWS)
 
-    fun detect(frame: CameraFrame): PathEstimate {
+    fun detect(frame: CameraFrame): PathEstimate = detectRaw(frame).let { it.copy(evidence = lastEvidence) }
+
+    private var lastEvidence: List<RowEvidence> = emptyList()
+
+    private fun detectRaw(frame: CameraFrame): PathEstimate {
+        lastEvidence = emptyList()
         val w = frame.uprightWidth
         val h = frame.uprightHeight
         val aspect = w.toFloat() / h
@@ -83,6 +88,7 @@ class PathRegionDetector {
         // Walk up from the feet, following the run of region cells that contains the path centre.
         val leftPts = ArrayList<Pt>()
         val rightPts = ArrayList<Pt>()
+        val evidence = ArrayList<RowEvidence>(ROWS)
         var bothRows = 0
         var touchingRows = 0
         var contrastSum = 0f
@@ -111,9 +117,11 @@ class PathRegionDetector {
                 contrastSum += distance(r * COLS + rc + 1, ly[r * COLS + rc], lu[r * COLS + rc], lv[r * COLS + rc]); contrastCount++
             }
             if (leftVisible && rightVisible) bothRows++
+            evidence.add(RowEvidence(y, if (leftVisible) lc.toFloat() / COLS else null, if (rightVisible) (rc + 1).toFloat() / COLS else null))
             centre = (lc + rc) / 2
         }
 
+        lastEvidence = evidence
         if (touchingRows > ROWS * MAX_TOUCHING_FRACTION) return PathEstimate.unclear(PathSource.SurfaceRegion, aspect)
         val contrast = if (contrastCount == 0) 0f else contrastSum / contrastCount
         if (contrast < limit * MIN_EDGE_CONTRAST) return PathEstimate.unclear(PathSource.SurfaceRegion, aspect)

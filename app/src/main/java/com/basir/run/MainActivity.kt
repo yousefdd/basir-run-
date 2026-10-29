@@ -23,7 +23,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -31,16 +30,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.basir.run.engine.Haptic
 import com.basir.run.engine.Phrase
 import com.basir.run.engine.RouteMode
 import com.basir.run.sensors.MotionMonitor
 import com.basir.run.vision.Calibration
 import com.basir.run.vision.GuidancePipeline
 import com.basir.run.vision.ObstacleDetector
-import com.basir.run.vision.Side
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,17 +62,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Page { Welcome, Permissions, Home, Mode, Calibration, Session, SessionSummary, Emergency, Settings, GpsRun }
+private enum class Page { Welcome, Permissions, Home, Training, Mode, Calibration, Session, SessionSummary, Emergency, Settings, GpsRun }
 
 @Composable
 private fun BasirApp() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val prefs = remember { Prefs(context) }
     val store = remember { RunStore(context) }
     val voice = remember { Voice(context) }
     val tone = remember { ToneGuide() }
     val motion = remember { MotionMonitor(context) }
+    val haptics = remember { HapticEngine(context, prefs) }
     val obstacles = remember { ObstacleDetector(context) }
     val pipeline = remember { GuidancePipeline(obstacles) }
     DisposableEffect(Unit) {
@@ -94,6 +89,8 @@ private fun BasirApp() {
     var session by remember { mutableStateOf<GuidanceSession?>(null) }
     var summary by remember { mutableStateOf<SessionSummary?>(null) }
     var summaryDistance by remember { mutableStateOf<String?>(null) }
+    var summaryLog by remember { mutableStateOf<java.io.File?>(null) }
+    var trainingThenRun by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf(store.all()) }
     var notice by remember { mutableStateOf<String?>(null) }
     var permissionsVersion by remember { mutableIntStateOf(0) }
@@ -129,7 +126,7 @@ private fun BasirApp() {
 
     LaunchedEffect(run.finished) { if (run.finished != null) history = store.all() }
 
-    BackHandler(enabled = page in setOf(Page.Permissions, Page.Mode, Page.Emergency, Page.Settings)) { page = Page.Home }
+    BackHandler(enabled = page in setOf(Page.Permissions, Page.Mode, Page.Emergency, Page.Settings, Page.Training)) { page = Page.Home }
     BackHandler(enabled = page == Page.Calibration) { page = Page.Mode }
     BackHandler(enabled = page == Page.Session) { voice.say(Phrase.HoldToStop, interrupt = true) }
 
@@ -166,10 +163,15 @@ private fun BasirApp() {
             notice = notice,
             onGuidedRun = {
                 notice = null
-                if (context.has(Manifest.permission.CAMERA)) page = Page.Mode
-                else {
+                if (!context.has(Manifest.permission.CAMERA)) {
                     notice = "التوجيه يحتاج إذن الكاميرا"
                     page = Page.Permissions
+                } else if (!prefs.hapticTrained && haptics.available) {
+                    // The patterns must be learned before they are relied on.
+                    trainingThenRun = true
+                    page = Page.Training
+                } else {
+                    page = Page.Mode
                 }
             },
             onGpsOnlyRun = {
@@ -197,11 +199,13 @@ private fun BasirApp() {
             prefs = prefs,
             pipeline = pipeline,
             motion = motion,
+            haptics = haptics,
+            developer = prefs.developerMode,
             onReady = { cal ->
                 calibration = cal
                 pipeline.calibration = cal
                 pipeline.reset()
-                session = GuidanceSession(context, voice, tone, prefs, motion)
+                session = GuidanceSession(context, haptics, voice, tone, prefs, motion)
                 if (prefs.recordGps) startDistanceService(quiet = true)
                 page = Page.Session
             },
@@ -225,9 +229,11 @@ private fun BasirApp() {
                         val (n, u) = distanceParts(run.distanceM)
                         "$n $u · ${clock(run.elapsedMs)}"
                     } else null,
+                    developer = prefs.developerMode,
                     onEnd = {
                         summaryDistance = if (run.active) distanceParts(run.distanceM).let { "${it.first} ${it.second}" } else null
                         summary = current.finish(SystemClock.elapsedRealtime())
+                        summaryLog = current.logFile
                         if (run.active) stopDistanceService()
                         session = null
                         page = Page.SessionSummary
@@ -240,7 +246,17 @@ private fun BasirApp() {
         Page.SessionSummary -> {
             val s = summary
             if (s == null) LaunchedEffect(Unit) { page = Page.Home }
-            else SessionSummaryScreen(s, summaryDistance) {
+            else SessionSummaryScreen(
+                s, summaryDistance,
+                onShareLog = summaryLog?.let { file ->
+                    {
+                        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+                        val send = Intent(Intent.ACTION_SEND).setType("text/csv").putExtra(Intent.EXTRA_STREAM, uri)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.startActivity(Intent.createChooser(send, "مشاركة سجل القياسات"))
+                    }
+                },
+            ) {
                 RunSession.state.value = RunState()
                 page = Page.Home
             }
@@ -273,27 +289,18 @@ private fun BasirApp() {
             voice = voice,
             tone = tone,
             history = history,
-            onTestVibration = {
-                scope.launch {
-                    val demo = listOf(
-                        "بدء الجلسة" to Haptic.SessionStart,
-                        "اكتمال المعايرة" to Haptic.Calibrated,
-                        "تحذير" to Haptic.Warning,
-                        "توقف" to Haptic.Stop,
-                        "اتجه يساراً قليلاً" to Haptic.Steer(Side.Left, 1),
-                        "اتجه يساراً بقوة" to Haptic.Steer(Side.Left, 3),
-                        "اتجه يميناً قليلاً" to Haptic.Steer(Side.Right, 1),
-                        "اتجه يميناً بقوة" to Haptic.Steer(Side.Right, 3),
-                        "نهاية الجلسة" to Haptic.SessionEnd,
-                    )
-                    for ((label, haptic) in demo) {
-                        voice.sayText(label, interrupt = true)
-                        delay(1200)
-                        Haptics.play(context, haptic)
-                        delay(1600)
-                    }
-                }
+            onTraining = {
+                trainingThenRun = false
+                page = Page.Training
             },
+            onBack = { page = Page.Home },
+        )
+
+        Page.Training -> HapticTrainingScreen(
+            prefs = prefs,
+            voice = voice,
+            haptics = haptics,
+            onDone = { page = if (trainingThenRun) Page.Mode else Page.Settings },
             onBack = { page = Page.Home },
         )
     }

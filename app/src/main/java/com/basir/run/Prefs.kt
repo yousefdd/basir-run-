@@ -39,6 +39,26 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("guide_tones", true)
         set(value) = sp.edit().putBoolean("guide_tones", value).apply()
 
+    /** 0.3 to 1.0: vibration strength on phones that support amplitude control. */
+    var hapticStrength: Float
+        get() = sp.getFloat("haptic_strength", 0.8f)
+        set(value) = sp.edit().putFloat("haptic_strength", value).apply()
+
+    /** 0.6 to 1.6: multiplies the length of each pulse. */
+    var hapticDuration: Float
+        get() = sp.getFloat("haptic_duration", 1f)
+        set(value) = sp.edit().putFloat("haptic_duration", value).apply()
+
+    /** The user has gone through the vibration patterns at least once. */
+    var hapticTrained: Boolean
+        get() = sp.getBoolean("haptic_trained", false)
+        set(value) = sp.edit().putBoolean("haptic_trained", value).apply()
+
+    /** Shows detector points, scores and timings over the camera, for testing. */
+    var developerMode: Boolean
+        get() = sp.getBoolean("developer_mode", false)
+        set(value) = sp.edit().putBoolean("developer_mode", value).apply()
+
     /** Record distance with GPS during guided sessions. Never used for guidance. */
     var recordGps: Boolean
         get() = sp.getBoolean("record_gps", true)

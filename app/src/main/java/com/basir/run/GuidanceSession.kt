@@ -37,7 +37,8 @@ data class SessionSummary(
  * vibration and tones. Measures what happened for the summary.
  */
 class GuidanceSession(
-    private val context: Context,
+    context: Context,
+    private val haptics: HapticEngine,
     private val voice: Voice,
     private val tone: ToneGuide,
     private val prefs: Prefs,
@@ -63,6 +64,9 @@ class GuidanceSession(
     private val p50 = ArrayList<Float>()
     private val p90 = ArrayList<Float>()
     private var lastCue = Cue.None
+    private val log = SessionLog(context)
+    var logFile: java.io.File? = null
+        private set
 
     fun start(now: Long) {
         startedAt = now
@@ -70,7 +74,8 @@ class GuidanceSession(
         engine.reset()
         policy.reset()
         voice.say(Phrase.SessionStart, interrupt = true)
-        if (prefs.vibrateOn) Haptics.play(context, Haptic.SessionStart)
+        if (!haptics.play(Haptic.SessionStart, now) && prefs.vibrateOn) voice.say(Phrase.HapticsUnavailable)
+        logFile = log.open(now)
     }
 
     fun onSnapshot(s: FrameSnapshot, now: Long) {
@@ -106,7 +111,8 @@ class GuidanceSession(
 
     fun finish(now: Long): SessionSummary {
         voice.say(Phrase.SessionEnded, interrupt = true)
-        if (prefs.vibrateOn) Haptics.play(context, Haptic.SessionEnd)
+        haptics.play(Haptic.SessionEnd, now)
+        log.close()
         return SessionSummary(
             durationMs = (now - startedAt).coerceAtLeast(0),
             trackedMs = trackedMs,
@@ -129,12 +135,13 @@ class GuidanceSession(
                 frameAgeMs = if (s == null) NO_FRAME_AGE else now - s.timeMs,
                 quality = s?.quality,
                 path = s?.path,
-                obstacleAhead = s?.obstacleAhead ?: false,
+                obstacle = s?.obstacle ?: com.basir.run.vision.ObstacleLevel.None,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
             )
         )
         decision = d
+        log.write(now, d, s, paused)
 
         val dt = (now - lastEvalAt).coerceIn(0, 1000)
         lastEvalAt = now
@@ -148,13 +155,11 @@ class GuidanceSession(
         }
 
         for (out in policy.next(d, now)) when (out) {
+            // Stops and warnings are spoken even with voice guidance turned off.
             is Output.Say -> if (prefs.voiceOn || out.interrupt) voice.say(out.phrase, out.interrupt)
-            is Output.Buzz -> {
-                val h = out.haptic
-                if (prefs.vibrateOn) Haptics.play(context, h)
-                if (h is Haptic.Steer && prefs.guideTones) {
-                    tone.play(if (h.side == Side.Left) -1f else 1f, durationMs = 110, frequency = TONE_HZ[h.level.coerceIn(1, 3)])
-                }
+            is Output.Buzz -> haptics.play(out.haptic, now)
+            is Output.Tone -> if (prefs.guideTones) {
+                tone.play(if (out.side == Side.Left) -1f else 1f, durationMs = 110, frequency = TONE_HZ[out.level.coerceIn(1, 3)])
             }
         }
     }

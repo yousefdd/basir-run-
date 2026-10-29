@@ -33,7 +33,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.basir.run.vision.Curve
 import com.basir.run.vision.FrameSnapshot
 import com.basir.run.vision.GuidancePipeline
-import com.basir.run.vision.PathStatus
+import com.basir.run.vision.ObstacleLevel
+import com.basir.run.vision.PathConfidence
+import androidx.compose.ui.geometry.Size as GeoSize
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import java.util.concurrent.Executors
 
 /**
@@ -105,16 +111,20 @@ fun CameraHost(pipeline: GuidancePipeline, onSnapshot: (FrameSnapshot) -> Unit, 
 }
 
 /**
- * The detected edges and the virtual running line drawn over the preview. Solid yellow edges and
- * a green running line appear only when the path is trusted; otherwise any partial result is
- * drawn thin, grey and dashed so it cannot be mistaken for a confirmed path.
+ * The virtual running path drawn over the preview, on its own layer above the camera image.
+ * Filled points were observed by the detector on that row; hollow points come from the fitted
+ * curve only. Solid yellow edges and the green running line appear only when the path is
+ * confirmed; otherwise the edges are thin, grey and dashed and no running line is drawn. A
+ * snapshot older than 700 ms is not drawn at all, so a lost path never lingers on screen.
+ * Developer mode adds every detection with its label and score.
  */
 @Composable
-fun PathOverlay(snapshot: FrameSnapshot?, trusted: Boolean, runnerX: Float, modifier: Modifier = Modifier) {
+fun PathOverlay(snapshot: FrameSnapshot?, nowMs: Long, runnerX: Float, developer: Boolean, modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val shot = snapshot ?: return@Canvas
-        val estimate = shot.path.estimate
-        val aspect = estimate.aspect
+        if (nowMs - shot.timeMs > STALE_MS) return@Canvas
+        val vp = shot.virtualPath
+        val aspect = shot.path.estimate.aspect
         val shownWidth: Float
         val shownHeight: Float
         if (size.width / size.height > aspect) {
@@ -127,34 +137,78 @@ fun PathOverlay(snapshot: FrameSnapshot?, trusted: Boolean, runnerX: Float, modi
         val left = (size.width - shownWidth) / 2
         val top = (size.height - shownHeight) / 2
         fun at(x: Float, y: Float) = Offset(left + x * shownWidth, top + y * shownHeight)
-        fun path(curve: Curve) = Path().apply {
-            for (i in 0..24) {
-                val y = estimate.roiTop + (1f - estimate.roiTop) * i / 24
-                val p = at(curve.x(y), y)
-                if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-            }
+        fun line(xs: List<Pair<Float, Float>>) = Path().apply {
+            xs.forEachIndexed { i, (x, y) -> val p = at(x, y); if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
         }
+        val confirmed = vp.confidence == PathConfidence.Confirmed
+        val edgeColor = if (confirmed) Tactile else Color(0xFF9AA4A8)
         val dashed = PathEffect.dashPathEffect(floatArrayOf(20f, 16f))
 
-        // Where the runner is, as calibrated.
         drawLine(Color.White.copy(alpha = 0.7f), at(runnerX, 0.82f), at(runnerX, 1f), strokeWidth = 5.px(this), cap = StrokeCap.Round)
 
-        val edges = listOfNotNull(estimate.left, estimate.right)
-        if (trusted && estimate.status == PathStatus.Tracked) {
-            edges.forEach { drawPath(path(it), Tactile, style = Stroke(9.px(this), cap = StrokeCap.Round)) }
-            estimate.center?.let { drawPath(path(it), Good, style = Stroke(6.px(this), cap = StrokeCap.Round)) }
-        } else {
-            edges.forEach { drawPath(path(it), Color(0xFF9AA4A8), style = Stroke(3.px(this), pathEffect = dashed)) }
+        val lefts = vp.points.mapNotNull { pt -> pt.left?.let { it to pt.y } }
+        val rights = vp.points.mapNotNull { pt -> pt.right?.let { it to pt.y } }
+        listOf(lefts, rights).filter { it.size > 1 }.forEach {
+            drawPath(line(it), edgeColor, style = Stroke(if (confirmed) 7.px(this) else 3.px(this), cap = StrokeCap.Round, pathEffect = if (confirmed) null else dashed))
         }
+        if (confirmed) {
+            val centre = vp.points.mapNotNull { pt -> pt.center?.let { it to pt.y } }
+            if (centre.size > 1) drawPath(line(centre), Good, style = Stroke(6.px(this), cap = StrokeCap.Round))
+        }
+        vp.points.forEach { pt ->
+            listOf(pt.left to pt.leftObserved, pt.right to pt.rightObserved).forEach { (x, seen) ->
+                if (x != null) {
+                    if (seen) drawCircle(edgeColor, 6.px(this), at(x, pt.y))
+                    else drawCircle(edgeColor, 6.px(this), at(x, pt.y), style = Stroke(2.px(this)))
+                }
+            }
+        }
+
+        val findings = shot.findings.associateBy { it.detection }
         shot.detections.forEach { d ->
-            drawRect(
-                Danger,
-                topLeft = at(d.left, d.top),
-                size = androidx.compose.ui.geometry.Size((d.right - d.left) * shownWidth, (d.bottom - d.top) * shownHeight),
-                style = Stroke(3.px(this)),
-            )
+            val f = findings[d]
+            if (f == null && !developer) return@forEach
+            val color = when (f?.level) {
+                ObstacleLevel.Hazard -> Danger
+                ObstacleLevel.Possible -> Warn
+                else -> Color(0xFF9AA4A8)
+            }
+            drawRect(color, topLeft = at(d.left, d.top), size = GeoSize((d.right - d.left) * shownWidth, (d.bottom - d.top) * shownHeight), style = Stroke(3.px(this)))
+            if (developer) {
+                val paint = android.graphics.Paint().apply { this.color = android.graphics.Color.WHITE; textSize = 13.px(this@Canvas) }
+                val p = at(d.left, d.top)
+                drawContext.canvas.nativeCanvas.drawText(String.format(java.util.Locale.US, "%s %.0f%%", d.label, d.score * 100), p.x + 4, p.y - 6, paint)
+            }
         }
     }
 }
 
+private const val STALE_MS = 700L
+
 private fun Int.px(scope: androidx.compose.ui.graphics.drawscope.DrawScope) = with(scope) { this@px.toFloat() * density }
+
+/** Numbers behind the picture, for testing on the track. */
+@Composable
+fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long) {
+    val s = snapshot
+    val text = if (s == null) "لا توجد إطارات بعد" else {
+        val e = s.path.estimate
+        val q = s.quality
+        String.format(
+            java.util.Locale.US,
+            "%s · %s · ثقة %.2f · ثابت %s\nإزاحة %.2f · انحناء %.2f · نقاط مرصودة %.0f%%\n%.0f إطار/ث · معالجة %.0f/%.0f ملّي ث · عمر الإطار %d\nسطوع %.0f · تباين %.0f · حدة %.1f · عائق %s (%d)",
+            e.source, e.status, e.confidence, if (s.path.stable) "نعم" else "لا",
+            s.path.offset, s.path.curvature, s.virtualPath.observedShare * 100,
+            s.framesPerSecond, s.processingP50Ms, s.processingP90Ms, nowMs - s.timeMs,
+            q.meanLuma, q.contrast, q.sharpness, s.obstacle, s.detections.size,
+        )
+    }
+    androidx.compose.material3.Text(
+        text,
+        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+        color = Color.White,
+        modifier = Modifier
+            .background(Color(0xCC000000))
+            .padding(8.dp),
+    )
+}
