@@ -21,7 +21,7 @@ class ObstacleDetector(context: Context) {
             .setBaseOptions(BaseOptions.builder().setModelAssetPath(MODEL).build())
             .setRunningMode(RunningMode.IMAGE)
             .setMaxResults(8)
-            .setScoreThreshold(ObstacleFilter.MIN_SCORE)
+            .setScoreThreshold(ObstacleAssessment.MIN_SCORE)
             .build()
         ObjectDetector.createFromOptions(context, options)
     } catch (e: Exception) {
