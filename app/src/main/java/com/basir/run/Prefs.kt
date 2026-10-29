@@ -1,6 +1,7 @@
 package com.basir.run
 
 import android.content.Context
+import com.basir.run.vision.PathMode
 
 // User settings, kept on the device.
 class Prefs(context: Context) {
@@ -22,4 +23,12 @@ class Prefs(context: Context) {
     var vibrateOn: Boolean
         get() = sp.getBoolean("vibrate_on", true)
         set(value) = sp.edit().putBoolean("vibrate_on", value).apply()
+
+    var pathMode: PathMode
+        get() = if (sp.getString("path_mode", "lane") == "line") PathMode.SingleLine else PathMode.Lane
+        set(value) = sp.edit().putString("path_mode", if (value == PathMode.SingleLine) "line" else "lane").apply()
+
+    var guideTones: Boolean
+        get() = sp.getBoolean("guide_tones", true)
+        set(value) = sp.edit().putBoolean("guide_tones", value).apply()
 }

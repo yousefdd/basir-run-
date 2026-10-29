@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Page { Home, Settings }
+private enum class Page { Home, Settings, Guide }
 
 @Composable
 private fun BasirApp() {
@@ -77,18 +77,23 @@ private fun BasirApp() {
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            refreshGps()
-            afterPermission?.invoke()
-        } else {
-            tell("بصير يحتاج إذن الموقع الدقيق ليعمل")
+        when {
+            !context.has(Manifest.permission.ACCESS_FINE_LOCATION) -> tell("بصير يحتاج إذن الموقع الدقيق ليعمل")
+            result.containsKey(Manifest.permission.CAMERA) && !context.has(Manifest.permission.CAMERA) ->
+                tell("التوجيه بالكاميرا يحتاج إذن الكاميرا")
+            else -> {
+                refreshGps()
+                afterPermission?.invoke()
+            }
         }
         afterPermission = null
     }
 
     // Location is required. Notifications (Android 13+) let the run show while the screen is off.
-    fun withPermissions(action: () -> Unit) {
+    // The camera is asked for only when camera guidance is used.
+    fun withPermissions(camera: Boolean = false, action: () -> Unit) {
         val missing = buildList {
+            if (camera && !context.has(Manifest.permission.CAMERA)) add(Manifest.permission.CAMERA)
             if (!context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
                 add(Manifest.permission.ACCESS_FINE_LOCATION)
                 add(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -107,6 +112,12 @@ private fun BasirApp() {
 
     fun startRun() = withPermissions {
         notice = null
+        ContextCompat.startForegroundService(context, Intent(context, RunService::class.java).setAction(RunService.ACTION_START))
+    }
+
+    fun startGuidedRun() = withPermissions(camera = true) {
+        notice = null
+        page = Page.Guide
         ContextCompat.startForegroundService(context, Intent(context, RunService::class.java).setAction(RunService.ACTION_START))
     }
 
@@ -132,10 +143,18 @@ private fun BasirApp() {
 
     LaunchedEffect(Unit) { refreshGps() }
     LaunchedEffect(run.finished) { if (run.finished != null) history = store.all() }
-    BackHandler(enabled = page == Page.Settings) { page = Page.Home }
+    BackHandler(enabled = page == Page.Settings && !run.active) { page = Page.Home }
 
     val finished = run.finished
     when {
+        run.active && page == Page.Guide -> GuideScreen(
+            run = run,
+            prefs = prefs,
+            speaker = speaker,
+            tone = tone,
+            onStopHint = { tell("اضغط مطولاً لإنهاء الجري") },
+            onStop = ::stopRun,
+        )
         run.active -> RunScreen(
             run = run,
             onStopHint = { tell("اضغط مطولاً لإنهاء الجري") },
@@ -143,13 +162,17 @@ private fun BasirApp() {
             onSosHint = { tell("اضغط مطولاً لإرسال موقعك") },
             onSos = ::sos,
         )
-        finished != null -> SummaryScreen(finished, onDone = { RunSession.state.value = RunState() })
+        finished != null -> SummaryScreen(finished, onDone = {
+            RunSession.state.value = RunState()
+            page = Page.Home
+        })
         page == Page.Settings -> SettingsScreen(prefs, onBack = { page = Page.Home })
         else -> HomeScreen(
             gps = gps,
             history = history,
             notice = notice,
             onStart = ::startRun,
+            onStartGuided = ::startGuidedRun,
             onTone = { pan -> tone.play(pan) },
             onSosHint = { tell("اضغط مطولاً لإرسال موقعك للطوارئ") },
             onSos = ::sos,

@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.basir.run.vision.PathMode
 
 sealed interface GpsStatus {
     data object NoPermission : GpsStatus
@@ -82,6 +83,7 @@ fun HomeScreen(
     history: List<RunRecord>,
     notice: String?,
     onStart: () -> Unit,
+    onStartGuided: () -> Unit,
     onTone: (Float) -> Unit,
     onSosHint: () -> Unit,
     onSos: () -> Unit,
@@ -117,6 +119,23 @@ fun HomeScreen(
         StatusPill(gpsText, gpsColor, Modifier.clickable(onClickLabel = "تحديث الموقع", onClick = onRefreshGps))
 
         StartButton(onStart)
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp))
+                .clickable(onClickLabel = "ابدأ مع توجيه الكاميرا", onClick = onStartGuided)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text("ابدأ مع توجيه الكاميرا", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "يرى خطوط الحارة ويوجّهك بالاهتزاز والنغمات. ثبّت الجوال على صدرك والكاميرا للأمام.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         if (notice != null) {
             Text(
@@ -351,6 +370,8 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit) {
     var every by remember { mutableIntStateOf(prefs.announceEveryM) }
     var voice by remember { mutableStateOf(prefs.voiceOn) }
     var vibrate by remember { mutableStateOf(prefs.vibrateOn) }
+    var pathMode by remember { mutableStateOf(prefs.pathMode) }
+    var guideTones by remember { mutableStateOf(prefs.guideTones) }
 
     Column(
         modifier = screenModifier
@@ -401,6 +422,32 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit) {
             }
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionTitle("ما الذي تتبعه الكاميرا")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(PathMode.Lane to "حارة بخطين", PathMode.SingleLine to "خط واحد").forEach { (mode, label) ->
+                    FilterChip(
+                        selected = pathMode == mode,
+                        onClick = {
+                            pathMode = mode
+                            prefs.pathMode = mode
+                        },
+                        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                    )
+                }
+            }
+            Text(
+                if (pathMode == PathMode.Lane) "يبقيك في منتصف حارة المضمار بين خطّيها."
+                else "يبقيك فوق خط واحد مرسوم أو شريط لاصق على الأرض.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        SettingSwitch("نغمات التوجيه", "نغمة في الأذن التي يجب أن تتجه نحوها", guideTones) {
+            guideTones = it
+            prefs.guideTones = it
+        }
         SettingSwitch("الإعلان بالصوت", "يقول المسافة والزمن أثناء الجري", voice) {
             voice = it
             prefs.voiceOn = it
@@ -410,7 +457,7 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit) {
             prefs.vibrateOn = it
         }
 
-        Text("بصير 0.2", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("بصير 0.3", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
