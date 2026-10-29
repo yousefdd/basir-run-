@@ -4,196 +4,160 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.text.InputType
-import android.util.TypedValue
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-// One screen, built for TalkBack: large buttons, plain labels, and every state change spoken aloud.
 class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            BasirTheme {
+                // The app is Arabic-first, so it lays out right to left whatever the phone language.
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    BasirApp()
+                }
+            }
+        }
+    }
+}
 
-    private lateinit var tracker: LocationTracker
-    private lateinit var speaker: Speaker
-    private val tone = ToneGuide()
+private enum class Page { Home, Settings }
 
-    private lateinit var statusText: TextView
-    private lateinit var phoneInput: EditText
-    private lateinit var runButton: Button
+@Composable
+private fun BasirApp() {
+    val context = LocalContext.current
+    val prefs = remember { Prefs(context) }
+    val store = remember { RunStore(context) }
+    val speaker = remember { Speaker(context) }
+    val tone = remember { ToneGuide() }
+    DisposableEffect(Unit) { onDispose { speaker.shutdown() } }
 
-    private var running = false
-    private var nextAnnouncementM = ANNOUNCE_EVERY_M
-    private var afterPermission: (() -> Unit)? = null
+    val run by RunSession.state.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableStateOf(Page.Home) }
+    var history by remember { mutableStateOf(store.all()) }
+    var gps by remember { mutableStateOf<GpsStatus>(GpsStatus.Searching) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    var afterPermission by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    private val permissionRequest = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { granted ->
-        if (granted[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+    fun tell(text: String) {
+        notice = text
+        if (prefs.voiceOn) speaker.say(text)
+    }
+
+    fun refreshGps() {
+        if (!context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            gps = GpsStatus.NoPermission
+            return
+        }
+        gps = GpsStatus.Searching
+        fetchCurrentLocation(context) { location ->
+            gps = if (location != null && location.hasAccuracy()) GpsStatus.Ready(location.accuracy) else GpsStatus.Searching
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            refreshGps()
             afterPermission?.invoke()
         } else {
-            speakAndShow("بصير يحتاج إذن الموقع ليعمل")
+            tell("بصير يحتاج إذن الموقع الدقيق ليعمل")
         }
         afterPermission = null
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        tracker = LocationTracker(this)
-        speaker = Speaker(this)
-        setContentView(buildLayout())
-        speakAndShow("مرحباً بك في بصير")
-    }
-
-    override fun onDestroy() {
-        tracker.stop()
-        speaker.shutdown()
-        super.onDestroy()
-    }
-
-    private fun buildLayout(): View {
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(32), dp(20), dp(32))
-        }
-
-        statusText = TextView(this).apply {
-            textSize = 26f
-            gravity = Gravity.CENTER
-            setTextColor(Color.BLACK)
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }
-        column.addView(statusText, matchWidth(bottom = 24))
-
-        runButton = bigButton("ابدأ الجري", Color.parseColor("#1B5E20")) { toggleRun() }
-        column.addView(runButton, matchWidth(height = 120, bottom = 16))
-
-        column.addView(bigButton("اختبار الصوت يساراً", Color.parseColor("#37474F")) {
-            tone.play(-1f)
-        }, matchWidth(height = 72, bottom = 12))
-        column.addView(bigButton("اختبار الصوت يميناً", Color.parseColor("#37474F")) {
-            tone.play(1f)
-        }, matchWidth(height = 72, bottom = 24))
-
-        phoneInput = EditText(this).apply {
-            hint = "رقم جوال الطوارئ"
-            inputType = InputType.TYPE_CLASS_PHONE
-            textSize = 20f
-            setText(prefs().getString(KEY_PHONE, ""))
-        }
-        column.addView(phoneInput, matchWidth(bottom = 12))
-
-        column.addView(bigButton("طوارئ: أرسل موقعي", Color.parseColor("#B71C1C")) {
-            sendEmergency()
-        }, matchWidth(height = 96))
-
-        return ScrollView(this).apply { addView(column) }
-    }
-
-    private fun toggleRun() {
-        if (running) stopRun() else withLocationPermission(::startRun)
-    }
-
-    private fun startRun() {
-        running = true
-        nextAnnouncementM = ANNOUNCE_EVERY_M
-        runButton.text = "إيقاف الجري"
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        speakAndShow("بدأ الجري")
-
-        tracker.start { location ->
-            val meters = tracker.distanceMeters
-            statusText.text = "المسافة: ${meters.toInt()} متر\nدقة الموقع: ${location.accuracy.toInt()} متر"
-            if (meters >= nextAnnouncementM) {
-                speaker.say("${nextAnnouncementM.toInt()} متر")
-                nextAnnouncementM += ANNOUNCE_EVERY_M
+    // Location is required. Notifications (Android 13+) let the run show while the screen is off.
+    fun withPermissions(action: () -> Unit) {
+        val missing = buildList {
+            if (!context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !context.has(Manifest.permission.POST_NOTIFICATIONS)) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-    }
-
-    private fun stopRun() {
-        running = false
-        tracker.stop()
-        runButton.text = "ابدأ الجري"
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        speakAndShow("انتهى الجري. المسافة ${tracker.distanceMeters.toInt()} متر")
-    }
-
-    // Opens a ready-to-send SMS with a map link to the runner's position.
-    private fun sendEmergency() {
-        val phone = phoneInput.text.toString().trim()
-        if (phone.isEmpty()) {
-            speakAndShow("أضف رقم جوال الطوارئ أولاً")
-            phoneInput.requestFocus()
-            return
-        }
-        prefs().edit().putString(KEY_PHONE, phone).apply()
-
-        withLocationPermission {
-            speakAndShow("جاري تحديد موقعك")
-            tracker.currentLocation { location ->
-                if (location == null) {
-                    speakAndShow("لم أستطع تحديد موقعك، حاول مرة أخرى")
-                    return@currentLocation
-                }
-                val message = "أحتاج مساعدة. هذا موقعي: ${LocationTracker.mapsLink(location)}"
-                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$phone"))
-                    .putExtra("sms_body", message)
-                startActivity(intent)
-            }
-        }
-    }
-
-    private fun withLocationPermission(action: () -> Unit) {
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
-        if (granted) {
+        if (missing.isEmpty()) {
             action()
         } else {
             afterPermission = action
-            permissionRequest.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
+            permissionLauncher.launch(missing.toTypedArray())
         }
     }
 
-    private fun speakAndShow(text: String) {
-        statusText.text = text
-        speaker.say(text)
+    fun startRun() = withPermissions {
+        notice = null
+        ContextCompat.startForegroundService(context, Intent(context, RunService::class.java).setAction(RunService.ACTION_START))
     }
 
-    private fun bigButton(label: String, color: Int, onClick: () -> Unit) = Button(this).apply {
-        text = label
-        textSize = 22f
-        isAllCaps = false
-        setTextColor(Color.WHITE)
-        setBackgroundColor(color)
-        setOnClickListener { onClick() }
+    fun stopRun() {
+        context.startService(Intent(context, RunService::class.java).setAction(RunService.ACTION_STOP))
     }
 
-    private fun matchWidth(height: Int = 0, bottom: Int = 0) = LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        if (height > 0) dp(height) else LinearLayout.LayoutParams.WRAP_CONTENT
-    ).apply { bottomMargin = dp(bottom) }
+    fun sos() {
+        val phone = prefs.emergencyPhone
+        if (phone.isBlank()) {
+            tell("أضف رقم الطوارئ في الإعدادات أولاً")
+            page = Page.Settings
+            return
+        }
+        withPermissions {
+            tell("جارٍ تحديد موقعك")
+            fetchCurrentLocation(context) { location ->
+                if (location == null) tell("لم أستطع تحديد موقعك. حاول مرة أخرى")
+                else context.startActivity(emergencySmsIntent(phone, location))
+            }
+        }
+    }
 
-    private fun dp(value: Int) =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
+    LaunchedEffect(Unit) { refreshGps() }
+    LaunchedEffect(run.finished) { if (run.finished != null) history = store.all() }
+    BackHandler(enabled = page == Page.Settings) { page = Page.Home }
 
-    private fun prefs() = getSharedPreferences("basir", Context.MODE_PRIVATE)
-
-    companion object {
-        private const val ANNOUNCE_EVERY_M = 100f
-        private const val KEY_PHONE = "emergency_phone"
+    val finished = run.finished
+    when {
+        run.active -> RunScreen(
+            run = run,
+            onStopHint = { tell("اضغط مطولاً لإنهاء الجري") },
+            onStop = ::stopRun,
+            onSosHint = { tell("اضغط مطولاً لإرسال موقعك") },
+            onSos = ::sos,
+        )
+        finished != null -> SummaryScreen(finished, onDone = { RunSession.state.value = RunState() })
+        page == Page.Settings -> SettingsScreen(prefs, onBack = { page = Page.Home })
+        else -> HomeScreen(
+            gps = gps,
+            history = history,
+            notice = notice,
+            onStart = ::startRun,
+            onTone = { pan -> tone.play(pan) },
+            onSosHint = { tell("اضغط مطولاً لإرسال موقعك للطوارئ") },
+            onSos = ::sos,
+            onSettings = { page = Page.Settings },
+            onRefreshGps = ::refreshGps,
+        )
     }
 }
+
+private fun Context.has(permission: String) =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
