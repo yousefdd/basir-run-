@@ -213,7 +213,7 @@ private fun LastRunCard(run: RunRecord?) {
         }
         val (number, unit) = distanceParts(run.distanceM)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricTile("المسافة", "$number $unit", Modifier.weight(1f))
+            MetricTile("المسافة · $unit", number, Modifier.weight(1f))
             MetricTile("الزمن", clock(run.durationMs), Modifier.weight(1f))
             MetricTile("الإيقاع", pace(run.paceSecPerKm), Modifier.weight(1f))
         }
