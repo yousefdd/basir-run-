@@ -2,7 +2,6 @@ package com.basir.run.vision
 
 import java.io.File
 import java.util.Properties
-import javax.imageio.ImageIO
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 
@@ -10,7 +9,7 @@ import org.junit.Test
  * Runs the detectors on frames taken from real recordings, if any are present, and checks them
  * against what a person marked as correct for that clip.
  *
- * Layout: src/test/resources/frames/<clip>/ with upright PNG frames in time order and an
+ * Layout: src/test/resources/frames/<clip>/ with upright PPM frames in time order and an
  * expected.properties file:
  *   mode=track | park
  *   status=Tracked | EdgeOnly | Unclear      (what most frames should give)
@@ -19,7 +18,8 @@ import org.junit.Test
  *   min_share=0.7                            (optional: share of frames that must match, default 0.7)
  *
  * Make frames from a phone video with, for example:
- *   ffmpeg -i clip.mp4 -vf "fps=5,scale=480:-1" frames/track_straight/%04d.png
+ *   ffmpeg -i clip.mp4 -vf "fps=5,scale=480:-1" frames/track_straight/%04d.ppm
+ * (PPM because Android unit tests have no image decoding library.)
  *
  * Passing here shows the detector agrees with the marked clips; it does not show that running
  * with the app is safe.
@@ -35,7 +35,7 @@ class RecordedFramesTest {
         val failures = mutableListOf<String>()
         for (clip in clips) {
             val expected = Properties().apply { File(clip, "expected.properties").inputStream().use { load(it) } }
-            val frames = clip.listFiles { f -> f.extension.lowercase() == "png" }.orEmpty().sortedBy { it.name }
+            val frames = clip.listFiles { f -> f.extension.lowercase() == "ppm" }.orEmpty().sortedBy { it.name }
             if (frames.isEmpty()) continue
             val lane = LaneDetector()
             val region = PathRegionDetector()
@@ -72,19 +72,19 @@ class RecordedFramesTest {
         return true
     }
 
-    // RGB to YUV 4:2:0 with the BT.601 coefficients cameras use.
+    // Binary PPM (P6, 8-bit), converted to YUV 4:2:0 with the BT.601 coefficients cameras use.
     private fun toFrame(file: File): CameraFrame {
-        val img = ImageIO.read(file)
+        val img = Ppm.read(file)
         val w = img.width and 1.inv()
         val h = img.height and 1.inv()
         val y = ByteArray(w * h)
         val u = ByteArray((w / 2) * (h / 2))
         val v = ByteArray((w / 2) * (h / 2))
         for (py in 0 until h) for (px in 0 until w) {
-            val rgb = img.getRGB(px, py)
-            val r = (rgb shr 16) and 0xFF
-            val g = (rgb shr 8) and 0xFF
-            val b = rgb and 0xFF
+            val o = (py * img.width + px) * 3
+            val r = img.rgb[o].toInt() and 0xFF
+            val g = img.rgb[o + 1].toInt() and 0xFF
+            val b = img.rgb[o + 2].toInt() and 0xFF
             y[py * w + px] = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255).toByte()
             if (px % 2 == 0 && py % 2 == 0) {
                 val i = (py / 2) * (w / 2) + px / 2
@@ -93,5 +93,29 @@ class RecordedFramesTest {
             }
         }
         return CameraFrame(y, w, w, h, 0, u, v, w / 2, 1)
+    }
+}
+
+private class Ppm(val width: Int, val height: Int, val rgb: ByteArray) {
+    companion object {
+        fun read(file: File): Ppm {
+            val bytes = file.readBytes()
+            var i = 0
+            fun token(): String {
+                while (i < bytes.size) {
+                    val c = bytes[i].toInt().toChar()
+                    if (c == '#') { while (i < bytes.size && bytes[i].toInt() != '\n'.code) i++ } else if (c.isWhitespace()) i++ else break
+                }
+                val start = i
+                while (i < bytes.size && !bytes[i].toInt().toChar().isWhitespace()) i++
+                return String(bytes, start, i - start, Charsets.US_ASCII)
+            }
+            require(token() == "P6") { "${file.name}: only binary PPM (P6) is supported" }
+            val w = token().toInt()
+            val h = token().toInt()
+            require(token().toInt() == 255) { "${file.name}: only 8-bit PPM is supported" }
+            i++ // single whitespace before the pixel data
+            return Ppm(w, h, bytes.copyOfRange(i, i + w * h * 3))
+        }
     }
 }
