@@ -31,6 +31,28 @@ jobs:
             || echo "::warning::Obstacle model download failed"
           ls -l app/src/main/assets || true
 
+      # D-FINE-N (Apache 2.0): official COCO weights from the D-FINE releases, exported to ONNX here
+      # and checked against PyTorch (tools/models/export_dfine.py). Cached, so it runs once.
+      - name: Cache object model
+        id: dfine-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/dfine_n_coco.onnx
+          key: dfine-n-coco-956d170-${{ hashFiles('tools/models/export_dfine.py') }}
+
+      - name: Export object model
+        if: steps.dfine-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone -q https://github.com/Peterande/D-FINE /tmp/D-FINE
+          git -C /tmp/D-FINE checkout -q 956d1709314c2c6a4df6f34de232054578a7449f
+          curl -fL --retry 3 -o /tmp/dfine_n_coco.pth https://github.com/Peterande/storage/releases/download/dfinev1.0/dfine_n_coco.pth
+          echo "41973938d2784d38a9836990d805b8392855ebf611aba55f0f7add90e110744c  /tmp/dfine_n_coco.pth" | sha256sum -c -
+          pip install --quiet torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet PyYAML onnx onnxruntime scipy faster-coco-eval calflops transformers loguru tensorboard
+          python tools/models/export_dfine.py /tmp/D-FINE /tmp/dfine_n_coco.pth app/src/main/assets/dfine_n_coco.onnx 2>&1 | tail -5 \
+            | while IFS= read -r line; do echo "$line"; echo "::notice title=dfine-export::$line"; done
+          test -s app/src/main/assets/dfine_n_coco.onnx
+
       # Depth Anything V2 Small (Apache 2.0), int8, dynamic input size, from HuggingFace; if that
       # fails, the same weights from the GitHub mirror the blind-navigation tool uses (fixed 518×518,
       # checked against its SHA-256). Without either the app refuses guided runs.

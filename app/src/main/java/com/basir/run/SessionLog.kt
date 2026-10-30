@@ -26,7 +26,7 @@ class SessionLog(context: Context) {
         val name = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date()) + ".csv"
         val file = File(dir, name)
         writer = file.bufferedWriter().also {
-            it.write("t_ms,state,cue,severity,move_to,level,curve,path_status,confidence,stable,offset,curvature,observed_share,obstacle,hazard_kind,fps,p50_ms,p90_ms,quality_ok,depth_age_ms,depth_ms,yolo_ms,floor_ok,clear_m,depth_level,objects,paused\n")
+            it.write("t_ms,state,cue,severity,move_to,level,curve,path_status,confidence,stable,offset,curvature,observed_share,obstacle,hazard_kind,fps,p50_ms,p90_ms,quality_ok,depth_age_ms,depth_ms,objects_ms,floor_ok,clear_m,depth_level,objects,paused\n")
         }
         startMs = now
         file

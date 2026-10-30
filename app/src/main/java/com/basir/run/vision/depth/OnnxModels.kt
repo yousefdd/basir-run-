@@ -113,12 +113,13 @@ class DepthEstimator(context: Context) {
 }
 
 /**
- * YOLO26n object detector from the blind-navigation tool (Ultralytics, AGPL-3.0), 80 COCO
- * classes. Input 640×640 letterboxed with grey 114, values / 255, named pixel_values. The
- * bundled export has a DETR-style head: logits [1,300,80] (sigmoid) and pred_boxes [1,300,4]
- * (cx, cy, w, h in 0..1 of the square); an end-to-end [1,N,6] export is also understood.
+ * D-FINE-N object detector (Apache 2.0), 80 COCO classes, exported from the official weights by
+ * tools/models/export_dfine.py. It replaces the blind-navigation tool's YOLO26n (AGPL-3.0) and
+ * reads the same kind of DETR output: logits [1,300,80] (sigmoid) and pred_boxes [1,300,4]
+ * (cx, cy, w, h in 0..1 of the square input). Input 640×640, aspect kept with black padding as
+ * in D-FINE's own ONNX demo, values / 255. An end-to-end [1,N,6] export is also understood.
  */
-class YoloDetector(context: Context) {
+class ObjectDetectorOnnx(context: Context) {
 
     private val session = openSession(context, MODEL, threads = 2)
     private val names: Map<Int, String> = try {
@@ -145,7 +146,7 @@ class YoloDetector(context: Context) {
         val nh = (h0 * r).roundToInt()
         val left = (SIZE - nw) / 2
         val top = (SIZE - nh) / 2
-        canvas.drawColor(Color.rgb(114, 114, 114))
+        canvas.drawColor(Color.BLACK)
         canvas.drawBitmap(upright, null, RectF(left.toFloat(), top.toFloat(), (left + nw).toFloat(), (top + nh).toFloat()), paint)
         square.getPixels(pixels, 0, SIZE, 0, 0, SIZE, SIZE)
         val plane = SIZE * SIZE
@@ -170,7 +171,7 @@ class YoloDetector(context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.w("YoloDetector", "Detection failed", e)
+            Log.w("ObjectDetectorOnnx", "Detection failed", e)
             emptyList()
         }
         return boxes.mapNotNull { (cls, score, b) ->
@@ -218,8 +219,8 @@ class YoloDetector(context: Context) {
     fun close() = session?.close()
 
     companion object {
-        const val MODEL = "yolo26n.onnx"
-        const val NAMES = "yolo26n_names.json"
+        const val MODEL = "dfine_n_coco.onnx"
+        const val NAMES = "coco80_names.json"
         const val SIZE = 640
         const val MIN_SCORE = 0.4f
     }

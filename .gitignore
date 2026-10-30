@@ -11,3 +11,4 @@ captures/
 # Downloaded by the build
 app/src/main/assets/*.tflite
 app/src/main/assets/depth_anything_v2_small.onnx
+app/src/main/assets/dfine_n_coco.onnx

@@ -221,7 +221,7 @@ fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long) {
             val a = d.analysis
             String.format(
                 java.util.Locale.US,
-                "\nعمق %d ملّي ث · YOLO %d ملّي ث · أرض %s · خالٍ تقديرياً %s م · ميل %s° (%s) · %s %s",
+                "\nعمق %d ملّي ث · أجسام %d ملّي ث · أرض %s · خالٍ تقديرياً %s م · ميل %s° (%s) · %s %s",
                 d.depthMs, d.detectMs, if (a?.floorValid == true) "نعم" else "لا",
                 a?.clearDistanceM?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "-",
                 a?.pitchDeg?.let { String.format(java.util.Locale.US, "%.0f", it) } ?: "-", a?.pitchSource ?: "-",

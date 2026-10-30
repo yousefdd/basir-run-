@@ -21,7 +21,7 @@ data class FrameSnapshot(
     /** Which hazard set [obstacle]; only meaningful when it is not None. */
     val hazardKind: HazardKind,
     val obstacleDetectorReady: Boolean,
-    /** Latest result of the depth and YOLO channel, or null if none is recent enough. */
+    /** Latest result of the depth and object-model channel, or null if none is recent enough. */
     val deep: DeepResult?,
     val depthReady: Boolean,
     /** The depth channel is loaded but its results stopped arriving in time. */
@@ -38,10 +38,10 @@ data class FrameSnapshot(
  * 2. run both path detectors (painted lines and walkable surface) and let the environment
  *    selector keep the one that fits this scene, with no mode chosen by the user;
  * 3. smooth the path over time, damped while the gyroscope reports a sharp jolt;
- * 4. look for obstacles: whenever the background channel is free it gets the frame for YOLO26n
+ * 4. look for obstacles: whenever the background channel is free it gets the frame for D-FINE-N
  *    and Depth Anything V2 (floor, obstacles of any kind, head-level hazards, drops); its
  *    objects and the surface changes inside the corridor are confirmed with motion between
- *    runs. If YOLO26n is missing, EfficientDet-Lite0 runs on every third frame instead;
+ *    runs. If D-FINE-N is missing, EfficientDet-Lite0 runs on every third frame instead;
  * 5. build the multi-point virtual path from this frame only.
  * Processing time per frame is measured here and reported, not assumed.
  */
@@ -100,18 +100,18 @@ class GuidancePipeline(
 
         val now = SystemClock.elapsedRealtime()
         val deep = deepChannel.latest?.takeIf { now - it.frameTimeMs <= DEEP_STALE_MS }
-        // YOLO26n results are used while they keep coming; otherwise EfficientDet fills in.
-        val yoloLive = deepChannel.detectorReady && deep != null
-        val freshYolo = yoloLive && deep!!.frameTimeMs != lastDeepTime
+        // D-FINE-N results are used while they keep coming; otherwise EfficientDet fills in.
+        val modelLive = deepChannel.detectorReady && deep != null
+        val freshModel = modelLive && deep!!.frameTimeMs != lastDeepTime
         val wantDeep = deepChannel.idle && (deepChannel.depthReady || deepChannel.detectorReady)
-        val wantFallback = !yoloLive && frameIndex % OBSTACLE_EVERY == 0L
+        val wantFallback = !modelLive && frameIndex % OBSTACLE_EVERY == 0L
         val bitmap = if (wantDeep || wantFallback) image.toBitmap() else null
         if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch())
 
-        if (freshYolo || (wantFallback && bitmap != null)) {
-            lastDetections = if (freshYolo) deep!!.detections
+        if (freshModel || (wantFallback && bitmap != null)) {
+            lastDetections = if (freshModel) deep!!.detections
             else if (obstacles.ready) obstacles.detect(bitmap!!, image.imageInfo.rotationDegrees) else emptyList()
-            if (freshYolo) lastDeepTime = deep!!.frameTimeMs
+            if (freshModel) lastDeepTime = deep!!.frameTimeMs
             val runnerX = calibration.runnerX
             val modelFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, runnerX) }
             val surfaceFindings = if (path.stable) intrusions.detect(frame, path.estimate, runnerX) else emptyList()
@@ -159,7 +159,7 @@ class GuidancePipeline(
 
     companion object {
         private const val OBSTACLE_EVERY = 3L
-        /** A depth or YOLO result older than this no longer describes what is ahead. */
+        /** A depth or object result older than this no longer describes what is ahead. */
         const val DEEP_STALE_MS = 1500L
         private const val WINDOW = 60
         /** Rotation faster than this blurs the frame and swings the view; such frames count less. */

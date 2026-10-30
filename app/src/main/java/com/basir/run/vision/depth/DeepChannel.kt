@@ -18,7 +18,7 @@ data class DeepResult(
     /** When the frame it was computed from arrived. */
     val frameTimeMs: Long,
     val analysis: DepthAnalysis?,
-    /** YOLO26n objects in upright frame fractions; empty when that model is unavailable. */
+    /** D-FINE-N objects in upright frame fractions; empty when that model is unavailable. */
     val detections: List<Detection>,
     val hazard: DepthHazard,
     val depthMs: Long,
@@ -26,8 +26,8 @@ data class DeepResult(
 )
 
 /**
- * Runs the blind-navigation tool's models on the phone, away from the camera thread: YOLO26n
- * names the objects and Depth Anything V2 gives relative depth, from which [FloorPlanner] finds
+ * Runs the models on the phone, away from the camera thread: D-FINE-N names the objects
+ * (in place of the blind-navigation tool's YOLO26n) and Depth Anything V2 gives relative depth, from which [FloorPlanner] finds
  * the floor, obstacles of any kind (poles and trunks included), head-level hazards and drops.
  * Only one frame is processed at a time; frames arriving meanwhile are skipped, so lane
  * tracking keeps its full rate. Each result carries the time of its frame, and the caller
@@ -36,7 +36,7 @@ data class DeepResult(
 class DeepChannel(context: Context) {
 
     private val depth = DepthEstimator(context)
-    private val yolo = YoloDetector(context)
+    private val objects = ObjectDetectorOnnx(context)
     private val fov = CameraFov.of(context)
     private val executor = Executors.newSingleThreadExecutor()
     private val busy = AtomicBoolean(false)
@@ -46,7 +46,7 @@ class DeepChannel(context: Context) {
         private set
 
     val depthReady: Boolean get() = depth.ready
-    val detectorReady: Boolean get() = yolo.ready
+    val detectorReady: Boolean get() = objects.ready
     val idle: Boolean get() = !busy.get()
 
     fun reset() {
@@ -68,7 +68,7 @@ class DeepChannel(context: Context) {
                     Matrix().apply { postRotate(rotationDegrees.toFloat()) }, true,
                 )
                 val t0 = SystemClock.elapsedRealtime()
-                val detections = if (yolo.ready) yolo.detect(upright) else emptyList()
+                val detections = if (objects.ready) objects.detect(upright) else emptyList()
                 val t1 = SystemClock.elapsedRealtime()
                 val analysis = if (depth.ready) {
                     val h = (WORK_WIDTH * upright.height.toFloat() / upright.width).roundToInt()
@@ -94,7 +94,7 @@ class DeepChannel(context: Context) {
     fun close() {
         executor.shutdown()
         depth.close()
-        yolo.close()
+        objects.close()
     }
 
     companion object {
