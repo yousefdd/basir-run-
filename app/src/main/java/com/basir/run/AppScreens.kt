@@ -105,11 +105,6 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                 height = 80.dp,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(
-                "للتجربة بإشراف مرافق مؤهل في مكان آمن تعرفه. التطبيق لا يضمن السلامة ولا يكتشف كل المخاطر.",
-                style = MaterialTheme.typography.labelMedium,
-                color = InkMuted,
-            )
         }
     }
 }
@@ -122,7 +117,7 @@ val GUIDE = listOf(
     Phrase.OnboardingMount,
     Phrase.OnboardingSafe,
     Phrase.OnboardingCamera,
-    Phrase.OnboardingLimits,
+    Phrase.OnboardingStop,
 )
 
 /** The first-use guide; read aloud on entry. Shown once at first start and kept in settings. */
@@ -143,7 +138,7 @@ fun GuideScreen(voice: Voice, nextLabel: String, onNext: () -> Unit, onBack: (()
                 Text("قبل أول جري", style = MaterialTheme.typography.headlineLarge, color = Ink, modifier = Modifier.semantics { heading() })
             }
             GUIDE.drop(1).forEach { p ->
-                Card { Text(p.ar, style = MaterialTheme.typography.bodyLarge, color = if (p == Phrase.OnboardingLimits) Tactile else Ink) }
+                Card { Text(p.ar, style = MaterialTheme.typography.bodyLarge, color = if (p == Phrase.OnboardingStop) Tactile else Ink) }
             }
             Text(
                 "أثناء الجري: إذا فُقد المسار أو لم يعد التقدير موثوقاً، يهتز الهاتف اهتزازاً طويلاً ويطلب منك التوقف.",
