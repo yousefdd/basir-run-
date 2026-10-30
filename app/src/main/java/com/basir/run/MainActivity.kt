@@ -224,7 +224,7 @@ private fun BasirApp() {
                 onBack = { page = Page.Developer },
             )
 
-            Page.LiveVision -> LiveVisionScreen(pipeline, motion, prefs, onBack = { page = Page.Developer })
+            Page.LiveVision -> LiveVisionScreen(pipeline, motion, prefs, haptics, onBack = { page = Page.Developer })
 
             Page.SettingsTraining -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = Phrase.ButtonSave.ar, onDone = { page = Page.Settings }, onBack = { page = Page.Settings })
         }

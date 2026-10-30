@@ -46,6 +46,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.basir.run.engine.Cue
+import com.basir.run.engine.Decision
+import com.basir.run.engine.DecisionEngine
+import com.basir.run.engine.EngineInput
+import com.basir.run.engine.Phrase
+import com.basir.run.engine.Severity
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.basir.run.sensors.MotionMonitor
 import com.basir.run.vision.Calibration
 import com.basir.run.vision.FrameSnapshot
@@ -144,33 +152,66 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
 }
 
 /**
- * The real camera with everything the vision engines see drawn over it, for testing on the
- * spot: the line engine's crossings and followed path, object boxes, depth obstacles and drops,
- * and the numbers. No guidance, no vibration, no readiness gate.
+ * The detection engine check: the real camera with everything the engines see drawn over it,
+ * the guidance decision in plain Arabic, and the vibration the runner would feel, played as
+ * it is decided. No voice and no readiness gate; the numbers stay below for the developer.
  */
 @Composable
-fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: Prefs, onBack: () -> Unit) {
+fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: Prefs, haptics: HapticEngine, onBack: () -> Unit) {
     var snapshot by remember { mutableStateOf<FrameSnapshot?>(null) }
     var cameraError by remember { mutableStateOf<String?>(null) }
     var clockMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    val engine = remember { DecisionEngine() }
+    var decision by remember { mutableStateOf<Decision?>(null) }
+    var pattern by remember { mutableStateOf<String?>(null) }
+
+    // The same decision the run screen makes, so the check shows (and vibrates) what the runner would get.
+    fun evaluate(now: Long) {
+        val s = snapshot ?: return
+        val d = engine.decide(
+            EngineInput(
+                nowMs = now,
+                frameAgeMs = now - s.timeMs,
+                quality = s.quality,
+                path = s.path,
+                obstacle = s.obstacle,
+                processingP90Ms = s.processingP90Ms,
+                cameraPitchDeg = motion.pitchBelowHorizonDeg,
+                obstacleKind = s.hazardKind,
+                depthStale = s.depthStale,
+                line = s.line?.command,
+            )
+        )
+        decision = d
+        haptics.guide(d, now)?.let { pattern = it.name }
+    }
 
     DisposableEffect(Unit) {
         pipeline.calibration = Calibration()
         pipeline.cameraHeightM = prefs.cameraHeightM
         pipeline.reset()
+        haptics.resetGuidance()
         motion.start()
-        onDispose { motion.stop() }
+        onDispose {
+            motion.stop()
+            haptics.resetGuidance()
+        }
     }
     LaunchedEffect(Unit) {
         while (true) {
             delay(250)
             clockMs = SystemClock.elapsedRealtime()
+            evaluate(clockMs)
         }
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (cameraError == null) {
-            CameraHost(pipeline, onSnapshot = { snapshot = it; clockMs = SystemClock.elapsedRealtime() }, onError = { cameraError = it })
+            CameraHost(pipeline, onSnapshot = {
+                snapshot = it
+                clockMs = SystemClock.elapsedRealtime()
+                evaluate(clockMs)
+            }, onError = { cameraError = it })
             PathOverlay(snapshot, clockMs, 0.5f, developer = true, modifier = Modifier.fillMaxSize())
         }
         Column(
@@ -186,10 +227,62 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
                 color = Color.White,
                 modifier = Modifier
                     .background(Color(0xCC000000), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .semantics { contentDescription = line?.decision?.mode?.let { modeLabel(it) } ?: "لا مسار بعد" },
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            DeveloperReadout(snapshot, clockMs)
+            DeveloperReadout(snapshot, clockMs, pattern)
+            Spacer(Modifier.weight(1f))
+            // The guidance in words, as the runner would get it.
+            val d = decision
+            val color = when (d?.severity) {
+                Severity.Critical -> Danger
+                Severity.Warning -> Amber
+                Severity.Correction -> Blue
+                else -> Good
+            }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xE6081226), RoundedCornerShape(22.dp))
+                    .padding(16.dp)
+                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text("التوجيه الآن", style = MaterialTheme.typography.labelLarge, color = Tactile)
+                Text(d?.let { guidanceWords(it, line?.command?.curveInM) } ?: "بانتظار الصور", style = MaterialTheme.typography.headlineSmall, color = color)
+                Text("الاهتزاز: " + (pattern?.let { patternWords(it) } ?: "—"), style = MaterialTheme.typography.titleMedium, color = Ink)
+            }
         }
     }
+}
+
+/** The decision in a short Arabic sentence; a bend says roughly where it starts (estimated). */
+private fun guidanceWords(d: Decision, bendInM: Double?): String {
+    val base = Phrase.forCue(d)?.ar ?: stateLabel(d.state)
+    val level = when (d.level) { 3 -> " (قوي)"; 2 -> " (متوسط)"; 1 -> " (خفيف)"; else -> "" }
+    return when (d.cue) {
+        Cue.Correct, Cue.NearEdge -> base + level
+        Cue.CurveAhead -> base + (bendInM?.let { String.format(java.util.Locale.US, " بعد %.1f م تقريباً", it) } ?: "")
+        else -> base
+    }
+}
+
+/** The engine's pattern names in Arabic, as the vibration lessons call them. */
+private fun patternWords(name: String): String {
+    val level = when {
+        name.endsWith("_low") -> "خفيف"
+        name.endsWith("_medium") -> "متوسط"
+        name.endsWith("_high") -> "قوي"
+        else -> ""
+    }
+    return when {
+        name == "stop" -> "طويل ثم نبضتان: توقف"
+        name == "obstacle" -> "ثلاث نبضات سريعة: انتباه"
+        name == "on_path" -> "نقرة خفيفة: على المسار"
+        name == "confirm" -> "نبضة تأكيد"
+        name.startsWith("correct_left") -> "نبضة قصيرة: تصحيح يسار $level"
+        name.startsWith("correct_right") -> "نبضتان قصيرتان: تصحيح يمين $level"
+        name.startsWith("curve_left") -> "نبضة طويلة هادئة: منعطف يسار $level"
+        name.startsWith("curve_right") -> "نبضتان طويلتان: منعطف يمين $level"
+        else -> name
+    }.trim()
 }
