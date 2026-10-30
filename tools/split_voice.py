@@ -87,7 +87,10 @@ def export(src, start, end, dst):
     fade = min(0.02, length / 4)
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{length:.3f}",
                     "-i", src, "-af", f"afade=t=in:d={fade:.3f},areverse,afade=t=in:d={fade:.3f},areverse",
-                    "-ac", "1", "-ar", "44100", "-codec:a", "libmp3lame", "-b:a", "96k", dst], check=True)
+                    "-ac", "1", "-ar", "44100", "-codec:a", "libmp3lame", "-b:a", "96k",
+                    # No tags of any kind in the app's files (source, tool or generator names).
+                    "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", "-id3v2_version", "0",
+                    "-write_xing", "0", dst], check=True)
 
 
 def main(files):
