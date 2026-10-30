@@ -35,7 +35,7 @@ class Prefs(context: Context) {
         get() = sp.getFloat("haptic_strength", 0.8f)
         set(value) = sp.edit().putFloat("haptic_strength", value).apply()
 
-    /** 0.6 to 1.6: multiplies the length of each pulse. */
+    /** 0.6 to 2.0: multiplies the length of each pulse. */
     var hapticDuration: Float
         get() = sp.getFloat("haptic_duration", 1f)
         set(value) = sp.edit().putFloat("haptic_duration", value).apply()

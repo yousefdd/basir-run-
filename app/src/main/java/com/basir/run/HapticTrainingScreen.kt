@@ -166,7 +166,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                         value = duration,
                         onValueChange = { duration = it },
                         onValueChangeFinished = { prefs.hapticDuration = duration; haptics.play(haptics.language.correct(Side.RIGHT, Level.MEDIUM)) },
-                        valueRange = 0.6f..1.6f,
+                        valueRange = 0.6f..2f,
                         colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
                         modifier = Modifier.semantics {
                             contentDescription = "مدة النبضة"

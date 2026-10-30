@@ -235,8 +235,8 @@ class EngineLogicTest {
     fun `opposite side cues are not fired back to back`() {
         val s = HapticScheduler(Recorder())
         assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.LOW), 0))
-        assertNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.LEFT, Level.LOW), 300))
-        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.LEFT, Level.HIGH), 320)) // urgent is allowed
+        assertNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.LEFT, Level.LOW), 460)) // the right cue (450 ms) has ended, the guard has not
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.LEFT, Level.HIGH), 480)) // urgent is allowed
     }
 
     // ── calibration ───────────────────────────────────────────────────────

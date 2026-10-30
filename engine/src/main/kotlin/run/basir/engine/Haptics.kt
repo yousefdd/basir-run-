@@ -67,25 +67,25 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         }
     }
 
-    fun stop() = pattern("stop", P_STOP, listOf(700L to 255, 200L to 0, 100L to 255, 100L to 0, 100L to 255))
+    fun stop() = pattern("stop", P_STOP, listOf(1200L to 255, 250L to 0, 200L to 255, 150L to 0, 200L to 255))
 
-    fun obstacle() = pattern("obstacle", P_OBSTACLE, listOf(50L to 255, 50L to 0, 50L to 255, 50L to 0, 50L to 255))
+    fun obstacle() = pattern("obstacle", P_OBSTACLE, listOf(120L to 255, 80L to 0, 120L to 255, 80L to 0, 120L to 255))
 
     fun correct(side: Side, level: Level, confidence: Double = 1.0): HapticPattern {
         val amp = scaled(AMP.getValue(level), confidence)
-        val len = if (amplitudeControl) 70L else (80 * LEN_SCALE.getValue(level)).toLong()
+        val len = if (amplitudeControl) 150L else (160 * LEN_SCALE.getValue(level)).toLong()
         val pulses = if (side == Side.LEFT) 1 else 2
-        return pattern("correct_${side.name.lowercase()}_${level.name.lowercase()}", P_CORRECT, pulses(pulses, len, 90L, amp))
+        return pattern("correct_${side.name.lowercase()}_${level.name.lowercase()}", P_CORRECT, pulses(pulses, len, 150L, amp))
     }
 
     fun curve(side: Side, level: Level, confidence: Double = 1.0): HapticPattern {
         val amp = scaled(CURVE_AMP.getValue(level), confidence)
-        val len = if (amplitudeControl) 220L else (200 * LEN_SCALE.getValue(level)).toLong()
+        val len = if (amplitudeControl) 400L else (360 * LEN_SCALE.getValue(level)).toLong()
         val pulses = if (side == Side.LEFT) 1 else 2
-        return pattern("curve_${side.name.lowercase()}_${level.name.lowercase()}", P_CURVE, pulses(pulses, len, 160L, amp))
+        return pattern("curve_${side.name.lowercase()}_${level.name.lowercase()}", P_CURVE, pulses(pulses, len, 220L, amp))
     }
 
-    fun onPath() = pattern("on_path", P_ON_PATH, listOf(25L to 40))
+    fun onPath() = pattern("on_path", P_ON_PATH, listOf(60L to 50))
 
     /** Every cue with its meaning, for the learning screen and the recognition quiz. */
     fun catalog(): List<Triple<HapticPattern, String, String>> = buildList {
@@ -119,10 +119,10 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 }
 
 data class SchedulerConfig(
-    val stopRepeatMs: Long = 2000,
+    val stopRepeatMs: Long = 2400,
     val stopReleaseFrames: Int = 8,       // STOP holds until the danger is gone for this many frames
     val obstacleRepeatMs: Long = 1200,
-    val correctRepeatMs: Map<Level, Long> = mapOf(Level.LOW to 1100, Level.MEDIUM to 800, Level.HIGH to 550),
+    val correctRepeatMs: Map<Level, Long> = mapOf(Level.LOW to 1100, Level.MEDIUM to 800, Level.HIGH to 650),
     val curveRepeatMs: Long = 1600,
     val onPathRepeatMs: Long = 3500,
     val enableOnPathTick: Boolean = true,

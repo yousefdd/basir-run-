@@ -30,7 +30,7 @@ class VibratorOutput(context: Context, private val prefs: Prefs) : HapticOutput 
         val v = vibrator ?: return
         if (!available || !prefs.vibrateOn) return
         val strength = prefs.hapticStrength.coerceIn(0.3f, 1f)
-        val length = prefs.hapticDuration.coerceIn(0.6f, 1.6f)
+        val length = prefs.hapticDuration.coerceIn(0.6f, 2f)
         val timings = LongArray(pattern.timingsMs.size) { i ->
             val t = pattern.timingsMs[i]
             if (pattern.amplitudes[i] > 0) (t * length).roundToLong() else t
@@ -102,6 +102,6 @@ class HapticEngine(context: Context, prefs: Prefs) {
 
     companion object {
         /** A soft tick then a firmer one: distinct from every guidance pattern. */
-        val CONFIRM = HapticPattern("confirm", longArrayOf(0, 40, 90, 140), intArrayOf(0, 120, 0, 200), priority = 1)
+        val CONFIRM = HapticPattern("confirm", longArrayOf(0, 80, 120, 250), intArrayOf(0, 120, 0, 200), priority = 1)
     }
 }
