@@ -26,15 +26,16 @@ class VibratorOutput(context: Context, private val prefs: Prefs) : HapticOutput 
     val available: Boolean get() = vibrator?.hasVibrator() == true
     override val hasAmplitudeControl: Boolean get() = vibrator?.hasAmplitudeControl() == true
 
+    /** Guidance obeys the vibration switch in settings; lessons and the quiz vibrate regardless. */
     override fun play(pattern: HapticPattern) {
+        if (prefs.vibrateOn) vibrate(pattern)
+    }
+
+    fun vibrate(pattern: HapticPattern) {
         val v = vibrator ?: return
-        if (!available || !prefs.vibrateOn) return
+        if (!available) return
         val strength = prefs.hapticStrength.coerceIn(0.3f, 1f)
-        val length = prefs.hapticDuration.coerceIn(0.6f, 2f)
-        val timings = LongArray(pattern.timingsMs.size) { i ->
-            val t = pattern.timingsMs[i]
-            if (pattern.amplitudes[i] > 0) (t * length).roundToLong() else t
-        }
+        val timings = stretched(pattern)
         val amplitudes = IntArray(pattern.amplitudes.size) { i ->
             val a = pattern.amplitudes[i]
             if (a > 0) (a * strength).roundToInt().coerceIn(1, 255) else 0
@@ -46,6 +47,17 @@ class VibratorOutput(context: Context, private val prefs: Prefs) : HapticOutput 
 
     override fun cancel() {
         vibrator?.cancel()
+    }
+
+    override fun playedDurationMs(pattern: HapticPattern): Long = stretched(pattern).sum()
+
+    // The pulse-length setting lengthens every pulse; gaps stay as they are.
+    private fun stretched(pattern: HapticPattern): LongArray {
+        val length = prefs.hapticDuration.coerceIn(0.6f, 2f)
+        return LongArray(pattern.timingsMs.size) { i ->
+            val t = pattern.timingsMs[i]
+            if (pattern.amplitudes[i] > 0) (t * length).roundToLong() else t
+        }
     }
 
     companion object {
@@ -86,12 +98,20 @@ class HapticEngine(context: Context, prefs: Prefs) {
     fun play(pattern: HapticPattern): Boolean {
         if (!available) return false
         output.cancel()
-        output.play(pattern)
+        output.vibrate(pattern)
         return true
     }
 
-    /** Short confirmation: checks passed, guidance started or ended. */
-    fun confirm(): Boolean = play(CONFIRM)
+    /** How long [pattern] lasts with the user's pulse length, so a lesson waits for it to end. */
+    fun durationOf(pattern: HapticPattern): Long = output.playedDurationMs(pattern)
+
+    /** Short confirmation: checks passed, guidance started or ended. Follows the vibration switch. */
+    fun confirm(): Boolean {
+        if (!available) return false
+        output.cancel()
+        output.play(CONFIRM)
+        return true
+    }
 
     /** A fresh scheduler for each run, so no latch or repeat timer carries over. */
     fun resetGuidance() {

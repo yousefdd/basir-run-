@@ -232,6 +232,26 @@ class EngineLogicTest {
     }
 
     @Test
+    fun `stretched pulses are never cut by their own repeat`() {
+        // The user doubled the pulse length: a strong right correction now lasts 2 x 300 + 150 ms.
+        val doubled = object : HapticOutput {
+            override val hasAmplitudeControl = true
+            val played = ArrayList<Long>()
+            var now = 0L
+            override fun play(pattern: HapticPattern) { played += now }
+            override fun cancel() {}
+            override fun playedDurationMs(pattern: HapticPattern) =
+                pattern.timingsMs.indices.sumOf { i -> if (pattern.amplitudes[i] > 0) pattern.timingsMs[i] * 2 else pattern.timingsMs[i] }
+        }
+        val s = HapticScheduler(doubled)
+        val cmd = GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.HIGH)
+        for (t in 0L..2000L step 50L) { doubled.now = t; s.onCommand(cmd, t) }
+        val gaps = doubled.played.zipWithNext { a, b -> b - a }
+        assertTrue(gaps.isNotEmpty())
+        assertTrue(gaps.all { it >= 750 + HapticScheduler.REPEAT_GAP_MS }, "repeats at $gaps")
+    }
+
+    @Test
     fun `opposite side cues are not fired back to back`() {
         val s = HapticScheduler(Recorder())
         assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.LOW), 0))

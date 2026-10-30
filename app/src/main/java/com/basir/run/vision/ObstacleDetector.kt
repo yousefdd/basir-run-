@@ -16,18 +16,28 @@ import com.google.mediapipe.tasks.vision.objectdetector.ObjectDetector
  */
 class ObstacleDetector(context: Context) {
 
-    private val detector: ObjectDetector? = try {
-        val options = ObjectDetector.ObjectDetectorOptions.builder()
-            .setBaseOptions(BaseOptions.builder().setModelAssetPath(MODEL).build())
-            .setRunningMode(RunningMode.IMAGE)
-            .setMaxResults(8)
-            .setScoreThreshold(ObstacleAssessment.MIN_SCORE)
-            .build()
-        ObjectDetector.createFromOptions(context, options)
-    } catch (e: Exception) {
-        Log.w(TAG, "Obstacle model unavailable", e)
-        null
-    }
+    @Volatile private var detector: ObjectDetector? = null
+
+    /** True once loading has finished, whether or not the model opened. */
+    @Volatile var loaded = false
+        private set
+
+    // Loaded off the main thread, so the app opens without waiting for the model.
+    private val loader = Thread {
+        detector = try {
+            val options = ObjectDetector.ObjectDetectorOptions.builder()
+                .setBaseOptions(BaseOptions.builder().setModelAssetPath(MODEL).build())
+                .setRunningMode(RunningMode.IMAGE)
+                .setMaxResults(8)
+                .setScoreThreshold(ObstacleAssessment.MIN_SCORE)
+                .build()
+            ObjectDetector.createFromOptions(context.applicationContext, options)
+        } catch (e: Exception) {
+            Log.w(TAG, "Obstacle model unavailable", e)
+            null
+        }
+        loaded = true
+    }.apply { start() }
 
     val ready: Boolean get() = detector != null
 
@@ -53,11 +63,13 @@ class ObstacleDetector(context: Context) {
     }
 
     fun close() {
+        loader.join(LOAD_WAIT_MS)
         detector?.close()
     }
 
     companion object {
         private const val TAG = "ObstacleDetector"
         const val MODEL = "efficientdet_lite0.tflite"
+        private const val LOAD_WAIT_MS = 3000L
     }
 }

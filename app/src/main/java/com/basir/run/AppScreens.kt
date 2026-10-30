@@ -49,6 +49,8 @@ import com.basir.run.engine.Phrase
 
 data class SystemStatus(
     val cameraAllowed: Boolean,
+    /** The detection models are still opening in the background. */
+    val modelsLoading: Boolean = false,
     val detectorReady: Boolean,
     val depthReady: Boolean,
     val vibration: Boolean,
@@ -94,8 +96,12 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
             Card {
                 SectionTitle("حالة النظام")
                 StatusLine(if (status.cameraAllowed) "الكاميرا: مسموح بها، تُفحص عند البدء" else "الكاميرا: تحتاج إذناً", if (status.cameraAllowed) Good else Danger)
-                StatusLine(if (status.detectorReady) "كاشف العوائق: محمّل على الهاتف" else "كاشف العوائق: غير محمّل، لن يبدأ التوجيه", if (status.detectorReady) Good else Danger)
-                StatusLine(if (status.depthReady) "تقدير العمق: محمّل على الهاتف" else "تقدير العمق: غير محمّل، لن يبدأ التوجيه", if (status.depthReady) Good else Danger)
+                if (status.modelsLoading) {
+                    StatusLine("كاشف العوائق وتقدير العمق: جارٍ التحميل", Blue)
+                } else {
+                    StatusLine(if (status.detectorReady) "كاشف العوائق: محمّل على الهاتف" else "كاشف العوائق: غير محمّل، لن يبدأ التوجيه", if (status.detectorReady) Good else Danger)
+                    StatusLine(if (status.depthReady) "تقدير العمق: محمّل على الهاتف" else "تقدير العمق: غير محمّل، لن يبدأ التوجيه", if (status.depthReady) Good else Danger)
+                }
                 StatusLine(if (status.vibration) "الاهتزاز: متاح" else "الاهتزاز غير متاح: سيعتمد التوجيه على الصوت", if (status.vibration) Good else Amber)
                 StatusLine(status.contact?.let { "جهة الطوارئ: ${it.name}" } ?: "لا توجد جهة اتصال موثوقة", if (status.contact != null) Good else Amber)
                 StatusLine("التتبع: يبدأ بعد فحص المسار", Blue)

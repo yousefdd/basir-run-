@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -32,6 +33,7 @@ import com.basir.run.sensors.MotionMonitor
 import com.basir.run.vision.GuidancePipeline
 import com.basir.run.vision.ObstacleDetector
 import com.basir.run.vision.depth.DeepChannel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +78,12 @@ private fun BasirApp() {
             obstacles.close()
             deep.close()
         }
+    }
+
+    // The models load in the background; the home screen follows them until loading is over.
+    val modelsLoaded by produceState(deep.loaded && obstacles.loaded) {
+        while (!(deep.loaded && obstacles.loaded)) delay(300)
+        value = true
     }
 
     var page by rememberSaveable { mutableStateOf(if (prefs.onboarded) Page.Home else Page.Guide) }
@@ -146,6 +154,7 @@ private fun BasirApp() {
             Page.Home -> HomeScreen(
                 status = SystemStatus(
                     cameraAllowed = context.has(Manifest.permission.CAMERA),
+                    modelsLoading = !modelsLoaded,
                     detectorReady = deep.detectorReady || obstacles.ready,
                     depthReady = deep.depthReady,
                     vibration = haptics.available,

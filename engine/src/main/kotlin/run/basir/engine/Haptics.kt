@@ -24,6 +24,8 @@ interface HapticOutput {
     val hasAmplitudeControl: Boolean
     fun play(pattern: HapticPattern)
     fun cancel()
+    /** How long [pattern] really vibrates here; an output that stretches pulses (a user setting) says so. */
+    fun playedDurationMs(pattern: HapticPattern): Long = pattern.durationMs
 }
 
 /**
@@ -152,7 +154,7 @@ class HapticScheduler(
     fun onCommand(cmd: GuidanceCommand, nowMs: Long): HapticPattern? {
         if (cmd.kind == CommandKind.STOP) {
             clearFrames = 0
-            if (!stopLatched || since("stop", nowMs) >= config.stopRepeatMs) {
+            if (!stopLatched || since("stop", nowMs) >= max(config.stopRepeatMs, output.playedDurationMs(language.stop()) + REPEAT_GAP_MS)) {
                 stopLatched = true
                 return start(language.stop(), nowMs, preempt = true)
             }
@@ -176,7 +178,8 @@ class HapticScheduler(
             CommandKind.ON_PATH -> if (config.enableOnPathTick) config.onPathRepeatMs else return null
             CommandKind.STOP -> config.stopRepeatMs
         }
-        if (since(key, nowMs) < repeat) return null
+        // A cue never repeats before its previous play has finished, however long the pulses are set.
+        if (since(key, nowMs) < max(repeat, output.playedDurationMs(pattern) + REPEAT_GAP_MS)) return null
         if (cmd.side != null && cmd.side != lastSide && nowMs - lastSideAt < config.oppositeSideGuardMs && cmd.level != Level.HIGH) {
             return null
         }
@@ -191,8 +194,13 @@ class HapticScheduler(
         if (preempt) output.cancel()
         output.play(p)
         if (p.name == "stop") lastPlayed["stop"] = now
-        playingUntil = now + max(1L, p.durationMs)
+        playingUntil = now + max(1L, output.playedDurationMs(p))
         playingPriority = p.priority
         return p
+    }
+
+    companion object {
+        /** Quiet time after a cue before the same cue may play again, so repeats stay separate. */
+        const val REPEAT_GAP_MS = 150L
     }
 }

@@ -25,27 +25,37 @@ class ToneGuide {
                 samples[2 * i + 1] = (value * right).toInt().toShort()
             }
 
-            val track = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(SAMPLE_RATE)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                        .build()
-                )
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .setBufferSizeInBytes(samples.size * 2)
-                .build()
-            track.write(samples, 0, samples.size)
-            track.play()
-            Thread.sleep(durationMs + 100L)
-            track.release()
+            // An audio failure must never take the app down from this thread: the tone is optional.
+            val track = try {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(SAMPLE_RATE)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                            .build()
+                    )
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .setBufferSizeInBytes(samples.size * 2)
+                    .build()
+            } catch (e: Exception) {
+                return@Thread
+            }
+            try {
+                track.write(samples, 0, samples.size)
+                track.play()
+                Thread.sleep(durationMs + 100L)
+            } catch (e: Exception) {
+                // nothing to do: the vibration carries the same cue
+            } finally {
+                track.release()
+            }
         }.start()
     }
 

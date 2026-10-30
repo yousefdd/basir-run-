@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -293,7 +294,7 @@ object VolumeKeys {
 @Composable
 fun LongHoldIcon(icon: ImageVector, holdMs: Long, onDone: () -> Unit, modifier: Modifier = Modifier) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val progress = remember { androidx.compose.animation.core.Animatable(0f) }
+    var progress by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val done by androidx.compose.runtime.rememberUpdatedState(onDone)
     Box(
         modifier
@@ -302,22 +303,29 @@ fun LongHoldIcon(icon: ImageVector, holdMs: Long, onDone: () -> Unit, modifier: 
             .background(NavyCard.copy(alpha = 0.9f))
             .pointerInput(holdMs) {
                 detectTapGestures(onPress = {
+                    // Counted on the clock, not with an animation: with animations turned off in
+                    // the phone's settings an animation ends at once and the hold would be skipped.
                     val job = scope.launch {
-                        progress.snapTo(0f)
-                        progress.animateTo(1f, androidx.compose.animation.core.tween(holdMs.toInt(), easing = androidx.compose.animation.core.LinearEasing))
+                        val start = android.os.SystemClock.uptimeMillis()
+                        while (true) {
+                            val held = android.os.SystemClock.uptimeMillis() - start
+                            progress = (held.toFloat() / holdMs).coerceAtMost(1f)
+                            if (held >= holdMs) break
+                            kotlinx.coroutines.delay(16)
+                        }
                         done()
                     }
                     tryAwaitRelease()
                     job.cancel()
-                    scope.launch { progress.snapTo(0f) }
+                    progress = 0f
                 })
             }
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize().padding(3.dp)) {
-            if (progress.value > 0f) {
-                drawArc(Teal, -90f, 360f * progress.value, useCenter = false, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            if (progress > 0f) {
+                drawArc(Teal, -90f, 360f * progress, useCenter = false, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
         }
         Icon(icon, contentDescription = null, tint = InkMuted, modifier = Modifier.size(22.dp))

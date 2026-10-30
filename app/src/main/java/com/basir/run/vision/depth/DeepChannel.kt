@@ -35,10 +35,26 @@ data class DeepResult(
  */
 class DeepChannel(context: Context) {
 
-    private val depth = DepthEstimator(context)
-    private val objects = ObjectDetectorOnnx(context)
     private val fov = CameraFov.of(context)
     private val executor = Executors.newSingleThreadExecutor()
+
+    // The models load on the worker thread, so the app opens without waiting for them; every
+    // analysis is queued on the same thread, after the loading.
+    @Volatile private var depth: DepthEstimator? = null
+    @Volatile private var objects: ObjectDetectorOnnx? = null
+
+    /** True once loading has finished, whether or not the models opened. */
+    @Volatile var loaded = false
+        private set
+
+    init {
+        val app = context.applicationContext
+        executor.execute {
+            depth = DepthEstimator(app)
+            objects = ObjectDetectorOnnx(app)
+            loaded = true
+        }
+    }
     private val busy = AtomicBoolean(false)
     private val confirm = DepthConfirm()
 
@@ -54,8 +70,8 @@ class DeepChannel(context: Context) {
         return (if (sideways) fov?.second else fov?.first) ?: DEFAULT_HFOV
     }
 
-    val depthReady: Boolean get() = depth.ready
-    val detectorReady: Boolean get() = objects.ready
+    val depthReady: Boolean get() = depth?.ready == true
+    val detectorReady: Boolean get() = objects?.ready == true
     val idle: Boolean get() = !busy.get()
 
     fun reset() {
@@ -76,10 +92,12 @@ class DeepChannel(context: Context) {
                     sensorBitmap, 0, 0, sensorBitmap.width, sensorBitmap.height,
                     Matrix().apply { postRotate(rotationDegrees.toFloat()) }, true,
                 )
+                val objects = objects
+                val depth = depth
                 val t0 = SystemClock.elapsedRealtime()
-                val detections = if (objects.ready) objects.detect(upright) else emptyList()
+                val detections = if (objects != null && objects.ready) objects.detect(upright) else emptyList()
                 val t1 = SystemClock.elapsedRealtime()
-                val analysis = if (depth.ready) {
+                val analysis = if (depth != null && depth.ready) {
                     val h = (WORK_WIDTH * upright.height.toFloat() / upright.width).roundToInt()
                     depth.disparity(upright, WORK_WIDTH, h)?.let { disp ->
                         FloorPlanner(FloorPlanner.Geometry(cameraHeightM, pitchDeg?.toDouble(), hfovDeg(rotationDegrees)), DepthHazards.RUNNING)
@@ -99,9 +117,12 @@ class DeepChannel(context: Context) {
     }
 
     fun close() {
+        // Queued behind any loading or analysis still running, so nothing is closed while in use.
+        executor.execute {
+            depth?.close()
+            objects?.close()
+        }
         executor.shutdown()
-        depth.close()
-        objects.close()
     }
 
     companion object {

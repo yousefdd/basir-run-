@@ -66,6 +66,9 @@ fun CameraHost(pipeline: GuidancePipeline, onSnapshot: (FrameSnapshot) -> Unit, 
         val main = Handler(Looper.getMainLooper())
         val future = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
+        // A frame finished after the screen has gone must not reach it: a run that ended for an
+        // emergency would otherwise still speak or vibrate once.
+        val active = java.util.concurrent.atomic.AtomicBoolean(true)
 
         future.addListener({
             try {
@@ -85,8 +88,9 @@ fun CameraHost(pipeline: GuidancePipeline, onSnapshot: (FrameSnapshot) -> Unit, 
                     .build()
                 analysis.setAnalyzer(executor) { image ->
                     try {
+                        if (!active.get()) return@setAnalyzer
                         val snapshot = pipeline.process(image)
-                        main.post { latestSnapshot(snapshot) }
+                        main.post { if (active.get()) latestSnapshot(snapshot) }
                     } catch (e: Exception) {
                         Log.e("CameraHost", "Frame analysis failed", e)
                     } finally {
@@ -102,6 +106,7 @@ fun CameraHost(pipeline: GuidancePipeline, onSnapshot: (FrameSnapshot) -> Unit, 
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            active.set(false)
             provider?.unbindAll()
             executor.shutdown()
         }

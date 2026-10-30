@@ -87,6 +87,8 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
     var asked by remember { mutableStateOf<Lesson?>(null) }
     var options by remember { mutableStateOf<List<Lesson>>(emptyList()) }
     var result by remember { mutableStateOf<String?>(null) }
+    // One answer per question: a second long press while the next question is coming is ignored.
+    var answered by remember { mutableStateOf(true) }
 
     fun play(patterns: List<HapticPattern>) = scope.launch {
         for (p in patterns) {
@@ -94,7 +96,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                 voice.say(Phrase.HapticsUnavailable, interrupt = true)
                 return@launch
             }
-            delay(p.durationMs + 700)
+            delay(haptics.durationOf(p) + 700)
         }
     }
 
@@ -130,11 +132,14 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
         asked = l
         options = (QUIZ.filter { it !== l }.shuffled().take(3) + l).shuffled()
         question = n
+        answered = false
         playing.value?.cancel()
         playing.value = play(l.patterns(haptics.language))
     }
 
     fun answer(choice: Lesson) {
+        if (answered) return
+        answered = true
         val right = choice === asked
         if (right) correct++
         voice.say(if (right) Phrase.QuizCorrect else Phrase.QuizWrong, interrupt = true)
