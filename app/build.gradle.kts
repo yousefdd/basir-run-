@@ -12,8 +12,8 @@ android {
         applicationId = "com.basir.run"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "0.9.6"
+        versionCode = 16
+        versionName = "0.9.7"
 
         // Phones only: keeps the native libraries of MediaPipe and ONNX Runtime to two ABIs.
         ndk {

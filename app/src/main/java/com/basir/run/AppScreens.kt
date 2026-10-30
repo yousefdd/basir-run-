@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
@@ -59,7 +61,7 @@ data class SystemStatus(
  * depends on, the emergency button and the way to settings. There is no route type to choose.
  */
 @Composable
-fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEmergency: () -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEmergency: () -> Unit, onSettings: () -> Unit, onDeveloper: () -> Unit) {
     BasirBackground {
         Column(
             modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
@@ -69,7 +71,7 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                 BasirLogo(64.dp)
                 Column(Modifier.weight(1f)) {
                     Text("بصير ران", style = MaterialTheme.typography.headlineLarge, color = Ink, modifier = Modifier.semantics { heading() })
-                    Text("توجيه بالاهتزاز للجري بالكاميرا", style = MaterialTheme.typography.labelMedium, color = InkMuted)
+                    Text("توجيه بلغة الاهتزاز للجري للمكفوفين", style = MaterialTheme.typography.labelMedium, color = InkMuted)
                 }
                 SpeakButton("الإعدادات", onSettings, hint = null, icon = Icons.Filled.Settings, height = 52.dp, spoken = Phrase.ButtonSettings.ar)
             }
@@ -110,6 +112,19 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                 height = 80.dp,
                 modifier = Modifier.fillMaxWidth(),
             )
+            // A small entry for the developer, in the bottom corner, behind a password.
+            Row(Modifier.fillMaxWidth()) {
+                Spacer(Modifier.weight(1f))
+                SpeakButton(
+                    "",
+                    onDeveloper,
+                    spoken = "المطوّر",
+                    hint = null,
+                    icon = Icons.Filled.Build,
+                    height = 44.dp,
+                    modifier = Modifier.width(56.dp),
+                )
+            }
         }
     }
 }

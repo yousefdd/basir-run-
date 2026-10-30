@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Page { Guide, Permissions, Contact, Training, Home, Run, Summary, Emergency, Settings, SettingsGuide, SettingsTraining }
+private enum class Page { Guide, Permissions, Contact, Training, Home, Run, Summary, Emergency, Settings, SettingsGuide, SettingsTraining, DeveloperLogin, Developer, LiveVision }
 
 @Composable
 private fun BasirApp() {
@@ -107,10 +107,11 @@ private fun BasirApp() {
         page = Page.Emergency
     }
 
-    BackHandler(enabled = page in setOf(Page.Emergency, Page.Settings, Page.SettingsGuide, Page.SettingsTraining)) {
+    BackHandler(enabled = page in setOf(Page.Emergency, Page.Settings, Page.SettingsGuide, Page.SettingsTraining, Page.DeveloperLogin, Page.Developer, Page.LiveVision)) {
         page = when (page) {
             Page.Emergency -> if (emergencyFrom == Page.Run) Page.Home else emergencyFrom
             Page.SettingsGuide, Page.SettingsTraining -> Page.Settings
+            Page.LiveVision -> Page.Developer
             else -> Page.Home
         }
     }
@@ -161,6 +162,7 @@ private fun BasirApp() {
                 },
                 onEmergency = { emergency(Page.Home) },
                 onSettings = { page = Page.Settings },
+                onDeveloper = { page = Page.DeveloperLogin },
             )
 
             Page.Run -> RunScreen(
@@ -210,6 +212,19 @@ private fun BasirApp() {
             )
 
             Page.SettingsGuide -> GuideScreen(voice, nextLabel = Phrase.ButtonDone.ar, onNext = { page = Page.Settings }, onBack = { page = Page.Settings })
+
+            Page.DeveloperLogin -> DeveloperLoginScreen(voice, onOpen = { page = Page.Developer }, onBack = { page = Page.Home })
+
+            Page.Developer -> DeveloperScreen(
+                onLiveVision = {
+                    request(Manifest.permission.CAMERA) {
+                        if (context.has(Manifest.permission.CAMERA)) page = Page.LiveVision
+                    }
+                },
+                onBack = { page = Page.Home },
+            )
+
+            Page.LiveVision -> LiveVisionScreen(pipeline, motion, prefs, onBack = { page = Page.Developer })
 
             Page.SettingsTraining -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = Phrase.ButtonSave.ar, onDone = { page = Page.Settings }, onBack = { page = Page.Settings })
         }
