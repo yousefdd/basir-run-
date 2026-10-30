@@ -181,12 +181,18 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
             }
 
             Card {
-                Text("مدة النبضة: ${DURATIONS[duration].name}", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Text("مدة النبضة التي تريدها", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Text(
+                    "الآن: ${DURATIONS[duration].name}. المناسبة هي التي تميّز فيها النبضة الواحدة من النبضتين دون تفكير.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = InkMuted,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SpeakButton("نبضة أقصر", { tune(durationStep = -1) }, spoken = Phrase.ButtonShorter.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
                     SpeakButton("نبضة أطول", { tune(durationStep = 1) }, spoken = Phrase.ButtonLonger.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
                 }
-                Text("قوة الاهتزاز: ${STRENGTHS[strength].name}", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Text("قوة الاهتزاز التي تريدها", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Text("الآن: ${STRENGTHS[strength].name}", style = MaterialTheme.typography.bodyMedium, color = InkMuted)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SpeakButton("اهتزاز أضعف", { tune(strengthStep = -1) }, spoken = Phrase.ButtonWeaker.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
                     SpeakButton("اهتزاز أقوى", { tune(strengthStep = 1) }, spoken = Phrase.ButtonStronger.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
