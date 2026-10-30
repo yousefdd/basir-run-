@@ -12,8 +12,8 @@ android {
         applicationId = "com.basir.run"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.8"
+        versionCode = 9
+        versionName = "0.9"
 
         // Phones only: keeps the native libraries of MediaPipe and ONNX Runtime to two ABIs.
         ndk {
@@ -75,6 +75,9 @@ dependencies {
 
     // Depth Anything V2 and YOLO26n from the blind-navigation tool, on the phone's CPU.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+
+    // Virtual Path Engine (lines, lanes, path planning, guidance, haptic language).
+    implementation(project(":engine"))
 
     testImplementation("junit:junit:4.13.2")
 }

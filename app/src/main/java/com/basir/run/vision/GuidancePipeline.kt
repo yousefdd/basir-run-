@@ -4,6 +4,8 @@ import android.os.SystemClock
 import androidx.camera.core.ImageProxy
 import com.basir.run.vision.depth.DeepChannel
 import com.basir.run.vision.depth.DeepResult
+import com.basir.run.vision.line.LineEngine
+import com.basir.run.vision.line.LineResult
 import kotlin.math.ceil
 
 /** Everything measured on one frame, handed from the camera thread to the screen. */
@@ -26,6 +28,8 @@ data class FrameSnapshot(
     val depthReady: Boolean,
     /** The depth channel is loaded but its results stopped arriving in time. */
     val depthStale: Boolean,
+    /** The Virtual Path Engine's lines, chosen path and guidance command for this frame. */
+    val line: LineResult?,
     val shaky: Boolean,
     val framesPerSecond: Float,
     val processingP50Ms: Float,
@@ -42,7 +46,11 @@ data class FrameSnapshot(
  *    and Depth Anything V2 (floor, obstacles of any kind, head-level hazards, drops); its
  *    objects and the surface changes inside the corridor are confirmed with motion between
  *    runs. If D-FINE-N is missing, EfficientDet-Lite0 runs on every third frame instead;
- * 5. build the multi-point virtual path from this frame only.
+ * 5. run the Virtual Path Engine (engine module): lines of any colour on the ground, the path
+ *    to follow (guide line, lane centre, or parallel to a lone side line) tracked over frames,
+ *    obstacles checked against it, and one guidance command. This is the primary path; the
+ *    two image-space detectors of step 2 are the fallback when it finds no line;
+ * 6. build the multi-point virtual path from this frame only.
  * Processing time per frame is measured here and reported, not assumed.
  */
 class GuidancePipeline(
@@ -64,6 +72,15 @@ class GuidancePipeline(
     private val lanes = LaneDetector()
     private val surfaces = PathRegionDetector()
     private val selector = EnvironmentSelector()
+    private val lineEngine = LineEngine()
+
+    /** Height of the camera above the ground (from the runner's height); used by both metric engines. */
+    var cameraHeightM: Double
+        get() = lineEngine.cameraHeightM
+        set(value) {
+            lineEngine.cameraHeightM = value
+            deepChannel.cameraHeightM = value
+        }
     private val tracker = PathTracker()
     private val intrusions = IntrusionDetector()
     private val motion = ObstacleMotionTracker()
@@ -79,6 +96,7 @@ class GuidancePipeline(
 
     fun reset() {
         deepChannel.reset()
+        lineEngine.reset()
         lastDeepTime = -1L
         lanes.reset()
         selector.reset()
@@ -108,7 +126,8 @@ class GuidancePipeline(
         val bitmap = if (wantDeep || wantFallback) image.toBitmap() else null
         if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch())
 
-        if (freshModel || (wantFallback && bitmap != null)) {
+        val detectorRan = freshModel || (wantFallback && bitmap != null)
+        if (detectorRan) {
             lastDetections = if (freshModel) deep!!.detections
             else if (obstacles.ready) obstacles.detect(bitmap!!, image.imageInfo.rotationDegrees) else emptyList()
             if (freshModel) lastDeepTime = deep!!.frameTimeMs
@@ -120,6 +139,10 @@ class GuidancePipeline(
             obstacle = obstacleTracker.update(lastFindings)
         }
         frameIndex++
+        val line = lineEngine.process(
+            frame, deepChannel.hfovDeg(image.imageInfo.rotationDegrees), (pitch() ?: FALLBACK_PITCH).toDouble(),
+            quality, if (detectorRan) lastDetections else null,
+        )
         val depthHazard = deep?.hazard?.takeIf { it.level != ObstacleLevel.None }
         val combined = if (depthHazard != null && depthHazard.level > obstacle) depthHazard.level else obstacle
         val kind = if (depthHazard != null && depthHazard.level >= obstacle) depthHazard.kind else HazardKind.Object
@@ -147,6 +170,7 @@ class GuidancePipeline(
             deep = deep,
             depthReady = deepChannel.depthReady,
             depthStale = depthStale,
+            line = line,
             shaky = shaky,
             framesPerSecond = fps,
             processingP50Ms = percentile(sorted, 0.5),
@@ -159,6 +183,8 @@ class GuidancePipeline(
 
     companion object {
         private const val OBSTACLE_EVERY = 3L
+        /** Used only when the phone has no gravity sensor; the angle check then fails anyway. */
+        private const val FALLBACK_PITCH = 20f
         /** A depth or object result older than this no longer describes what is ahead. */
         const val DEEP_STALE_MS = 1500L
         private const val WINDOW = 60

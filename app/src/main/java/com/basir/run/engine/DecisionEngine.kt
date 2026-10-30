@@ -7,6 +7,10 @@ import com.basir.run.vision.PathStatus
 import com.basir.run.vision.Side
 import com.basir.run.vision.TrackedPath
 import kotlin.math.abs
+import run.basir.engine.CommandKind
+import run.basir.engine.GuidanceCommand
+import run.basir.engine.Level
+import run.basir.engine.StopReason
 
 enum class SystemState {
     ReadyToCalibrate,
@@ -61,6 +65,8 @@ data class Decision(
     val level: Int = 0,
     /** Direction of a bend ahead, when one is seen. */
     val curve: Side? = null,
+    /** How much the path behind this decision can be trusted, 0..1; scales vibration strength. */
+    val confidence: Float = 1f,
 )
 
 data class EngineInput(
@@ -81,6 +87,8 @@ data class EngineInput(
     val obstacleKind: HazardKind = HazardKind.Object,
     /** The depth channel is loaded but its results stopped arriving in time. */
     val depthStale: Boolean = false,
+    /** The Virtual Path Engine's command for this frame, or null when it is not running. */
+    val line: GuidanceCommand? = null,
 )
 
 data class EngineConfig(
@@ -155,6 +163,17 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         }
         if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
 
+        // The Virtual Path Engine steers whenever it follows a line, a lane or runs alongside a
+        // line. It finds no line → the image-space path below is the fallback.
+        val cmd = i.line
+        if (cmd != null && cmd.kind == CommandKind.STOP && cmd.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE) {
+            return Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
+        }
+        if (cmd != null && cmd.kind != CommandKind.STOP) {
+            unclearSince = -1L
+            return fromLine(cmd, i)
+        }
+
         val p = i.path
         val trusted = p != null && p.estimate.status == PathStatus.Tracked && p.stable &&
             p.estimate.confidence >= cfg.minConfidence
@@ -199,6 +218,40 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             magnitude >= cfg.slight -> Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, moveTo, 1, curve)
             curve != null -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, curve = curve)
             else -> Decision(SystemState.PathTracked, Severity.Info, Cue.Centered)
+        }
+    }
+
+    private fun fromLine(cmd: GuidanceCommand, i: EngineInput): Decision {
+        val conf = cmd.confidence.toFloat().coerceIn(0f, 1f)
+        val bend = when {
+            cmd.curveInM == null -> null
+            cmd.curveCurvature > 0 -> Side.Right
+            cmd.curveCurvature < 0 -> Side.Left
+            else -> null
+        }
+        if (i.processingP90Ms > cfg.latencyWarnMs || i.depthStale) {
+            return Decision(SystemState.HighLatency, Severity.Warning, Cue.LatencySlow, curve = bend, confidence = conf)
+        }
+        val side = when (cmd.side) {
+            run.basir.engine.Side.LEFT -> Side.Left
+            run.basir.engine.Side.RIGHT -> Side.Right
+            null -> null
+        }
+        val level = when (cmd.level) {
+            Level.HIGH -> 3
+            Level.MEDIUM -> 2
+            else -> 1
+        }
+        return when (cmd.kind) {
+            // Something on the path, not yet at stopping distance: slow down, no way around offered.
+            CommandKind.OBSTACLE -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, confidence = conf)
+            CommandKind.CORRECT -> if (level == 3) {
+                Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, side, 3, bend, conf)
+            } else {
+                Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, side, level, bend, conf)
+            }
+            CommandKind.CURVE -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, level = level, curve = side, confidence = conf)
+            else -> Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, curve = bend, confidence = conf)
         }
     }
 }

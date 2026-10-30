@@ -14,6 +14,7 @@ enum class Check(val label: String) {
     Path("المسار ظاهر بثقة"),
     Obstacles("كاشف العوائق"),
     Depth("تقدير العمق والأرض"),
+    Haptics("أنماط الاهتزاز"),
 }
 
 data class CheckResult(val check: Check, val passed: Boolean, val detail: String)
@@ -34,6 +35,13 @@ data class ReadinessInput(
     /** The newest depth result found the floor in front. */
     val floorVisible: Boolean,
     val depthMs: Long,
+    /** The Virtual Path Engine follows a line, a lane or runs alongside a line. */
+    val lineTracked: Boolean = false,
+    /** What it follows, in words, when [lineTracked]. */
+    val lineDetail: String? = null,
+    /** The runner has learned the vibration patterns (passed the quiz), or the phone cannot vibrate. */
+    val hapticsReady: Boolean = true,
+    val hapticsDetail: String = "",
 )
 
 /**
@@ -85,8 +93,9 @@ object Readiness {
             ),
             CheckResult(
                 Check.Path,
-                p != null && p.estimate.status == PathStatus.Tracked && p.stable && p.estimate.confidence >= MIN_CONFIDENCE,
+                i.lineTracked || (p != null && p.estimate.status == PathStatus.Tracked && p.stable && p.estimate.confidence >= MIN_CONFIDENCE),
                 when {
+                    i.lineTracked -> i.lineDetail ?: "الخط متتبَّع"
                     p == null -> "لم يُحلَّل المسار بعد"
                     p.estimate.ambiguous -> "خطوط متعددة متقاربة"
                     p.estimate.status == PathStatus.EdgeOnly -> "أرى حداً واحداً فقط"
@@ -111,6 +120,7 @@ object Readiness {
                     else -> String.format(Locale.US, "الأرض ظاهرة · %d ملّي ثانية", i.depthMs)
                 },
             ),
+            CheckResult(Check.Haptics, i.hapticsReady, i.hapticsDetail),
         )
     }
 }

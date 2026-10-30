@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "BasirRun"
-include(":app")
+include(":app", ":engine", ":devtools")

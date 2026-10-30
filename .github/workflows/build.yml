@@ -71,7 +71,7 @@ jobs:
       - name: Test and build debug APK
         run: |
           set -o pipefail
-          ./gradlew testDebugUnitTest assembleDebug --no-daemon 2>&1 | tee build.log || {
+          ./gradlew :engine:test testDebugUnitTest assembleDebug --no-daemon 2>&1 | tee build.log || {
             grep -E "^e: |FAILED|AssertionError|Exception:" build.log | head -40 | while IFS= read -r line; do echo "::error::${line//%/%25}"; done
             exit 1
           }
@@ -84,7 +84,7 @@ jobs:
           import glob, sys, xml.etree.ElementTree as ET
           total = failed = skipped = 0
           lines = []
-          for f in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+          for f in glob.glob("app/build/test-results/testDebugUnitTest/*.xml") + glob.glob("engine/build/test-results/test/*.xml"):
               r = ET.parse(f).getroot()
               total += int(r.get("tests", 0)); failed += int(r.get("failures", 0)) + int(r.get("errors", 0)); skipped += int(r.get("skipped", 0))
               line = f"{r.get('name').split('.')[-1]}: {r.get('tests')} tests, {int(r.get('failures', 0)) + int(r.get('errors', 0))} failed, {r.get('skipped')} skipped"
@@ -99,7 +99,9 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: app/build/test-results/testDebugUnitTest/
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            engine/build/test-results/test/
 
       - uses: actions/upload-artifact@v4
         with:

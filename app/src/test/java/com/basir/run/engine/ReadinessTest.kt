@@ -37,6 +37,18 @@ class ReadinessTest {
     }
 
     @Test
+    fun aTrackedGuideLineIsEnoughForThePathCheck() {
+        val noImagePath = allGood.copy(path = path.copy(stable = false), lineTracked = true, lineDetail = "خط إرشادي")
+        assertTrue(Readiness.evaluate(noImagePath).all { it.passed })
+    }
+
+    @Test
+    fun runningWaitsForTheVibrationQuiz() {
+        val failed = Readiness.evaluate(allGood.copy(hapticsReady = false)).filter { !it.passed }.map { it.check }
+        assertEquals(listOf(Check.Haptics), failed)
+    }
+
+    @Test
     fun readyOnlyAfterHoldingForThreeSeconds() {
         val timer = ReadinessTimer()
         val ok = Readiness.evaluate(allGood)

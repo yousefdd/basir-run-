@@ -45,6 +45,15 @@ class DeepChannel(context: Context) {
     @Volatile var latest: DeepResult? = null
         private set
 
+    /** Height of the camera above the ground in metres; distances scale with it. */
+    @Volatile var cameraHeightM = CAMERA_HEIGHT_M
+
+    /** Horizontal field of view of the upright frame, from the camera's own focal length and sensor. */
+    fun hfovDeg(rotationDegrees: Int): Double {
+        val sideways = rotationDegrees == 90 || rotationDegrees == 270
+        return (if (sideways) fov?.second else fov?.first) ?: DEFAULT_HFOV
+    }
+
     val depthReady: Boolean get() = depth.ready
     val detectorReady: Boolean get() = objects.ready
     val idle: Boolean get() = !busy.get()
@@ -73,9 +82,7 @@ class DeepChannel(context: Context) {
                 val analysis = if (depth.ready) {
                     val h = (WORK_WIDTH * upright.height.toFloat() / upright.width).roundToInt()
                     depth.disparity(upright, WORK_WIDTH, h)?.let { disp ->
-                        val sideways = rotationDegrees == 90 || rotationDegrees == 270
-                        val hfov = (if (sideways) fov?.second else fov?.first) ?: DEFAULT_HFOV
-                        FloorPlanner(FloorPlanner.Geometry(CAMERA_HEIGHT_M, pitchDeg?.toDouble(), hfov), DepthHazards.RUNNING)
+                        FloorPlanner(FloorPlanner.Geometry(cameraHeightM, pitchDeg?.toDouble(), hfovDeg(rotationDegrees)), DepthHazards.RUNNING)
                             .analyze(disp, WORK_WIDTH, h)
                     }
                 } else null
@@ -100,7 +107,7 @@ class DeepChannel(context: Context) {
     companion object {
         /** Width of the map the planner works on, as in the reference tool. */
         const val WORK_WIDTH = 160
-        /** Chest mount; the reference default. Distances scale with it. */
+        /** Chest mount of a runner of average height; replaced by the runner's own setting. */
         const val CAMERA_HEIGHT_M = 1.3
         /** Typical horizontal field of view of a rear camera held upright. */
         const val DEFAULT_HFOV = 50.0

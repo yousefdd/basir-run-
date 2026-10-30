@@ -164,6 +164,27 @@ fun PathOverlay(snapshot: FrameSnapshot?, nowMs: Long, runnerX: Float, developer
             }
         }
 
+        // The Virtual Path Engine: line crossings found on the ground (yellow when on the chosen
+        // line, grey otherwise) and the path it follows (teal), projected back into the picture.
+        shot.line?.let { lr ->
+            val w = lr.width.toFloat()
+            val h = lr.height.toFloat()
+            val chosen = lr.decision.path
+            if (developer) lr.lines.take(6).forEachIndexed { k, c ->
+                for (seg in c.segments) drawCircle(if (k == 0) Tactile else Color(0xFF9AA4A8), 4.px(this), at(seg.u.toFloat() / w, seg.v.toFloat() / h))
+            }
+            if (chosen != null) {
+                val pts = chosen.sample(0.2, maxOf(chosen.nearM, 0.3), chosen.farM).mapNotNull { lr.camera.groundToImage(it) }
+                    .map { (u, v) -> (u / w).toFloat() to (v / h).toFloat() }
+                if (pts.size > 1) drawPath(line(pts), Teal, style = Stroke(6.px(this), cap = StrokeCap.Round))
+                // The look-ahead point the steering aims at.
+                val ahead = minOf(chosen.farM, 2.0)
+                lr.camera.groundToImage(run.basir.engine.GroundPoint(ahead, chosen.lateralAt(ahead)))?.let { (u, v) ->
+                    drawCircle(Color.White, 7.px(this), at((u / w).toFloat(), (v / h).toFloat()), style = Stroke(3.px(this)))
+                }
+            }
+        }
+
         // Developer mode: what the depth planner marked as obstacle (red) or drop (violet).
         val analysis = shot.deep?.analysis
         if (developer && analysis != null && analysis.floorValid) {
@@ -205,7 +226,7 @@ private fun Int.px(scope: androidx.compose.ui.graphics.drawscope.DrawScope) = wi
 
 /** Numbers behind the picture, for testing on the track. */
 @Composable
-fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long) {
+fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long, haptic: String? = null) {
     val s = snapshot
     val text = if (s == null) "لا توجد إطارات بعد" else {
         val e = s.path.estimate
@@ -227,7 +248,16 @@ fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long) {
                 a?.pitchDeg?.let { String.format(java.util.Locale.US, "%.0f", it) } ?: "-", a?.pitchSource ?: "-",
                 d.hazard.level, d.hazard.kind,
             )
-        } ?: if (s.depthReady) "\nعمق: لا نتيجة حديثة" else "\nعمق: النموذج غير محمّل")
+        } ?: if (s.depthReady) "\nعمق: لا نتيجة حديثة" else "\nعمق: النموذج غير محمّل") + (s.line?.let { lr ->
+            val c = lr.command
+            String.format(
+                java.util.Locale.US,
+                "\nمسار: %s · ثقة %.2f · خطوط %d · %d ملّي ث\nأمر: %s %s %s · توجيه %.1f° · انحناء %.3f/م%s · اهتزاز: %s",
+                lr.decision.mode, lr.decision.confidence, lr.lines.size, lr.processingMs,
+                c.kind, c.side ?: "", c.level ?: "", c.steerDeg, c.curveCurvature,
+                c.curveInM?.let { String.format(java.util.Locale.US, " بعد %.1f م", it) } ?: "", haptic ?: "-",
+            )
+        } ?: "")
     }
     androidx.compose.material3.Text(
         text,

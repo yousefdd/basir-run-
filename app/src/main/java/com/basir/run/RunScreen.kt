@@ -38,8 +38,10 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.basir.run.engine.Check
 import com.basir.run.engine.CheckResult
-import com.basir.run.engine.Haptic
+import run.basir.engine.CommandKind
+import run.basir.engine.PathMode
 import com.basir.run.engine.Phrase
 import com.basir.run.engine.Readiness
 import com.basir.run.engine.ReadinessInput
@@ -87,6 +89,7 @@ fun RunScreen(
     DisposableEffect(Unit) {
         // Every run starts from nothing: no remembered position, width or path.
         pipeline.calibration = Calibration()
+        pipeline.cameraHeightM = prefs.cameraHeightM
         pipeline.reset()
         motion.start()
         voice.say(Phrase.CheckStart, interrupt = true)
@@ -119,17 +122,30 @@ fun RunScreen(
                     depthAgeMs = if (fresh) s!!.deep?.let { now - it.frameTimeMs } else null,
                     floorVisible = s?.deep?.hazard?.floorVisible ?: false,
                     depthMs = s?.deep?.depthMs ?: 0L,
+                    lineTracked = fresh && s!!.line?.command?.kind.let { it != null && it != CommandKind.STOP },
+                    lineDetail = s?.line?.decision?.mode?.let { modeLabel(it) },
+                    hapticsReady = prefs.hapticQuizPassed || !haptics.available,
+                    hapticsDetail = when {
+                        !haptics.available -> "لا يوجد اهتزاز، سيُعتمد على الصوت"
+                        prefs.hapticQuizPassed -> "اجتزت الاختبار"
+                        else -> "أكمل اختبار الأنماط من الإعدادات"
+                    },
                 )
             )
             val estimate = s?.path?.estimate
             val left = estimate?.left
             val right = estimate?.right
             val center = estimate?.center
-            if (timer.update(results, now) && estimate?.status == PathStatus.Tracked && left != null && right != null && center != null) {
-                val cal = Calibration(runnerX = center.x(1f), halfWidth = (right.x(1f) - left.x(1f)) / 2, pitchDeg = motion.pitchBelowHorizonDeg)
+            val imagePath = estimate?.status == PathStatus.Tracked && left != null && right != null && center != null
+            val linePath = results.firstOrNull { it.check == Check.Path }?.passed == true
+            if (timer.update(results, now) && (imagePath || linePath)) {
+                // The image-space fallback needs the runner's position and the path width now;
+                // the line engine works in metres on the ground and needs only the tilt.
+                val cal = if (imagePath) Calibration(runnerX = center!!.x(1f), halfWidth = (right!!.x(1f) - left!!.x(1f)) / 2, pitchDeg = motion.pitchBelowHorizonDeg)
+                else Calibration(pitchDeg = motion.pitchBelowHorizonDeg)
                 calibration = cal
                 pipeline.calibration = cal
-                haptics.play(Haptic.Confirm, now = now)
+                haptics.confirm()
                 voice.say(Phrase.GuidanceStarted, interrupt = true)
                 val g = GuidanceSession(context, haptics, voice, tone, prefs, motion, cal.pitchDeg)
                 g.start(now)
@@ -196,7 +212,7 @@ fun RunScreen(
         ) {
             if (current == null) CheckingPanel(results, cameraError, voice)
             else GuidingPanel(current, snapshot, clockMs)
-            if (developer) DeveloperReadout(snapshot, clockMs)
+            if (developer) DeveloperReadout(snapshot, clockMs, haptics.lastGuidance)
             Spacer(Modifier.weight(1f))
             SpeakButton(
                 label = if (current == null) "إلغاء" else "إيقاف الجري",
@@ -295,9 +311,15 @@ private fun GuidingPanel(session: GuidanceSession, snapshot: FrameSnapshot?, now
 @Composable
 private fun TrackingIndicator(snapshot: FrameSnapshot?, nowMs: Long, color: Color) {
     val fresh = snapshot != null && nowMs - snapshot.timeMs < 700
-    val tracked = fresh && snapshot!!.path.stable && snapshot.path.estimate.status == PathStatus.Tracked
+    val line = snapshot?.line?.takeIf { fresh && it.command.kind != CommandKind.STOP }
+    val imageTracked = fresh && snapshot!!.path.stable && snapshot.path.estimate.status == PathStatus.Tracked
+    val tracked = line != null || imageTracked
+    // Where the runner is relative to the path: from the line engine's steering angle when it
+    // leads (the path to the right means the runner is left of it), else from the image path.
+    val position = line?.let { (-it.command.steerDeg / 25.0).toFloat() } ?: snapshot?.path?.offset ?: 0f
     val label = when {
         !fresh -> "لا تصل صور من الكاميرا"
+        line != null -> modeLabel(line.decision.mode)
         tracked -> "المسار متتبَّع"
         snapshot!!.path.estimate.status == PathStatus.EdgeOnly -> "حد واحد فقط ظاهر"
         else -> "المسار غير مؤكد"
@@ -312,7 +334,7 @@ private fun TrackingIndicator(snapshot: FrameSnapshot?, nowMs: Long, color: Colo
                 drawLine(NavyRaised, Offset(14.dp.toPx(), y), Offset(size.width - 14.dp.toPx(), y), strokeWidth = 8.dp.toPx(), cap = StrokeCap.Round)
                 drawLine(Tactile.copy(alpha = 0.6f), Offset(mid, 2.dp.toPx()), Offset(mid, size.height - 2.dp.toPx()), strokeWidth = 2.dp.toPx())
                 if (tracked) {
-                    val x = mid + snapshot!!.path.offset.coerceIn(-1f, 1f) * half
+                    val x = mid + position.coerceIn(-1f, 1f) * half
                     drawCircle(color, 11.dp.toPx(), Offset(x, y))
                     drawCircle(NavyDeep, 4.dp.toPx(), Offset(x, y))
                 }
@@ -374,4 +396,14 @@ fun SessionSummaryScreen(summary: SessionSummary, onShareLog: (() -> Unit)?, onD
             SpeakButton("تم", onDone, spoken = "العودة إلى الشاشة الرئيسية", tone = ButtonTone.Primary, height = 76.dp, modifier = Modifier.fillMaxWidth())
         }
     }
+}
+
+/** What the Virtual Path Engine is following, in words for the runner. */
+fun modeLabel(mode: PathMode): String = when (mode) {
+    PathMode.LINE -> "يتبع خطاً إرشادياً على الأرض"
+    PathMode.LANE_CENTER -> "يتبع منتصف حارة بين خطين"
+    PathMode.LINE_PARALLEL -> "يسير موازياً لخط جانبي"
+    PathMode.FREE_PATH -> "يتبع الأرض الخالية"
+    PathMode.DETOUR -> "يلتف حول عائق"
+    PathMode.STOP -> "لا مسار مؤكداً"
 }

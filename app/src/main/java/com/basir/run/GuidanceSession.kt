@@ -9,7 +9,6 @@ import com.basir.run.engine.Cue
 import com.basir.run.engine.Decision
 import com.basir.run.engine.DecisionEngine
 import com.basir.run.engine.EngineInput
-import com.basir.run.engine.Haptic
 import com.basir.run.engine.Output
 import com.basir.run.engine.Phrase
 import com.basir.run.engine.Severity
@@ -76,6 +75,7 @@ class GuidanceSession(
         lastEvalAt = now
         engine.reset()
         policy.reset()
+        haptics.resetGuidance()
         logFile = log.open(now)
     }
 
@@ -115,7 +115,8 @@ class GuidanceSession(
 
     fun finish(now: Long): SessionSummary {
         voice.say(Phrase.SessionEnded, interrupt = true)
-        haptics.play(Haptic.Confirm, now = now)
+        haptics.resetGuidance()
+        haptics.confirm()
         log.close()
         return SessionSummary(
             durationMs = (now - startedAt).coerceAtLeast(0),
@@ -142,6 +143,7 @@ class GuidanceSession(
                 obstacle = s?.obstacle ?: com.basir.run.vision.ObstacleLevel.None,
                 obstacleKind = s?.hazardKind ?: com.basir.run.vision.HazardKind.Object,
                 depthStale = s?.depthStale ?: false,
+                line = s?.line?.command,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
                 calibratedPitchDeg = calibratedPitchDeg,
@@ -161,10 +163,11 @@ class GuidanceSession(
             lastCue = d.cue
         }
 
+        // One vibration vocabulary for everything: the decision goes to the engine's scheduler.
+        if (!paused) haptics.guide(d, now)
         for (out in policy.next(d, now)) when (out) {
             // Stops and warnings are spoken even with voice guidance turned off.
             is Output.Say -> voice.say(out.phrase, out.interrupt)
-            is Output.Buzz -> haptics.play(out.haptic, out.level, now)
             is Output.Tone -> if (prefs.guideTones) {
                 tone.play(if (out.side == Side.Left) -1f else 1f, durationMs = 110, frequency = TONE_HZ[out.level.coerceIn(1, 3)])
             }

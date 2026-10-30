@@ -45,6 +45,19 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("haptic_trained", false)
         set(value) = sp.edit().putBoolean("haptic_trained", value).apply()
 
+    /** The user passed the vibration recognition quiz at least once (required before running). */
+    var hapticQuizPassed: Boolean
+        get() = sp.getBoolean("haptic_quiz_passed", false)
+        set(value) = sp.edit().putBoolean("haptic_quiz_passed", value).apply()
+
+    /** The runner's height; the chest-mounted camera sits at about [CHEST_RATIO] of it. */
+    var runnerHeightCm: Int
+        get() = sp.getInt("runner_height_cm", 170)
+        set(value) = sp.edit().putInt("runner_height_cm", value.coerceIn(100, 220)).apply()
+
+    /** Camera height above the ground in metres, which every distance on the ground scales with. */
+    val cameraHeightM: Double get() = runnerHeightCm / 100.0 * CHEST_RATIO
+
     /** Shows the camera, the virtual path, detector boxes and timings during guidance, for testing. */
     var developerMode: Boolean
         get() = sp.getBoolean("developer_mode", false)
@@ -75,4 +88,9 @@ class Prefs(context: Context) {
             value.forEach { a.put(JSONObject().put("name", it.name).put("phone", it.phone)) }
             sp.edit().putString("contacts", a.toString()).remove("emergency_phone").apply()
         }
+
+    companion object {
+        /** Chest strap height as a share of body height (sternum level for adults). */
+        const val CHEST_RATIO = 0.74
+    }
 }

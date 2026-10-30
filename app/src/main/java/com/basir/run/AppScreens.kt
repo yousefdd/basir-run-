@@ -299,6 +299,7 @@ fun SettingsScreen(
     var tones by remember { mutableStateOf(prefs.guideTones) }
     var developer by remember { mutableStateOf(prefs.developerMode) }
     var localNumber by remember { mutableStateOf(prefs.localEmergencyNumber) }
+    var heightText by remember { mutableStateOf(prefs.runnerHeightCm.toString()) }
 
     BasirBackground {
         Column(
@@ -308,8 +309,23 @@ fun SettingsScreen(
             ScreenHeader("الإعدادات", onBack)
 
             SectionTitle("الاهتزاز")
-            SpeakButton("أنماط الاهتزاز وقوتها", onTraining, spoken = "تعلّم أنماط الاهتزاز وتعديل قوتها ومدتها", modifier = Modifier.fillMaxWidth())
+            SpeakButton("أنماط الاهتزاز واختبارها", onTraining, spoken = "تعلّم أنماط الاهتزاز وتعديل قوتها ومدتها واختبار التعرّف عليها", modifier = Modifier.fillMaxWidth())
             SpeakSwitch("الاهتزاز", "قناة التوجيه الأساسية", vibrate) { vibrate = it; prefs.vibrateOn = it }
+
+            SectionTitle("الكاميرا")
+            OutlinedTextField(
+                heightText,
+                { v ->
+                    heightText = v.filter { it.isDigit() }.take(3)
+                    heightText.toIntOrNull()?.takeIf { it in 100..220 }?.let { prefs.runnerHeightCm = it }
+                },
+                label = { Text("طولك بالسنتيمتر") },
+                supportingText = { Text(String.format(java.util.Locale.US, "الكاميرا على الصدر على ارتفاع %.2f م تقريباً؛ المسافات على الأرض تُحسب منه", prefs.cameraHeightM)) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Ink, unfocusedTextColor = Ink, focusedBorderColor = Teal, unfocusedBorderColor = NavyRaised, focusedLabelColor = Teal, unfocusedLabelColor = InkMuted),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             SectionTitle("الطوارئ")
             TrustedContactsEditor(prefs, voice)

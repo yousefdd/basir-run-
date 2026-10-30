@@ -15,89 +15,54 @@ class AnnouncementPolicyTest {
     private val unclear = Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear)
 
     private fun said(out: List<Output>) = out.filterIsInstance<Output.Say>().map { it.phrase }
-    private fun buzzes(out: List<Output>) = out.filterIsInstance<Output.Buzz>().map { it.haptic }
+    private fun tones(out: List<Output>) = out.filterIsInstance<Output.Tone>()
 
     @Test
-    fun stopInterruptsWithTheLongVibrationAndRepeats() {
+    fun stopInterruptsAndRepeats() {
         val p = AnnouncementPolicy()
         val first = p.next(lost, 0)
         assertEquals(listOf(Phrase.CannotVerifyStop), said(first))
         assertTrue((first.first() as Output.Say).interrupt)
-        assertEquals(listOf(Haptic.Stop), buzzes(first))
         assertTrue(said(p.next(lost, 1000)).isEmpty())
         assertEquals(listOf(Phrase.CannotVerifyStop), said(p.next(lost, 3100)))
     }
 
     @Test
-    fun obstacleUsesThreeQuickPulsesAndWords() {
-        val out = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle), 0)
-        assertEquals(listOf(Haptic.Attention), buzzes(out))
-        assertEquals(listOf(Phrase.Obstacle), said(out))
+    fun hazardsHaveTheirOwnWords() {
+        assertEquals(listOf(Phrase.Obstacle), said(AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle), 0)))
+        assertEquals(listOf(Phrase.HeadLevel), said(AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.HeadLevelStop), 0)))
+        assertEquals(listOf(Phrase.DropAhead), said(AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.DropStop), 0)))
+        assertEquals(listOf(Phrase.PathUnclear), said(AnnouncementPolicy().next(unclear, 0)))
     }
 
     @Test
-    fun headLevelAndDropAreSpokenWithThreeQuickPulses() {
-        val head = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.HeadLevelStop), 0)
-        assertEquals(listOf(Haptic.Attention), buzzes(head))
-        assertEquals(listOf(Phrase.HeadLevel), said(head))
-        val drop = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.DropStop), 0)
-        assertEquals(listOf(Phrase.DropAhead), said(drop))
+    fun steeringIsSilentByDefault() {
+        assertTrue(said(AnnouncementPolicy().next(slightRight, 0)).isEmpty())
+        assertTrue(said(AnnouncementPolicy().next(nearEdgeLeft, 0)).isEmpty())
     }
 
     @Test
-    fun unclearPathIsSpokenWithThreeQuickPulses() {
-        val out = AnnouncementPolicy().next(unclear, 0)
-        assertEquals(listOf(Phrase.PathUnclear), said(out))
-        assertEquals(listOf(Haptic.Attention), buzzes(out))
-    }
-
-    @Test
-    fun steeringIsSilentByDefaultAndUsesOneOrTwoPulses() {
-        val p = AnnouncementPolicy()
-        val right = p.next(slightRight, 0)
-        assertTrue(said(right).isEmpty())
-        assertEquals(listOf(Haptic.SteerRight), buzzes(right))
-        val left = AnnouncementPolicy().next(slightLeft, 0)
-        assertEquals(listOf(Haptic.SteerLeft), buzzes(left))
-    }
-
-    @Test
-    fun steeringRateFollowsTheDrift() {
+    fun toneRateFollowsTheDriftAndNeverFlipsWithinAMoment() {
         val slight = AnnouncementPolicy()
         val near = AnnouncementPolicy()
         var a = 0
         var b = 0
         for (t in 0L..2900L step 100) {
-            a += buzzes(slight.next(slightRight, t)).size
-            b += buzzes(near.next(nearEdgeLeft, t)).size
+            a += tones(slight.next(slightRight, t)).size
+            b += tones(near.next(nearEdgeLeft, t)).size
         }
         assertEquals(3, a) // every 1.2 s
-        assertEquals(5, b) // every 0.6 s
-        assertTrue("larger drift is not spoken by default", said(near.next(nearEdgeLeft, 5000)).isEmpty())
-    }
-
-    @Test
-    fun directionDoesNotFlipWithinAMoment() {
+        assertEquals(4, b) // every 0.8 s
         val p = AnnouncementPolicy()
         p.next(slightRight, 0)
-        assertTrue(buzzes(p.next(slightLeft, 600)).isEmpty())
-        assertEquals(listOf(Haptic.SteerLeft), buzzes(p.next(slightLeft, 1300)))
+        assertTrue(tones(p.next(slightLeft, 600)).isEmpty())
+        assertEquals(1, tones(p.next(slightLeft, 1300)).size)
     }
 
     @Test
-    fun noSteeringDuringAStop() {
+    fun noDirectionDuringAStop() {
         val edgeStop = AnnouncementPolicy().next(Decision(SystemState.StopAndCheck, Severity.Critical, Cue.AtEdgeStop, Side.Left, 3), 0)
-        assertEquals(listOf(Haptic.Stop), buzzes(edgeStop))
         assertTrue(edgeStop.none { it is Output.Tone })
-    }
-
-    @Test
-    fun bendGetsTheSwellOnce() {
-        val p = AnnouncementPolicy()
-        val bend = Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, curve = Side.Right)
-        assertEquals(listOf(Haptic.BendAhead), buzzes(p.next(bend, 0)))
-        assertTrue(buzzes(p.next(bend, 500)).isEmpty())
-        assertTrue(said(p.next(bend, 600)).isEmpty())
     }
 
     @Test
