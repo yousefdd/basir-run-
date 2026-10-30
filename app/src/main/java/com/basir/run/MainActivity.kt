@@ -111,7 +111,7 @@ private fun BasirApp() {
         page = when (page) {
             Page.Emergency -> if (emergencyFrom == Page.Run) Page.Home else emergencyFrom
             Page.SettingsGuide, Page.SettingsTraining -> Page.Settings
-            Page.LiveVision -> Page.Developer
+            Page.LiveVision, Page.DeveloperLogin -> Page.Developer
             else -> Page.Home
         }
     }
@@ -162,7 +162,7 @@ private fun BasirApp() {
                 },
                 onEmergency = { emergency(Page.Home) },
                 onSettings = { page = Page.Settings },
-                onDeveloper = { page = Page.DeveloperLogin },
+                onDeveloper = { page = Page.Developer },
             )
 
             Page.Run -> RunScreen(
@@ -213,15 +213,15 @@ private fun BasirApp() {
 
             Page.SettingsGuide -> GuideScreen(voice, nextLabel = Phrase.ButtonDone.ar, onNext = { page = Page.Settings }, onBack = { page = Page.Settings })
 
-            Page.DeveloperLogin -> DeveloperLoginScreen(onOpen = { page = Page.Developer }, onBack = { page = Page.Home })
+            Page.Developer -> DeveloperScreen(onEngineCheck = { page = Page.DeveloperLogin }, onBack = { page = Page.Home })
 
-            Page.Developer -> DeveloperScreen(
-                onLiveVision = {
+            Page.DeveloperLogin -> DeveloperLoginScreen(
+                onOpen = {
                     request(Manifest.permission.CAMERA) {
-                        if (context.has(Manifest.permission.CAMERA)) page = Page.LiveVision
+                        page = if (context.has(Manifest.permission.CAMERA)) Page.LiveVision else Page.Developer
                     }
                 },
-                onBack = { page = Page.Home },
+                onBack = { page = Page.Developer },
             )
 
             Page.LiveVision -> LiveVisionScreen(pipeline, motion, prefs, onBack = { page = Page.Developer })

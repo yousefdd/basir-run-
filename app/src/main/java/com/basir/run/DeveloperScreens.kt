@@ -1,7 +1,13 @@
 package com.basir.run
 
 import android.os.SystemClock
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,8 +53,9 @@ import com.basir.run.vision.FrameSnapshot
 import com.basir.run.vision.GuidancePipeline
 import kotlinx.coroutines.delay
 
-/** The developer area is only a convenience gate for testing, not a security measure. */
+/** The engine check is behind a convenience gate for testing, not a security measure. */
 private const val DEVELOPER_CODE = "00000000"
+private const val DEVELOPER_EMAIL = "yousefgattal75@gmail.com"
 
 @Composable
 fun DeveloperLoginScreen(onOpen: () -> Unit, onBack: () -> Unit) {
@@ -59,7 +66,7 @@ fun DeveloperLoginScreen(onOpen: () -> Unit, onBack: () -> Unit) {
             modifier = screenModifier().padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("المطوّر", onBack, silent = true)
+            ScreenHeader("فحص محرك الاكتشاف", onBack, silent = true)
             OutlinedTextField(
                 code,
                 { code = it.filter(Char::isDigit).take(16); wrong = false },
@@ -88,50 +95,59 @@ fun DeveloperLoginScreen(onOpen: () -> Unit, onBack: () -> Unit) {
 }
 
 /**
- * About the project (supervision by ISTAPS, Larbi Tebessi University) and the live vision view.
+ * The developer's space: what it is for, how to reach the developer, and the detection engine
+ * check behind the password. Silent, like every developer control.
  */
 @Composable
-fun DeveloperScreen(onLiveVision: () -> Unit, onBack: () -> Unit) {
+fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
     BasirBackground {
         Column(
             modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("المطوّر", onBack, silent = true)
+            ScreenHeader("مساحة المطوّر والتحديثات", onBack, silent = true)
             Card {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Image(
                         painterResource(R.drawable.istaps_logo),
                         contentDescription = "شعار معهد علوم وتقنيات النشاطات البدنية والرياضية، جامعة العربي التبسي، تبسة",
-                        modifier = Modifier.size(104.dp).clip(CircleShape).background(Color.White),
+                        modifier = Modifier.size(96.dp).clip(CircleShape).background(Color.White),
                     )
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("بصير ران", style = MaterialTheme.typography.titleLarge, color = Ink)
-                        Text("توجيه بلغة الاهتزاز للجري للمكفوفين", style = MaterialTheme.typography.labelMedium, color = InkMuted)
-                    }
+                    Text(
+                        "هذا القسم مخصص للمطوّر لإجراء التجارب والاختبارات، ومتابعة تطوير التطبيق، واستعراض التحديثات الجديدة. كما يتيح تدوين الاقتراحات والأفكار المستقبلية، وتجربة الميزات قبل اعتمادها رسميًا.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                Text(
-                    "تطبيق أُنجز تحت تأطير معهد علوم وتقنيات النشاطات البدنية والرياضية، جامعة العربي التبسي، تبسة.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Ink,
-                )
-                Text("الإصدار ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, color = InkMuted)
+            }
+            Card {
+                Text("للمراسلة وإرسال الاقتراحات", style = MaterialTheme.typography.labelLarge, color = InkMuted)
+                SelectionContainer {
+                    Text(
+                        DEVELOPER_EMAIL,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Teal,
+                        modifier = Modifier.clickable {
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$DEVELOPER_EMAIL")))
+                            } catch (e: ActivityNotFoundException) {
+                                // No mail app: the address stays on screen to copy.
+                            }
+                        },
+                    )
+                }
             }
             SpeakButton(
-                "الرؤية المباشرة بالكاميرا",
-                onLiveVision,
-                spoken = "الرؤية المباشرة بالكاميرا: ما يراه التطبيق ويكتشفه الآن",
+                "فحص محرك الاكتشاف للتطبيق",
+                onEngineCheck,
                 hint = null,
                 tone = ButtonTone.Primary,
                 icon = Icons.Filled.PlayArrow,
                 height = 76.dp,
                 silent = true,
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                "تعرض صورة الكاميرا الحقيقية وفوقها ما يكتشفه التطبيق: الخط والمسار الذي يتبعه، والعوائق، والأرض والحفر، والأرقام. لا اهتزاز ولا توجيه فيها.",
-                style = MaterialTheme.typography.labelMedium,
-                color = InkMuted,
             )
         }
     }
@@ -171,7 +187,7 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
             modifier = screenModifier().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ScreenHeader("الرؤية المباشرة", onBack, silent = true)
+            ScreenHeader("فحص محرك الاكتشاف", onBack, silent = true)
             cameraError?.let { Text(it, color = Danger, style = MaterialTheme.typography.titleMedium) }
             val line = snapshot?.line
             Text(
