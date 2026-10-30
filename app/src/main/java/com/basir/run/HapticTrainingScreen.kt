@@ -142,38 +142,38 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                 Text("هذا الهاتف لا يدعم الاهتزاز. سيعتمد التطبيق على الصوت.", style = MaterialTheme.typography.titleMedium, color = Danger)
             }
 
+            Card {
+                SectionTitle("قوة الاهتزاز")
+                Slider(
+                    value = strength,
+                    onValueChange = { strength = it },
+                    onValueChangeFinished = { prefs.hapticStrength = strength; haptics.play(haptics.language.correct(Side.LEFT, Level.MEDIUM)) },
+                    valueRange = 0.3f..1f,
+                    colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
+                    modifier = Modifier.semantics {
+                        contentDescription = "قوة الاهتزاز"
+                        stateDescription = String.format(Locale.US, "%.0f%%", strength * 100)
+                    },
+                )
+                SectionTitle("مدة النبضة")
+                Slider(
+                    value = duration,
+                    onValueChange = { duration = it },
+                    onValueChangeFinished = { prefs.hapticDuration = duration; haptics.play(haptics.language.correct(Side.RIGHT, Level.MEDIUM)) },
+                    valueRange = 0.6f..2f,
+                    colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
+                    modifier = Modifier.semantics {
+                        contentDescription = "مدة النبضة"
+                        stateDescription = String.format(Locale.US, "×%.1f", duration)
+                    },
+                )
+            }
             if (question < 0) {
                 LESSONS.forEach { l ->
                     SpeakButton(l.title, { teach(listOf(l)) }, spoken = l.phrase.ar, hint = "اضغط مطولاً للتجربة", sayHowToUse = false, modifier = Modifier.fillMaxWidth())
                 }
                 SpeakButton("كل الأنماط بالترتيب", { teach(LESSONS) }, spoken = Phrase.ButtonAllPatterns.ar, tone = ButtonTone.Accent, sayHowToUse = false, modifier = Modifier.fillMaxWidth())
 
-                Card {
-                    SectionTitle("قوة الاهتزاز")
-                    Slider(
-                        value = strength,
-                        onValueChange = { strength = it },
-                        onValueChangeFinished = { prefs.hapticStrength = strength; haptics.play(haptics.language.correct(Side.LEFT, Level.MEDIUM)) },
-                        valueRange = 0.3f..1f,
-                        colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
-                        modifier = Modifier.semantics {
-                            contentDescription = "قوة الاهتزاز"
-                            stateDescription = String.format(Locale.US, "%.0f%%", strength * 100)
-                        },
-                    )
-                    SectionTitle("مدة النبضة")
-                    Slider(
-                        value = duration,
-                        onValueChange = { duration = it },
-                        onValueChangeFinished = { prefs.hapticDuration = duration; haptics.play(haptics.language.correct(Side.RIGHT, Level.MEDIUM)) },
-                        valueRange = 0.6f..2f,
-                        colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
-                        modifier = Modifier.semantics {
-                            contentDescription = "مدة النبضة"
-                            stateDescription = String.format(Locale.US, "×%.1f", duration)
-                        },
-                    )
-                }
 
                 result?.let {
                     Text(it, style = MaterialTheme.typography.titleMedium, color = Tactile, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
