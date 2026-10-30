@@ -216,7 +216,7 @@ fun RunScreen(
             Spacer(Modifier.weight(1f))
             SpeakButton(
                 label = if (current == null) "إلغاء" else "إيقاف الجري",
-                spoken = if (current == null) "إلغاء الفحص والعودة" else "إيقاف الجري وإنهاء التوجيه",
+                spoken = if (current == null) Phrase.ButtonCancelCheck.ar else Phrase.ButtonStopRun.ar,
                 onHold = ::stop,
                 tone = ButtonTone.Accent,
                 height = if (current == null) 72.dp else 120.dp,
@@ -224,7 +224,7 @@ fun RunScreen(
             )
             SpeakButton(
                 label = "طوارئ",
-                spoken = "طوارئ: مشاركة موقعك والاتصال بجهة الاتصال الموثوقة",
+                spoken = Phrase.ButtonEmergency.ar,
                 onHold = onEmergency,
                 tone = ButtonTone.Danger,
                 height = 76.dp,
@@ -249,7 +249,7 @@ private fun CheckingPanel(results: List<CheckResult>, cameraError: String?, voic
         val failed = results.filter { !it.passed }
         SpeakButton(
             label = "اقرأ الحالة",
-            spoken = "قراءة نتيجة الفحص",
+            spoken = Phrase.ButtonReadStatus.ar,
             onHold = {
                 voice.sayText(
                     if (failed.isEmpty()) "كل الفحوص ناجحة. انتظر ثلاث ثوانٍ" else "غير جاهز. " + failed.joinToString("، ") { "${it.check.label}: ${it.detail}" },
@@ -391,9 +391,9 @@ fun SessionSummaryScreen(summary: SessionSummary, onShareLog: (() -> Unit)?, onD
                 MetricTile("أسوأ 10%", String.format(Locale.US, "%.0f ملّي ث", summary.processingP90Ms), Modifier.weight(1f))
             }
             if (onShareLog != null) {
-                SpeakButton("مشاركة سجل القياسات", onShareLog, spoken = "مشاركة سجل القياسات، ملف نصي بلا صور", modifier = Modifier.fillMaxWidth())
+                SpeakButton("مشاركة سجل القياسات", onShareLog, spoken = Phrase.ButtonShareLog.ar, modifier = Modifier.fillMaxWidth())
             }
-            SpeakButton("تم", onDone, spoken = "العودة إلى الشاشة الرئيسية", tone = ButtonTone.Primary, height = 76.dp, modifier = Modifier.fillMaxWidth())
+            SpeakButton("تم", onDone, spoken = Phrase.ButtonHome.ar, tone = ButtonTone.Primary, height = 76.dp, modifier = Modifier.fillMaxWidth())
         }
     }
 }

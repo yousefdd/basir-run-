@@ -50,6 +50,8 @@ data class SystemStatus(
     val depthReady: Boolean,
     val vibration: Boolean,
     val contact: Contact?,
+    /** false when the phone has no Arabic text-to-speech voice; recorded phrases still play. */
+    val arabicTextToSpeech: Boolean? = null,
 )
 
 /**
@@ -69,13 +71,13 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                     Text("بصير ران", style = MaterialTheme.typography.headlineLarge, color = Ink, modifier = Modifier.semantics { heading() })
                     Text("توجيه بالاهتزاز للجري بالكاميرا", style = MaterialTheme.typography.labelMedium, color = InkMuted)
                 }
-                SpeakButton("الإعدادات", onSettings, hint = null, icon = Icons.Filled.Settings, height = 52.dp, spoken = "الإعدادات: نمط الاهتزاز وجهة الاتصال الموثوقة")
+                SpeakButton("الإعدادات", onSettings, hint = null, icon = Icons.Filled.Settings, height = 52.dp, spoken = Phrase.ButtonSettings.ar)
             }
             Spacer(Modifier.height(8.dp))
 
             SpeakButton(
                 label = "ابدأ الجري",
-                spoken = "ابدأ الجري. سيفحص التطبيق المسار أولاً، ويبدأ التوجيه وحده عند نجاح الفحص",
+                spoken = Phrase.ButtonStart.ar,
                 onHold = onStart,
                 tone = ButtonTone.Primary,
                 icon = Icons.Filled.PlayArrow,
@@ -94,11 +96,14 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                 StatusLine(if (status.vibration) "الاهتزاز: متاح" else "الاهتزاز غير متاح: سيعتمد التوجيه على الصوت", if (status.vibration) Good else Amber)
                 StatusLine(status.contact?.let { "جهة الطوارئ: ${it.name}" } ?: "لا توجد جهة اتصال موثوقة", if (status.contact != null) Good else Amber)
                 StatusLine("التتبع: يبدأ بعد فحص المسار", Blue)
+                if (status.arabicTextToSpeech == false) {
+                    StatusLine("لا يوجد قارئ نصوص عربي في الهاتف: الجمل المسجّلة تعمل، والتفاصيل الأخرى لن تُقرأ", Amber)
+                }
             }
 
             SpeakButton(
                 label = "طوارئ",
-                spoken = "طوارئ: مشاركة موقعك والاتصال بجهة الاتصال الموثوقة",
+                spoken = Phrase.ButtonEmergency.ar,
                 onHold = onEmergency,
                 tone = ButtonTone.Danger,
                 icon = Icons.Filled.Warning,
@@ -145,13 +150,13 @@ fun GuideScreen(voice: Voice, nextLabel: String, onNext: () -> Unit, onBack: (()
                 style = MaterialTheme.typography.bodyMedium,
                 color = InkMuted,
             )
-            SpeakButton("اقرأ مرة أخرى", { voice.stopAll(); GUIDE.forEach { voice.say(it) } }, spoken = "قراءة الإرشادات مرة أخرى", modifier = Modifier.fillMaxWidth())
+            SpeakButton("اقرأ مرة أخرى", { voice.stopAll(); GUIDE.forEach { voice.say(it) } }, spoken = Phrase.ButtonReadAgain.ar, modifier = Modifier.fillMaxWidth())
             SpeakButton(nextLabel, { voice.stopAll(); onNext() }, tone = ButtonTone.Primary, height = 76.dp, modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
-data class PermissionItem(val title: String, val why: String, val granted: Boolean, val request: () -> Unit)
+data class PermissionItem(val title: String, val why: String, val granted: Boolean, val allowSpoken: String, val request: () -> Unit)
 
 @Composable
 fun PermissionsScreen(items: List<PermissionItem>, onContinue: () -> Unit) {
@@ -166,7 +171,7 @@ fun PermissionsScreen(items: List<PermissionItem>, onContinue: () -> Unit) {
                     Text(item.title, style = MaterialTheme.typography.titleLarge, color = Ink)
                     Text(item.why, style = MaterialTheme.typography.bodyMedium, color = InkMuted)
                     if (item.granted) StatusLine("مسموح", Good)
-                    else SpeakButton("السماح", item.request, spoken = "السماح بإذن ${item.title}", tone = ButtonTone.Primary, modifier = Modifier.fillMaxWidth())
+                    else SpeakButton("السماح", item.request, spoken = item.allowSpoken, tone = ButtonTone.Primary, modifier = Modifier.fillMaxWidth())
                 }
             }
             SpeakButton("التالي", onContinue, tone = ButtonTone.Primary, height = 76.dp, modifier = Modifier.fillMaxWidth())
@@ -190,7 +195,7 @@ fun ContactStepScreen(prefs: Prefs, voice: Voice, onContinue: () -> Unit) {
             )
             TrustedContactsEditor(prefs, voice) { contacts = it }
             SpeakButton(
-                if (contacts.isEmpty()) "التالي بدون جهة اتصال" else "التالي",
+                if (contacts.isEmpty()) Phrase.ButtonNextNoContact.ar else Phrase.ButtonNext.ar,
                 {
                     if (contacts.isEmpty()) voice.say(Phrase.SosNoContact, interrupt = true)
                     onContinue()
@@ -251,12 +256,12 @@ fun TrustedContactsEditor(prefs: Prefs, voice: Voice, onChange: (List<Contact>) 
         Card {
             Text(if (i == 0) "${c.name} · يُتصل بها أولاً" else c.name, style = MaterialTheme.typography.titleMedium, color = Ink)
             Text(c.phone, style = MaterialTheme.typography.labelMedium, color = InkMuted)
-            SpeakButton("حذف", { save(contacts - c) }, spoken = "حذف ${c.name}", hint = null, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            SpeakButton("حذف", { save(contacts - c) }, spoken = Phrase.ButtonDeleteContact.ar, hint = null, height = 48.dp, modifier = Modifier.fillMaxWidth())
         }
     }
     SpeakButton(
         "اختيار من جهات الاتصال", { picker.launch(Unit) },
-        spoken = "اختيار جهة اتصال موثوقة من دفتر الهاتف", tone = ButtonTone.Primary, modifier = Modifier.fillMaxWidth(),
+        spoken = Phrase.ButtonPickContact.ar, tone = ButtonTone.Primary, modifier = Modifier.fillMaxWidth(),
     )
     val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = Ink, unfocusedTextColor = Ink, focusedBorderColor = Teal, unfocusedBorderColor = NavyRaised, focusedLabelColor = Teal, unfocusedLabelColor = InkMuted)
     OutlinedTextField(name, { name = it }, label = { Text("أو اكتب الاسم") }, singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth())
@@ -274,7 +279,7 @@ fun TrustedContactsEditor(prefs: Prefs, voice: Voice, onChange: (List<Contact>) 
             note = "اكتب الاسم والرقم"
         }
         note?.let { voice.sayText(it, interrupt = true) }
-    }, spoken = "إضافة الاسم والرقم المكتوبين", modifier = Modifier.fillMaxWidth())
+    }, spoken = Phrase.ButtonAddContact.ar, modifier = Modifier.fillMaxWidth())
     note?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Tactile, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
 }
 
@@ -304,8 +309,8 @@ fun SettingsScreen(
             ScreenHeader("الإعدادات", onBack)
 
             SectionTitle("الاهتزاز")
-            SpeakButton("أنماط الاهتزاز واختبارها", onTraining, spoken = "تعلّم أنماط الاهتزاز وتعديل قوتها ومدتها واختبار التعرّف عليها", modifier = Modifier.fillMaxWidth())
-            SpeakSwitch("الاهتزاز", "قناة التوجيه الأساسية", vibrate) { vibrate = it; prefs.vibrateOn = it }
+            SpeakButton("أنماط الاهتزاز واختبارها", onTraining, spoken = Phrase.ButtonHapticLessons.ar, modifier = Modifier.fillMaxWidth())
+            SpeakSwitch(Phrase.SwitchVibration.ar, "قناة التوجيه الأساسية", vibrate) { vibrate = it; prefs.vibrateOn = it }
 
             SectionTitle("الكاميرا")
             OutlinedTextField(
@@ -333,11 +338,11 @@ fun SettingsScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.fillMaxWidth(),
             )
-            SpeakButton("اختبار الطوارئ بلا إرسال", onEmergencyTest, spoken = "تجربة إجراء الطوارئ دون إرسال رسالة أو إجراء اتصال", modifier = Modifier.fillMaxWidth())
+            SpeakButton("اختبار الطوارئ بلا إرسال", onEmergencyTest, spoken = Phrase.ButtonEmergencyTest.ar, modifier = Modifier.fillMaxWidth())
 
             SectionTitle("الصوت")
-            SpeakSwitch("توجيه صوتي إضافي", "يقول التصحيحات والمنحنيات بالكلام أيضاً", verbose) { verbose = it; prefs.verboseVoice = it }
-            SpeakSwitch("نغمات الاتجاه", "نغمة قصيرة في الأذن جهة الحركة، مع سماعة", tones) { tones = it; prefs.guideTones = it }
+            SpeakSwitch(Phrase.SwitchVoice.ar, "يقول التصحيحات والمنحنيات بالكلام أيضاً", verbose) { verbose = it; prefs.verboseVoice = it }
+            SpeakSwitch(Phrase.SwitchTones.ar, "نغمة قصيرة في الأذن جهة الحركة، مع سماعة", tones) { tones = it; prefs.guideTones = it }
             Text(
                 if (voice.recordedCount > 0) "تسجيلات صوتية مضافة: ${voice.recordedCount}" else "الجمل تُقرأ بصوت الهاتف. يمكن استبدالها بتسجيلات.",
                 style = MaterialTheme.typography.labelMedium,
@@ -345,8 +350,8 @@ fun SettingsScreen(
             )
 
             SectionTitle("عام")
-            SpeakButton("إرشادات الاستخدام الأول", onGuide, spoken = "إعادة قراءة إرشادات الاستخدام الأول", modifier = Modifier.fillMaxWidth())
-            SpeakSwitch("وضع المطوّر", "يعرض الكاميرا والمسار الافتراضي والأرقام أثناء الجري، للاختبار", developer) { developer = it; prefs.developerMode = it }
+            SpeakButton("إرشادات الاستخدام الأول", onGuide, spoken = Phrase.ButtonGuide.ar, modifier = Modifier.fillMaxWidth())
+            SpeakSwitch(Phrase.SwitchDeveloper.ar, "يعرض الكاميرا والمسار الافتراضي والأرقام أثناء الجري، للاختبار", developer) { developer = it; prefs.developerMode = it }
             Text("الإصدار ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, color = InkMuted)
         }
     }

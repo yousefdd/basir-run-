@@ -40,13 +40,13 @@ import run.basir.engine.Side
 private class Lesson(val title: String, val answer: String, val phrase: Phrase, val patterns: (HapticLanguage) -> List<HapticPattern>)
 
 private val LESSONS = listOf(
-    Lesson("نبضة قصيرة: صحّح يساراً", "تصحيح إلى اليسار", Phrase.PatternLeft) { listOf(it.correct(Side.LEFT, Level.LOW)) },
-    Lesson("نبضتان قصيرتان: صحّح يميناً", "تصحيح إلى اليمين", Phrase.PatternRight) { listOf(it.correct(Side.RIGHT, Level.LOW)) },
+    Lesson("نبضة قصيرة: صحّح يساراً", Phrase.AnswerLeft.ar, Phrase.PatternLeft) { listOf(it.correct(Side.LEFT, Level.LOW)) },
+    Lesson("نبضتان قصيرتان: صحّح يميناً", Phrase.AnswerRight.ar, Phrase.PatternRight) { listOf(it.correct(Side.RIGHT, Level.LOW)) },
     Lesson("الشدة تزيد مع الابتعاد", "", Phrase.PatternStrength) { l -> Level.values().map { l.correct(Side.LEFT, it) } },
-    Lesson("نبضة طويلة هادئة: منعطف يسار", "منعطف يسار قادم", Phrase.PatternBendLeft) { listOf(it.curve(Side.LEFT, Level.MEDIUM)) },
-    Lesson("نبضتان طويلتان هادئتان: منعطف يمين", "منعطف يمين قادم", Phrase.PatternBendRight) { listOf(it.curve(Side.RIGHT, Level.MEDIUM)) },
-    Lesson("ثلاث نبضات سريعة: عائق أو انتباه", "عائق أو انتباه فوري", Phrase.PatternAttention) { listOf(it.obstacle()) },
-    Lesson("طويلة ثم نبضتان: توقف فوراً", "توقف فوراً", Phrase.PatternStop) { listOf(it.stop()) },
+    Lesson("نبضة طويلة هادئة: منعطف يسار", Phrase.AnswerBendLeft.ar, Phrase.PatternBendLeft) { listOf(it.curve(Side.LEFT, Level.MEDIUM)) },
+    Lesson("نبضتان طويلتان هادئتان: منعطف يمين", Phrase.AnswerBendRight.ar, Phrase.PatternBendRight) { listOf(it.curve(Side.RIGHT, Level.MEDIUM)) },
+    Lesson("ثلاث نبضات سريعة: عائق أو انتباه", Phrase.AnswerAttention.ar, Phrase.PatternAttention) { listOf(it.obstacle()) },
+    Lesson("طويلة ثم نبضتان: توقف فوراً", Phrase.AnswerStop.ar, Phrase.PatternStop) { listOf(it.stop()) },
     Lesson("نبضة التأكيد", "", Phrase.PatternConfirm) { listOf(HapticEngine.CONFIRM) },
     Lesson("نقرة خفيفة: أنت على المسار", "", Phrase.PatternOnPath) { listOf(it.onPath()) },
 )
@@ -146,7 +146,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                 LESSONS.forEach { l ->
                     SpeakButton(l.title, { teach(listOf(l)) }, spoken = l.phrase.ar, hint = "اضغط مطولاً للتجربة", modifier = Modifier.fillMaxWidth())
                 }
-                SpeakButton("كل الأنماط بالترتيب", { teach(LESSONS) }, spoken = "تشغيل كل الأنماط بالترتيب مع شرحها", tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
+                SpeakButton("كل الأنماط بالترتيب", { teach(LESSONS) }, spoken = Phrase.ButtonAllPatterns.ar, tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
 
                 Card {
                     SectionTitle("قوة الاهتزاز")
@@ -188,7 +188,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                             voice.say(Phrase.QuizIntro, interrupt = true)
                             scope.launch { delay(3500); ask(0) }
                         },
-                        spoken = "اختبار من $QUESTIONS أسئلة. يلزم $PASS إجابات صحيحة قبل الجري",
+                        spoken = Phrase.ButtonQuiz.ar,
                         tone = ButtonTone.Primary,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -216,7 +216,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
-                SpeakButton("أعد تشغيل النمط", { asked?.let { playing.value = play(it.patterns(haptics.language)) } }, tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
+                SpeakButton(Phrase.ButtonReplayPattern.ar, { asked?.let { playing.value = play(it.patterns(haptics.language)) } }, tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
                 options.forEach { o -> SpeakButton(o.answer, { answer(o) }, hint = "اضغط مطولاً للاختيار", modifier = Modifier.fillMaxWidth()) }
             }
         }

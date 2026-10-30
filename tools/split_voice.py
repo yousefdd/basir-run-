@@ -3,7 +3,8 @@ Cuts the long voice recordings (one per part of docs/voice/VOICE_PARAGRAPHS.md) 
 per phrase, named by the phrase id the app looks for: app/src/main/assets/voice/<id>.mp3.
 
 Usage:
-    python3 tools/split_voice.py part1.mp3 part2.mp3 part3.mp3
+    python3 tools/split_voice.py part1.mp3 part2.mp3 part3.mp3 part4.mp3   # all parts, in order
+    python3 tools/split_voice.py 4:part4.mp3                                # only some parts
 
 How it finds the cuts: the paragraphs put a <break time="1.5s" /> between phrases, which is
 longer than any pause inside a phrase (commas and full stops give a few tenths of a second).
@@ -93,12 +94,16 @@ def export(src, start, end, dst):
                     "-write_xing", "0", dst], check=True)
 
 
-def main(files):
+def main(args):
     parts = phrases_by_part()
-    if len(files) != len(parts):
-        sys.exit(f"Give {len(parts)} recordings, one per part, in order (got {len(files)}).")
+    if all(re.match(r"^\d+:", a) for a in args):
+        jobs = [(a.split(":", 1)[1], parts[int(a.split(":", 1)[0]) - 1]) for a in args]
+    elif len(args) == len(parts):
+        jobs = list(zip(args, parts))
+    else:
+        sys.exit(f"Give {len(parts)} recordings, one per part, in order, or name the parts: 4:part4.mp3")
     plans = []
-    for path, ids in zip(files, parts):
+    for path, ids in jobs:
         spans, gap, inside = cut_points(path, len(ids))
         print(f"{os.path.basename(path)}: {len(ids)} phrases; pauses between ≥ {gap:.2f}s, inside ≤ {inside:.2f}s")
         plans.append((path, ids, spans))

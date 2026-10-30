@@ -1,5 +1,7 @@
 package com.basir.run
 
+import com.basir.run.engine.Phrase
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -62,7 +64,7 @@ fun Modifier.speakThenHold(spoken: String, actionLabel: String, onHold: () -> Un
         role = Role.Button,
         onClickLabel = "قراءة",
         onLongClickLabel = actionLabel,
-        onClick = { onTap?.invoke() ?: voice?.sayText("$spoken. اضغط مطولاً للتشغيل", interrupt = true) },
+        onClick = { onTap?.invoke() ?: voice?.sayControl(spoken) },
         onLongClick = {
             haptic?.invoke()
             onHold()
@@ -109,13 +111,13 @@ fun SpeakButton(
                 role = Role.Button,
                 onClickLabel = "قراءة",
                 onLongClickLabel = label,
-                onClick = { voice?.sayText(if (enabled) "$spoken. اضغط مطولاً للتشغيل" else "$spoken. غير متاح الآن", interrupt = true) },
+                onClick = { voice?.sayControl(spoken, enabled) },
                 onLongClick = {
                     if (enabled) {
                         feedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         onHold()
                     } else {
-                        voice?.sayText("$spoken. غير متاح الآن", interrupt = true)
+                        voice?.sayControl(spoken, enabled = false)
                     }
                 },
             )
@@ -151,10 +153,10 @@ fun SpeakSwitch(title: String, hint: String, checked: Boolean, onChange: (Boolea
                 spoken = title, actionLabel = if (checked) "إيقاف" else "تفعيل",
                 onHold = {
                     onChange(!checked)
-                    voice?.sayText("$title: ${if (!checked) "مفعّل" else "متوقف"}", interrupt = true)
+                    voice?.saySwitch(title, on = !checked, howToChange = false)
                 },
                 voice = voice,
-                onTap = { voice?.sayText("$title: $state. $hint. اضغط مطولاً للتبديل", interrupt = true) },
+                onTap = { voice?.saySwitch(title, on = checked, howToChange = true) },
                 haptic = { feedback.performHapticFeedback(HapticFeedbackType.LongPress) },
             )
             .semantics(mergeDescendants = true) { stateDescription = state }
@@ -256,7 +258,7 @@ fun screenModifier(): Modifier = Modifier
 fun ScreenHeader(title: String, onBack: (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (onBack != null) {
-            SpeakButton("رجوع", onBack, hint = null, height = 52.dp, spoken = "رجوع إلى الشاشة السابقة")
+            SpeakButton("رجوع", onBack, hint = null, height = 52.dp, spoken = Phrase.ButtonBack.ar)
         }
         Text(
             title,

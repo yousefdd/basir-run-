@@ -121,15 +121,15 @@ private fun BasirApp() {
 
     CompositionLocalProvider(LocalVoice provides voice) {
         when (page) {
-            Page.Guide -> GuideScreen(voice, nextLabel = "التالي", onNext = { page = Page.Permissions }, onBack = null)
+            Page.Guide -> GuideScreen(voice, nextLabel = Phrase.ButtonNext.ar, onNext = { page = Page.Permissions }, onBack = null)
 
             Page.Permissions -> key(permissionsVersion) {
                 PermissionsScreen(
                     items = listOf(
-                        PermissionItem("الكاميرا", "ضرورية للتوجيه: ترى المسار والعوائق. الصور تُحلَّل على الهاتف ولا تُحفظ ولا تُرفع.", context.has(Manifest.permission.CAMERA)) {
+                        PermissionItem("الكاميرا", "ضرورية للتوجيه: ترى المسار والعوائق. الصور تُحلَّل على الهاتف ولا تُحفظ ولا تُرفع.", context.has(Manifest.permission.CAMERA), Phrase.ButtonAllowCamera.ar) {
                             request(Manifest.permission.CAMERA)
                         },
-                        PermissionItem("الموقع", "لإرسال موقعك إلى جهة الاتصال الموثوقة في الطوارئ فقط. لا يُستخدم في التوجيه.", context.has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        PermissionItem("الموقع", "لإرسال موقعك إلى جهة الاتصال الموثوقة في الطوارئ فقط. لا يُستخدم في التوجيه.", context.has(Manifest.permission.ACCESS_FINE_LOCATION), Phrase.ButtonAllowLocation.ar) {
                             request(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                         },
                     ),
@@ -139,7 +139,7 @@ private fun BasirApp() {
 
             Page.Contact -> ContactStepScreen(prefs, voice, onContinue = { page = Page.Training })
 
-            Page.Training -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = "فهمت، إلى الرئيسية", onDone = {
+            Page.Training -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = Phrase.ButtonUnderstood.ar, onDone = {
                 prefs.onboarded = true
                 page = Page.Home
             }, onBack = null)
@@ -151,6 +151,7 @@ private fun BasirApp() {
                     depthReady = deep.depthReady,
                     vibration = haptics.available,
                     contact = prefs.contacts.firstOrNull(),
+                    arabicTextToSpeech = voice.arabicTextToSpeech,
                 ),
                 notice = notice,
                 onStart = {
@@ -212,9 +213,9 @@ private fun BasirApp() {
                 onBack = { page = Page.Home },
             )
 
-            Page.SettingsGuide -> GuideScreen(voice, nextLabel = "تم", onNext = { page = Page.Settings }, onBack = { page = Page.Settings })
+            Page.SettingsGuide -> GuideScreen(voice, nextLabel = Phrase.ButtonDone.ar, onNext = { page = Page.Settings }, onBack = { page = Page.Settings })
 
-            Page.SettingsTraining -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = "حفظ", onDone = { page = Page.Settings }, onBack = { page = Page.Settings })
+            Page.SettingsTraining -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = Phrase.ButtonSave.ar, onDone = { page = Page.Settings }, onBack = { page = Page.Settings })
         }
     }
 }

@@ -90,6 +90,14 @@ class AnnouncementPolicyTest {
     }
 
     @Test
+    fun everyPhraseTextIsUniqueSoAButtonFindsItsRecording() {
+        val texts = Phrase.values().map { it.ar }
+        assertEquals(texts.size, texts.toSet().size)
+        assertEquals(Phrase.ButtonStart, Phrase.forText(Phrase.ButtonStart.ar))
+        assertEquals(null, Phrase.forText("نص غير مسجّل"))
+    }
+
+    @Test
     fun phraseIdsAreUniqueFileNames() {
         val ids = Phrase.values().map { it.id }
         assertEquals(ids.size, ids.toSet().size)

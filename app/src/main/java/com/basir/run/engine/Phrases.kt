@@ -62,6 +62,53 @@ enum class Phrase(val id: String, val ar: String) {
     QuizPassed("quiz_passed", "أحسنت، اجتزت اختبار الاهتزاز"),
     QuizFailed("quiz_failed", "لم تجتز الاختبار بعد. تدرّب على الأنماط ثم أعد المحاولة"),
 
+    // Buttons
+    ButtonStart("btn_start", "ابدأ الجري. سيفحص التطبيق المسار أولاً، ويبدأ التوجيه وحده عند نجاح الفحص"),
+    ButtonEmergency("btn_emergency", "طوارئ: مشاركة موقعك والاتصال بجهة الاتصال الموثوقة"),
+    ButtonSettings("btn_settings", "الإعدادات: نمط الاهتزاز وجهة الاتصال الموثوقة"),
+    ButtonBack("btn_back", "رجوع إلى الشاشة السابقة"),
+    ButtonNext("btn_next", "التالي"),
+    ButtonNextNoContact("btn_next_no_contact", "التالي بدون جهة اتصال"),
+    ButtonDone("btn_done", "تم"),
+    ButtonHome("btn_home", "العودة إلى الشاشة الرئيسية"),
+    ButtonReadAgain("btn_read_again", "قراءة الإرشادات مرة أخرى"),
+    ButtonAllowCamera("btn_allow_camera", "السماح بإذن الكاميرا"),
+    ButtonAllowLocation("btn_allow_location", "السماح بإذن الموقع"),
+    ButtonPickContact("btn_pick_contact", "اختيار جهة اتصال موثوقة من دفتر الهاتف"),
+    ButtonAddContact("btn_add_contact", "إضافة الاسم والرقم المكتوبين"),
+    ButtonDeleteContact("btn_delete_contact", "حذف جهة الاتصال"),
+    ButtonHapticLessons("btn_haptic_lessons", "تعلّم أنماط الاهتزاز وتعديل قوتها ومدتها واختبار التعرّف عليها"),
+    ButtonEmergencyTest("btn_emergency_test", "تجربة إجراء الطوارئ دون إرسال رسالة أو إجراء اتصال"),
+    ButtonGuide("btn_guide", "إعادة قراءة إرشادات الاستخدام الأول"),
+    ButtonStopRun("btn_stop_run", "إيقاف الجري وإنهاء التوجيه"),
+    ButtonCancelCheck("btn_cancel_check", "إلغاء الفحص والعودة"),
+    ButtonReadStatus("btn_read_status", "قراءة نتيجة الفحص"),
+    ButtonShareLog("btn_share_log", "مشاركة سجل القياسات، ملف نصي بلا صور"),
+    ButtonCallContact("btn_call_contact", "اتصال بجهة الاتصال الموثوقة"),
+    ButtonOpenMessage("btn_open_message", "فتح رسالة الطوارئ مع الموقع"),
+    ButtonShareLocation("btn_share_location", "مشاركة رسالة الموقع عبر تطبيق آخر"),
+    ButtonCallLocal("btn_call_local", "اتصال برقم الطوارئ المحلي"),
+    ButtonRealTrial("btn_real_trial", "تجربة فعلية: سيُفتح تطبيق الرسائل بالنص جاهزاً، ولن يُرسل شيء إلا إذا ضغطت إرسال"),
+    ButtonAllPatterns("btn_all_patterns", "تشغيل كل الأنماط بالترتيب مع شرحها"),
+    ButtonQuiz("btn_quiz", "اختبار التعرّف على الأنماط: ستة أسئلة، ويلزم خمس إجابات صحيحة قبل الجري"),
+    ButtonReplayPattern("btn_replay_pattern", "أعد تشغيل النمط"),
+    ButtonUnderstood("btn_understood", "فهمت، إلى الرئيسية"),
+    ButtonSave("btn_save", "حفظ"),
+    AnswerLeft("answer_left", "تصحيح إلى اليسار"),
+    AnswerRight("answer_right", "تصحيح إلى اليمين"),
+    AnswerBendLeft("answer_bend_left", "منعطف يسار قادم"),
+    AnswerBendRight("answer_bend_right", "منعطف يمين قادم"),
+    AnswerAttention("answer_attention", "عائق أو انتباه فوري"),
+    AnswerStop("answer_stop", "توقف فوراً"),
+    SwitchVibration("switch_vibration", "الاهتزاز"),
+    SwitchVoice("switch_voice", "توجيه صوتي إضافي"),
+    SwitchTones("switch_tones", "نغمات الاتجاه"),
+    SwitchDeveloper("switch_developer", "وضع المطوّر"),
+    StateOn("state_on", "مفعّل"),
+    StateOff("state_off", "متوقف"),
+    HoldToToggle("hold_to_toggle", "اضغط مطولاً للتبديل"),
+    Unavailable("unavailable", "غير متاح الآن"),
+
     // Emergency
     SosStarted("sos_started", "بدأ إجراء الطوارئ"),
     SosTest("sos_test", "وضع الاختبار. لن يُرسل أي شيء ولن يُجرى اتصال"),
@@ -76,6 +123,11 @@ enum class Phrase(val id: String, val ar: String) {
     ;
 
     companion object {
+        private val byText: Map<String, Phrase> by lazy { values().associateBy { it.ar } }
+
+        /** The phrase whose text this is, so a button name can be played from its recording. */
+        fun forText(text: String): Phrase? = byText[text]
+
         fun forCue(d: Decision): Phrase? = when (d.cue) {
             Cue.Centered -> Centered
             Cue.Correct -> if (d.moveTo == com.basir.run.vision.Side.Right) CorrectRight else CorrectLeft

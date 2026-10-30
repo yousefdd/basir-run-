@@ -7,16 +7,24 @@ import android.util.Log
 import com.basir.run.engine.Phrase
 
 /**
- * Speaks app phrases. A recording in assets/voice/<phrase id>.<mp3|ogg|wav|m4a> is played when
- * present; otherwise the phone's Arabic text to speech reads the phrase. Numbers (distance,
- * time) always use text to speech.
+ * Everything the app says, in one queue so recordings and synthesized speech never overlap.
+ * A phrase is played from its recording, assets/voice/<phrase id>.<mp3|ogg|wav|m4a>, when there
+ * is one; otherwise the phone's Arabic text to speech reads it. Button names are phrases too
+ * ([Phrase.forText]), so a blind user hears every control in the same recorded voice; only
+ * free texts (a contact's name, check details) fall back to text to speech.
  */
 class Voice(context: Context) {
 
     private val app = context.applicationContext
     private val speaker = Speaker(app)
-    private val queue = ArrayDeque<String>()
+    private val queue = ArrayDeque<Item>()
     private var player: MediaPlayer? = null
+    private var speaking = false
+
+    private sealed interface Item {
+        data class Asset(val path: String) : Item
+        data class Text(val text: String) : Item
+    }
 
     private val recordings: Map<String, String> = try {
         app.assets.list("voice").orEmpty()
@@ -28,54 +36,82 @@ class Voice(context: Context) {
 
     val recordedCount: Int get() = recordings.size
 
+    /** False when the phone has no Arabic text-to-speech voice (null while it starts). */
+    val arabicTextToSpeech: Boolean? get() = speaker.arabicAvailable
+
     fun say(phrase: Phrase, interrupt: Boolean = false) {
-        val asset = recordings[phrase.id]
         if (interrupt) stopAll()
-        if (asset == null) {
-            speaker.say(phrase.ar, interrupt)
-        } else {
-            queue.addLast(asset)
-            if (player == null) playNext()
-        }
+        enqueue(recordings[phrase.id]?.let { Item.Asset(it) } ?: Item.Text(phrase.ar))
     }
 
+    /** Free text: its recording when the text is a known phrase, else text to speech. */
     fun sayText(text: String, interrupt: Boolean = false) {
         if (interrupt) stopAll()
-        speaker.say(text, interrupt)
+        val phrase = Phrase.forText(text)
+        if (phrase != null) say(phrase) else enqueue(Item.Text(text))
+    }
+
+    /** What a single tap on a control says: its name, then how to use it. */
+    fun sayControl(spoken: String, enabled: Boolean = true) {
+        sayText(spoken, interrupt = true)
+        say(if (enabled) Phrase.HoldToActivate else Phrase.Unavailable)
+    }
+
+    /** A setting that is on or off: its name, its state, and how to change it. */
+    fun saySwitch(title: String, on: Boolean, howToChange: Boolean) {
+        sayText(title, interrupt = true)
+        say(if (on) Phrase.StateOn else Phrase.StateOff)
+        if (howToChange) say(Phrase.HoldToToggle)
     }
 
     fun stopAll() {
         queue.clear()
         player?.release()
         player = null
+        speaking = false
         speaker.stop()
     }
 
+    private fun enqueue(item: Item) {
+        queue.addLast(item)
+        if (player == null && !speaking) playNext()
+    }
+
     private fun playNext() {
-        val asset = queue.removeFirstOrNull() ?: return
-        try {
-            val fd = app.assets.openFd(asset)
-            player = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
-                fd.close()
-                setOnCompletionListener {
-                    it.release()
-                    player = null
-                    playNext()
+        when (val item = queue.removeFirstOrNull() ?: return) {
+            is Item.Text -> {
+                speaking = true
+                speaker.speak(item.text) {
+                    if (speaking) {
+                        speaking = false
+                        playNext()
+                    }
                 }
-                prepare()
-                start()
             }
-        } catch (e: Exception) {
-            Log.w("Voice", "Could not play $asset", e)
-            player = null
-            playNext()
+            is Item.Asset -> try {
+                val fd = app.assets.openFd(item.path)
+                player = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
+                    fd.close()
+                    setOnCompletionListener {
+                        it.release()
+                        player = null
+                        playNext()
+                    }
+                    prepare()
+                    start()
+                }
+            } catch (e: Exception) {
+                Log.w("Voice", "Could not play ${item.path}", e)
+                player = null
+                playNext()
+            }
         }
     }
 
