@@ -46,7 +46,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.basir.run.engine.AnnouncementPolicy
 import com.basir.run.engine.Cue
+import com.basir.run.engine.Output
 import com.basir.run.engine.Decision
 import com.basir.run.engine.DecisionEngine
 import com.basir.run.engine.EngineInput
@@ -153,15 +155,17 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
 
 /**
  * The detection engine check: the real camera with everything the engines see drawn over it,
- * the guidance decision in plain Arabic, and the vibration the runner would feel, played as
- * it is decided. No voice and no readiness gate; the numbers stay below for the developer.
+ * the guidance decision in plain Arabic, and what the runner would get, played as it is
+ * decided: the vibration and the spoken alerts (the same recorded phrases and rules as a run).
+ * No readiness gate; the numbers stay below for the developer.
  */
 @Composable
-fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: Prefs, haptics: HapticEngine, onBack: () -> Unit) {
+fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: Prefs, haptics: HapticEngine, voice: Voice, onBack: () -> Unit) {
     var snapshot by remember { mutableStateOf<FrameSnapshot?>(null) }
     var cameraError by remember { mutableStateOf<String?>(null) }
     var clockMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     val engine = remember { DecisionEngine() }
+    val policy = remember { AnnouncementPolicy(verbose = prefs.verboseVoice) }
     var decision by remember { mutableStateOf<Decision?>(null) }
     var pattern by remember { mutableStateOf<String?>(null) }
 
@@ -184,6 +188,7 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
         )
         decision = d
         haptics.guide(d, now)?.let { pattern = it.name }
+        for (out in policy.next(d, now)) if (out is Output.Say) voice.say(out.phrase, out.interrupt)
     }
 
     DisposableEffect(Unit) {
@@ -195,6 +200,7 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
         onDispose {
             motion.stop()
             haptics.resetGuidance()
+            voice.stopAll()
         }
     }
     LaunchedEffect(Unit) {
