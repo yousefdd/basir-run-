@@ -76,13 +76,28 @@ header.top nav a.link:hover { color: var(--ink); }
 .hero .lead { font-size: clamp(19px, 2.2vw, 22px); margin-top: 22px; max-width: 34ch; }
 .hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .hero .note { margin-top: 14px; font-size: 14px; }
-.phone { position: relative; justify-self: center; width: min(340px, 100%); aspect-ratio: 9 / 18.5; border-radius: 44px; padding: 12px; background: linear-gradient(160deg, #22365e, #0b1428 60%); box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
-.phone canvas { width: 100%; height: 100%; display: block; border-radius: 34px; background: #0b1426; }
-.phone .hud { position: absolute; inset: auto 24px 26px 24px; display: flex; flex-direction: column; gap: 8px; }
-.hud .say { background: rgba(5, 11, 24, .82); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; font-weight: 700; font-size: 16px; min-height: 48px; display: flex; align-items: center; gap: 10px; }
-.hud .pulse { display: flex; gap: 6px; align-items: center; color: var(--tactile); font-size: 13px; font-weight: 700; }
-.hud .pulse i { display: block; height: 8px; border-radius: 4px; background: var(--tactile); opacity: .25; transition: opacity .08s; }
-.hud .pulse i.on { opacity: 1; }
+.view { margin: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.shot { position: relative; border-radius: 28px; overflow: hidden; aspect-ratio: 4 / 3; max-width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.55); border: 1px solid var(--line); }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shot .corner { position: absolute; width: 34px; height: 34px; border: 3px solid var(--tactile); }
+.shot .c1 { top: 14px; right: 14px; border-left: 0; border-bottom: 0; border-radius: 0 10px 0 0; }
+.shot .c2 { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-radius: 10px 0 0 0; }
+.shot .c3 { bottom: 14px; right: 14px; border-left: 0; border-top: 0; border-radius: 0 0 10px 0; }
+.shot .c4 { bottom: 14px; left: 14px; border-right: 0; border-top: 0; border-radius: 0 0 0 10px; }
+.shot .live { position: absolute; top: 16px; right: 60px; display: flex; align-items: center; gap: 8px; background: rgba(5,11,24,.72); padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.shot .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .shot .live::before { animation: none; } }
+.shot .hud { position: absolute; inset: auto 14px 14px 14px; background: rgba(5,11,24,.84); border: 1px solid var(--line); border-radius: 18px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; }
+.hud .cmd { font-weight: 800; font-size: clamp(16px, 2vw, 20px); color: #7fb2ff; }
+.hud .vib { display: flex; align-items: center; gap: 8px; color: var(--tactile); font-size: 14px; font-weight: 700; }
+.hud .vib i { width: 26px; height: 9px; border-radius: 5px; background: var(--tactile); animation: tap 1.1s infinite; }
+@keyframes tap { 0%, 14% { opacity: 1; } 15%, 100% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .hud .vib i { animation: none; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 18px; height: 6px; border-radius: 3px; display: inline-block; }
+.legend i.ring { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; }
 @media (max-width: 880px) { .hero .wrap { grid-template-columns: 1fr; gap: 36px; padding-block: 36px 56px; } .hero .lead { max-width: none; } }
 
 section { padding-block: 72px; }
@@ -190,13 +205,23 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: 
         </div>
         <p class="note muted">نسخة تجريبية مجانية · أندرويد 8 فما فوق</p>
       </div>
-      <div class="phone" aria-label="مثال لما تراه الكاميرا: خط المسار باللون الأزرق، والطريق المرسوم بالأخضر، وعائق محاط بالأحمر">
-        <canvas id="cam" width="632" height="1300"></canvas>
-        <div class="hud" aria-hidden="true">
-          <div class="pulse" id="pulse">اهتزاز <i style="width:22px"></i><i style="width:22px"></i><i style="width:22px"></i></div>
-          <div class="say" id="say">أنت تسير في منتصف المسار</div>
+      <figure class="view">
+        <div class="shot">
+          <img src="cam.jpg" alt="صورة حقيقية من محرك الاكتشاف: ممشى عليه خط إرشادي بنفسجي، وفوقه الخط الذي وجده المحرك ينحني إلى اليمين" width="640" height="480">
+          <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+          <span class="live">محرك الاكتشاف</span>
+          <div class="hud">
+            <span class="cmd">صحّح قليلاً إلى اليسار</span>
+            <span class="vib">نبضة واحدة <i></i></span>
+          </div>
         </div>
-      </div>
+        <figcaption class="legend">
+          <span><i style="background:#a35ee0"></i>الخط على الأرض</span>
+          <span><i style="background:var(--teal)"></i>ما وجده المحرك</span>
+          <span><i class="ring"></i>موضعك</span>
+          <span>المسار ينحني إلى اليمين بعد نحو 2.5 م</span>
+        </figcaption>
+      </figure>
     </div>
   </div>
 
@@ -227,7 +252,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: 
         <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20C5 12 19 13 19 4"/><path d="m15 4h4v4"/></svg></span><div><h3>المنحنيات قبل وصولها</h3><p>يتتبّع انحناء المسار وينبّهك إلى المنعطف بنبضة هادئة قبل أن تصل إليه.</p></div></div>
         <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21V9"/><path d="m7 13 5-5 5 5"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/></svg></span><div><h3>الطريق الأمثل</h3><p>يتبع الخط، أو منتصف الحارة، أو يوازي الخط، أو يجد مساحة حرّة، ويلتف حول العائق حين يلزم.</p></div></div>
         <div class="item"><span class="ic warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg></span><div><h3>العوائق والعمق</h3><p>يقدّر المسافة إلى ما أمامك، ويميّز الجسم القريب، والعائق على مستوى الرأس، والدرج النازل أو الحفرة.</p></div></div>
-        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="9" width="16" height="10" rx="3"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></span><div><h3>يتوقف حين لا يتأكد</h3><p>إذا ضعفت الرؤية أو تغيّرت زاوية الهاتف أو تباطأ التحليل، يطلب منك التوقف بدل أن يخمّن.</p></div></div>
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span><div><h3>محرك اكتشاف قوي</h3><p>يحلل البيئة أمامك بأقل زمن ممكن وبأكبر عدد من الإطارات في الثانية، على الهاتف نفسه، فيصلك التوجيه في لحظته.</p></div></div>
         <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h3l3-7 4 14 3-7h5"/></svg></span><div><h3>ثابت مع اهتزاز الجري</h3><p>يعوّض ميلان الهاتف واهتزاز خطواتك حتى لا تتقافز الإشارات.</p></div></div>
       </div>
     </div>
@@ -350,82 +375,6 @@ document.getElementById('copy').addEventListener('click', async e => {
   setTimeout(() => { btn.textContent = 'نسخ'; }, 2200);
 });
 
-// The camera view: a lane with a guideline that bends, the planned path in green, an
-// obstacle box in red, and the cue the runner would feel and hear.
-(() => {
-  const cv = document.getElementById('cam'), g = cv.getContext('2d');
-  const W = cv.width, H = cv.height, say = document.getElementById('say'), pulse = document.getElementById('pulse').querySelectorAll('i');
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const horizon = H * 0.3;
-  const CUES = [
-    { at: 0, text: 'أنت تسير في منتصف المسار', p: [] },
-    { at: 3.2, text: 'المسار ينحني تدريجياً إلى اليمين', p: [1, 1] },
-    { at: 6.6, text: 'انحرف قليلاً إلى اليسار', p: [1] },
-    { at: 9.4, text: 'انتبه، يوجد جسم قريب من مسارك. خفف سرعتك', p: [1, 1, 1] },
-  ];
-  const LOOP = 12.5;
-  let lastCue = -1;
-  function lane(z, t) { // z: 0 near .. 1 far, returns x of the guideline centre
-    const bend = Math.sin(t * 0.45) * 0.22 + 0.1;
-    return W / 2 + bend * W * 0.6 * z * z - Math.sin(t * 0.9) * 26 * (1 - z);
-  }
-  function Y(z) { return H - (H - horizon) * (1 - Math.pow(1 - z, 2.2)); }
-  function frame(ms) {
-    const t = ms / 1000;
-    const sky = g.createLinearGradient(0, 0, 0, horizon);
-    sky.addColorStop(0, '#0b1730'); sky.addColorStop(1, '#1d3358');
-    g.fillStyle = sky; g.fillRect(0, 0, W, horizon);
-    const ground = g.createLinearGradient(0, horizon, 0, H);
-    ground.addColorStop(0, '#2a3346'); ground.addColorStop(1, '#3c4457');
-    g.fillStyle = ground; g.fillRect(0, horizon, W, H - horizon);
-    // track lanes
-    for (const off of [-1, 1]) {
-      g.beginPath();
-      for (let i = 0; i <= 60; i++) { const z = i / 60, w = (1 - z) * W * 0.62 + 18; const x = lane(z, t) + off * w; i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
-      g.strokeStyle = 'rgba(220,230,245,.55)'; g.lineWidth = 6; g.stroke();
-    }
-    // the guideline on the ground
-    g.beginPath();
-    for (let i = 0; i <= 60; i++) { const z = i / 60; const x = lane(z, t); i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
-    g.strokeStyle = '#7c6cf0'; g.lineWidth = 16; g.lineCap = 'round'; g.stroke();
-    // detected line overlay
-    g.beginPath();
-    for (let i = 0; i <= 50; i++) { const z = i / 50 * 0.8; const x = lane(z, t); i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
-    g.strokeStyle = 'rgba(59,130,246,.95)'; g.lineWidth = 5; g.setLineDash([18, 14]); g.stroke(); g.setLineDash([]);
-    // planned path: from the runner (bottom centre) onto the line
-    g.beginPath();
-    const sx = W / 2 + Math.sin(t * 0.9) * 26;
-    for (let i = 0; i <= 40; i++) {
-      const z = i / 40 * 0.62; const blend = Math.min(1, z / 0.28);
-      const x = sx * (1 - blend) + (lane(z, t) + W * 0.09 * (1 - z)) * blend;
-      i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z));
-    }
-    g.strokeStyle = '#22c55e'; g.lineWidth = 12; g.shadowColor = '#22c55e'; g.shadowBlur = 24; g.stroke(); g.shadowBlur = 0;
-    // obstacle ahead in the last part of the loop
-    const phase = (t % LOOP);
-    if (phase > 8.6) {
-      const z = Math.max(0.35, 0.78 - (phase - 8.6) * 0.1), x = lane(z, t) - W * 0.2, y = Y(z), s = 160 * (1 - z) + 40;
-      g.fillStyle = '#151c2b'; g.fillRect(x - s * 0.18, y - s * 1.2, s * 0.36, s * 1.2);
-      g.beginPath(); g.arc(x, y - s * 1.3, s * 0.16, 0, 7); g.fill();
-      g.strokeStyle = '#ef4444'; g.lineWidth = 5; const bx = x - s * 0.4, by = y - s * 1.55, bw = s * 0.8, bh = s * 1.6, c = s * 0.18;
-      g.beginPath();
-      g.moveTo(bx, by + c); g.lineTo(bx, by); g.lineTo(bx + c, by);
-      g.moveTo(bx + bw - c, by); g.lineTo(bx + bw, by); g.lineTo(bx + bw, by + c);
-      g.moveTo(bx + bw, by + bh - c); g.lineTo(bx + bw, by + bh); g.lineTo(bx + bw - c, by + bh);
-      g.moveTo(bx + c, by + bh); g.lineTo(bx, by + bh); g.lineTo(bx, by + bh - c);
-      g.stroke();
-    }
-    // cue
-    let cue = 0; CUES.forEach((c, i) => { if (phase >= c.at) cue = i; });
-    if (cue !== lastCue) {
-      lastCue = cue; say.textContent = CUES[cue].text;
-      pulse.forEach((el, i) => el.classList.toggle('on', i < CUES[cue].p.length));
-      setTimeout(() => pulse.forEach(el => el.classList.remove('on')), 700);
-    }
-    if (!still) requestAnimationFrame(frame);
-  }
-  if (still) frame(4000); else requestAnimationFrame(frame);
-})();
 </script>
 </body>
 </html>
