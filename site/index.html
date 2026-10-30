@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="بصير ران: تطبيق يساعد العدّائين ذوي الإعاقة البصرية على إيجاد طريقهم بلغة الاهتزاز.">
+<link rel="icon" href="logo.webp">
+<title>بصير ران</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one navy track like the app's screens; a live "camera view" opens the page, the
+   vibration language is drawn as real timelines in milliseconds, the belt closes it. */
+:root {
+  color-scheme: dark;
+  --navy: #081226;
+  --navy-deep: #050b18;
+  --card: #0f1d38;
+  --raised: #172a4d;
+  --line: #2c4166;
+  --ink: #f3f6fb;
+  --muted: #a9b6cc;
+  --teal: #19c3b4;
+  --good: #22c55e;
+  --tactile: #ffd54a;
+  --danger: #ef4444;
+  --display: "Tajawal", "Segoe UI", Tahoma, sans-serif;
+  --body: "Tajawal", "Segoe UI", Tahoma, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --radius: 24px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; direction: rtl; background: var(--navy); color: var(--ink);
+  font-family: var(--body); font-size: 17px; line-height: 1.75;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--navy-deep); }
+a { color: var(--teal); }
+:focus-visible { outline: 3px solid var(--tactile); outline-offset: 3px; border-radius: 8px; }
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.25; }
+h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; }
+h3 { font-size: 20px; font-weight: 700; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.eyebrow { color: var(--tactile); font-weight: 700; font-size: 15px; letter-spacing: .02em; }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--navy-deep) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 20px; }
+.brand img { width: 40px; height: 40px; border-radius: 11px; }
+header.top nav { margin-inline-start: auto; display: flex; gap: 18px; align-items: center; }
+header.top nav a.link { color: var(--muted); text-decoration: none; font-weight: 500; font-size: 15px; }
+header.top nav a.link:hover { color: var(--ink); }
+@media (max-width: 720px) { header.top nav a.link { display: none; } }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 24px; border-radius: 18px; font: 700 17px/1 var(--body); text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: transform .15s ease, filter .15s ease; }
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: linear-gradient(135deg, #22d3c5, var(--teal) 55%, #0ea5a4); color: #041a1c; }
+.btn.ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
+.btn.small { min-height: 42px; padding: 0 16px; font-size: 15px; border-radius: 14px; }
+.btn svg { width: 22px; height: 22px; flex: none; }
+
+/* hero */
+.hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; padding-block: 56px 72px; }
+.hero h1 { font-size: clamp(44px, 7vw, 76px); font-weight: 900; letter-spacing: -.01em; }
+.hero h1 .tag { display: block; font-size: clamp(19px, 2.2vw, 24px); font-weight: 700; color: var(--tactile); margin-top: 10px; letter-spacing: 0; }
+.hero .lead { font-size: clamp(19px, 2.2vw, 22px); margin-top: 22px; max-width: 34ch; }
+.hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.hero .note { margin-top: 14px; font-size: 14px; }
+.phone { position: relative; justify-self: center; width: min(340px, 100%); aspect-ratio: 9 / 18.5; border-radius: 44px; padding: 12px; background: linear-gradient(160deg, #22365e, #0b1428 60%); box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
+.phone canvas { width: 100%; height: 100%; display: block; border-radius: 34px; background: #0b1426; }
+.phone .hud { position: absolute; inset: auto 24px 26px 24px; display: flex; flex-direction: column; gap: 8px; }
+.hud .say { background: rgba(5, 11, 24, .82); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; font-weight: 700; font-size: 16px; min-height: 48px; display: flex; align-items: center; gap: 10px; }
+.hud .pulse { display: flex; gap: 6px; align-items: center; color: var(--tactile); font-size: 13px; font-weight: 700; }
+.hud .pulse i { display: block; height: 8px; border-radius: 4px; background: var(--tactile); opacity: .25; transition: opacity .08s; }
+.hud .pulse i.on { opacity: 1; }
+@media (max-width: 880px) { .hero .wrap { grid-template-columns: 1fr; gap: 36px; padding-block: 36px 56px; } .hero .lead { max-width: none; } }
+
+section { padding-block: 72px; }
+section + section { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+.head { display: flex; flex-direction: column; gap: 10px; max-width: 62ch; margin-bottom: 36px; }
+
+/* steps: a real order */
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.steps li::before { content: counter(s); font: 800 15px/1 var(--mono); color: var(--navy); background: var(--tactile); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+@media (max-width: 900px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+
+/* sees the ground */
+.sees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+.sees .item { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; padding-block: 18px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.sees .ic { width: 44px; height: 44px; border-radius: 14px; background: var(--raised); display: grid; place-items: center; color: var(--teal); }
+.sees .ic svg { width: 24px; height: 24px; }
+.sees .ic.warn { color: var(--danger); }
+.sees p { color: var(--muted); }
+@media (max-width: 760px) { .sees { grid-template-columns: 1fr; } }
+
+/* vibration language */
+.lang { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 8px 22px; }
+.row { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto; gap: 18px; align-items: center; padding-block: 16px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.row:last-child { border-bottom: 0; }
+.row .name { font-weight: 700; }
+.row .name small { display: block; color: var(--muted); font-weight: 400; font-size: 14px; }
+.track { position: relative; height: 26px; border-radius: 8px; background: repeating-linear-gradient(to left, transparent 0 calc(10% - 1px), color-mix(in srgb, var(--line) 70%, transparent) calc(10% - 1px) 10%); }
+.track b { position: absolute; top: 5px; height: 16px; border-radius: 6px; background: var(--teal); opacity: .9; }
+.track b.soft { background: color-mix(in srgb, var(--teal) 55%, var(--card)); }
+.track b.hot { background: var(--danger); }
+.track b.amber { background: var(--tactile); }
+.row.playing .track b { animation: glow .3s ease; }
+@keyframes glow { from { filter: brightness(1.8); } }
+.scale { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto; gap: 18px; padding-block: 12px 4px; font: 500 12px/1 var(--mono); color: var(--muted); }
+.scale .ticks { display: flex; justify-content: space-between; }
+.scale .spacer { visibility: hidden; }
+.feel { min-height: 40px; padding: 0 14px; border-radius: 12px; background: var(--raised); color: var(--ink); border: 1px solid var(--line); font: 700 14px/1 var(--body); cursor: pointer; }
+@media (max-width: 680px) {
+  .row { grid-template-columns: minmax(0, 1fr) auto; }
+  .row .track { grid-column: 1 / -1; grid-row: 2; }
+  .scale { grid-template-columns: 1fr; } .scale .lbl, .scale .spacer { display: none; }
+}
+.tune { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.tune div { padding: 18px 20px; border-radius: 20px; background: var(--raised); min-width: 0; }
+.tune h3 { font-size: 17px; margin-bottom: 4px; }
+.tune p { color: var(--muted); font-size: 15px; }
+@media (max-width: 760px) { .tune { grid-template-columns: 1fr; } }
+
+/* voice + emergency */
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.duo article { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.duo article.sos { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.duo ul { margin: 4px 0 0; padding-inline-start: 20px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+
+/* download band */
+.download { background: radial-gradient(120% 140% at 85% 0%, #123160 0%, var(--navy-deep) 60%); }
+.download .wrap { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+.download .facts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 12px; color: var(--muted); font-size: 15px; }
+.download .facts span::before { content: "•"; color: var(--teal); margin-inline-end: 8px; }
+
+/* belt */
+.belt .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
+.belt figure { margin: 0; position: relative; }
+.belt figure::before { content: ""; position: absolute; inset: 12% 6% 4%; background: radial-gradient(closest-side, rgba(25,195,180,.22), transparent); filter: blur(10px); }
+.belt img { position: relative; width: 100%; height: auto; display: block; }
+.badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: color-mix(in srgb, var(--tactile) 16%, transparent); color: var(--tactile); font-weight: 700; font-size: 14px; width: fit-content; }
+.belt .text { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mail { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; }
+.mail code { font: 500 16px/1.4 var(--mono); color: var(--teal); direction: ltr; user-select: all; overflow-wrap: anywhere; min-width: 0; flex: 1; }
+@media (max-width: 880px) { .belt .wrap { grid-template-columns: 1fr; } }
+
+footer { padding-block: 28px calc(28px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="logo.webp" alt="" width="40" height="40">بصير ران</a>
+    <nav aria-label="أقسام الصفحة">
+      <a class="link" href="#how">كيف يعمل</a>
+      <a class="link" href="#haptics">لغة الاهتزاز</a>
+      <a class="link" href="#belt">الحزام</a>
+      <a class="btn primary small" href="https://github.com/yousefdd/basir-run-/releases/download/latest/basir-run.apk">تحميل التطبيق</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <h1>بصير ران<span class="tag">توجيه بلغة الاهتزاز للجري للمكفوفين</span></h1>
+        <p class="lead">تطبيق يساعد العدّائين ذوي الإعاقة البصرية على إيجاد طريقهم. يرى الأرض بكاميرا الهاتف، يجد الخطوط والمنحنيات، ويرسم الطريق الأمثل للجري، ثم يوجّهك بنبضات تشعر بها على صدرك.</p>
+        <div class="ctas">
+          <a class="btn primary" href="https://github.com/yousefdd/basir-run-/releases/download/latest/basir-run.apk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            تحميل التطبيق لأندرويد
+          </a>
+          <a class="btn ghost" href="#haptics">تعرّف على لغة الاهتزاز</a>
+        </div>
+        <p class="note muted">نسخة تجريبية مجانية · أندرويد 8 فما فوق</p>
+      </div>
+      <div class="phone" aria-label="مثال لما تراه الكاميرا: خط المسار باللون الأزرق، والطريق المرسوم بالأخضر، وعائق محاط بالأحمر">
+        <canvas id="cam" width="632" height="1300"></canvas>
+        <div class="hud" aria-hidden="true">
+          <div class="pulse" id="pulse">اهتزاز <i style="width:22px"></i><i style="width:22px"></i><i style="width:22px"></i></div>
+          <div class="say" id="say">أنت تسير في منتصف المسار</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">كيف يعمل</span>
+        <h2>من الكاميرا إلى نبضة على صدرك</h2>
+        <p class="muted">كل شيء يجري على الهاتف نفسه، أثناء الجري، دون انتظار اتصال بالإنترنت.</p>
+      </div>
+      <ol class="steps">
+        <li><h3>ثبّت الهاتف</h3><p class="muted">على صدرك بإحكام، والكاميرا الخلفية إلى الأمام.</p></li>
+        <li><h3>يفحص المسار أولاً</h3><p class="muted">قبل كل جري يتأكد أن الكاميرا ترى الأرض وأن التحليل سريع بما يكفي، ثم يبدأ التوجيه وحده.</p></li>
+        <li><h3>يجد طريقك</h3><p class="muted">يبحث عن الخطوط والمنحنيات على الأرضية ويرسم الطريق الأمثل للجري أمامك.</p></li>
+        <li><h3>يوجّهك</h3><p class="muted">باهتزاز تتعلّمه في دقائق، وبجمل صوتية قصيرة عند الحاجة فقط.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">ماذا يرى</span>
+        <h2>يقرأ الأرض أمامك ويختار الأفضل</h2>
+      </div>
+      <div class="sees">
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 21c0-6 8-8 8-18"/><path d="M4 21c0-7 7-9 7-18" opacity=".45"/></svg></span><div><h3>خطوط المسار بأي لون</h3><p>يلتقط الخط الإرشادي أو حدّ المسار مهما كان لونه، ما دام يختلف عن الأرض حوله.</p></div></div>
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20C5 12 19 13 19 4"/><path d="m15 4h4v4"/></svg></span><div><h3>المنحنيات قبل وصولها</h3><p>يتتبّع انحناء المسار وينبّهك إلى المنعطف بنبضة هادئة قبل أن تصل إليه.</p></div></div>
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21V9"/><path d="m7 13 5-5 5 5"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/></svg></span><div><h3>الطريق الأمثل</h3><p>يتبع الخط، أو منتصف الحارة، أو يوازي الخط، أو يجد مساحة حرّة، ويلتف حول العائق حين يلزم.</p></div></div>
+        <div class="item"><span class="ic warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg></span><div><h3>العوائق والعمق</h3><p>يقدّر المسافة إلى ما أمامك، ويميّز الجسم القريب، والعائق على مستوى الرأس، والدرج النازل أو الحفرة.</p></div></div>
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="9" width="16" height="10" rx="3"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></span><div><h3>يتوقف حين لا يتأكد</h3><p>إذا ضعفت الرؤية أو تغيّرت زاوية الهاتف أو تباطأ التحليل، يطلب منك التوقف بدل أن يخمّن.</p></div></div>
+        <div class="item"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h3l3-7 4 14 3-7h5"/></svg></span><div><h3>ثابت مع اهتزاز الجري</h3><p>يعوّض ميلان الهاتف واهتزاز خطواتك حتى لا تتقافز الإشارات.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="haptics">
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">لغة الاهتزاز</span>
+        <h2>اليسار نبضة واحدة، واليمين نبضتان</h2>
+        <p class="muted">القصيرة تعني صحّح الآن، والطويلة الهادئة تعني استعد لمنعطف، والتوقف يسبق كل شيء. هذه مدد النبضات الفعلية في التطبيق، بالميلّي ثانية.</p>
+      </div>
+      <div class="lang" id="lang">
+        <div class="scale" aria-hidden="true"><span class="spacer lbl">.</span><div class="ticks"><span>0</span><span>0.5 ث</span><span>1 ث</span><span>1.5 ث</span><span>2 ث</span></div><span class="spacer">اشعر بها</span></div>
+      </div>
+      <div class="tune">
+        <div><h3>المدة التي تريدها</h3><p>نبضة قصيرة أو متوسطة أو طويلة أو طويلة جداً، بزرّين: نبضة أقصر ونبضة أطول.</p></div>
+        <div><h3>القوة التي تريدها</h3><p>اهتزاز خفيف أو متوسط أو قوي. بعد كل تغيير يهتز نبضة ثم نبضتين لتتأكد أنك تميّزهما.</p></div>
+        <div><h3>اختبار قبل الجري</h3><p>ستة أسئلة بالاهتزاز وحده، ويلزم خمس إجابات صحيحة. إذا لم تنجح يطيل التطبيق النبضة لك.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">مصمّم لمن لا يرى الشاشة</span>
+        <h2>كل زر يقول اسمه</h2>
+      </div>
+      <div class="duo">
+        <article>
+          <h3>ضغطة تقرأ، وضغطة مطوّلة تنفّذ</h3>
+          <p class="muted">لا يبدأ شيء ولا يتوقف بلمسة عابرة.</p>
+          <ul>
+            <li>صوت بشري مسجّل لكل زر وكل تنبيه، بالعربية.</li>
+            <li>أزرار كبيرة وألوان عالية التباين لضعاف البصر.</li>
+            <li>يعمل مع قارئ الشاشة في الهاتف.</li>
+          </ul>
+        </article>
+        <article class="sos">
+          <h3>الطوارئ بضغطة مطوّلة</h3>
+          <p class="muted">يحدد موقعك ويجهّز لك كل شيء، والإرسال بضغطتك.</p>
+          <ul>
+            <li>يفتح رسالة طوارئ فيها موقعك لجهة الاتصال الموثوقة.</li>
+            <li>ثم يفتح شاشة الاتصال برقمها.</li>
+            <li>يخبرك بصوت واضح بكل خطوة فُتحت.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="download" id="download">
+    <div class="wrap">
+      <div>
+        <h2>جرّبه الآن</h2>
+        <div class="facts"><span>مجاني</span><span>أندرويد 8 فما فوق</span><span>يعمل دون إنترنت أثناء الجري</span><span>في مرحلة التجربة: ابدأ في مكان آمن تعرفه ومع مرافق</span></div>
+      </div>
+      <a class="btn primary" href="https://github.com/yousefdd/basir-run-/releases/download/latest/basir-run.apk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+        تحميل التطبيق (APK)
+      </a>
+    </div>
+  </section>
+
+  <section class="belt" id="belt">
+    <div class="wrap">
+      <div class="text">
+        <span class="badge">النسخة النهائية · قريباً</span>
+        <h2>حزام بصير ران</h2>
+        <p>جهاز اهتزاز منفصل يُلبس حول الخصر، يعمل بلغة اهتزازات متكاملة وبشدّات دقيقة، فتشعر بالاتجاه في المكان الصحيح من جسمك.</p>
+        <p class="muted">هذه النسخة النهائية للجهاز المنفصل، وسيتم توفيره قريباً بسعر مناسب. للمساعدة في عملية توفير المنتج وتصنيعه، يرجى التواصل عبر البريد الإلكتروني:</p>
+        <div class="mail">
+          <code id="mail">yousefgattal75@gmail.com</code>
+          <button class="feel" id="copy" type="button">نسخ</button>
+        </div>
+      </div>
+      <figure><img src="belt.webp" alt="حزام بصير ران للاهتزاز: حزام أسود حول الخصر عليه وحدات اهتزاز ووحدة تحكم في الأمام" width="1000" height="538"></figure>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>بصير ران · توجيه بلغة الاهتزاز للجري للمكفوفين</span>
+    <a href="https://github.com/yousefdd/basir-run-/releases">كل النسخ</a>
+  </div>
+</footer>
+
+<script>
+// The vibration language, with the app's real timings (on, off, on, ... in ms).
+const PATTERNS = [
+  { name: 'صحّح يساراً', hint: 'نبضة قصيرة', p: [150], cls: '' },
+  { name: 'صحّح يميناً', hint: 'نبضتان قصيرتان', p: [150, 150, 150], cls: '' },
+  { name: 'منعطف يسار قادم', hint: 'نبضة طويلة هادئة', p: [400], cls: 'soft' },
+  { name: 'منعطف يمين قادم', hint: 'نبضتان طويلتان هادئتان', p: [400, 220, 400], cls: 'soft' },
+  { name: 'عائق أو انتباه', hint: 'ثلاث نبضات سريعة', p: [120, 80, 120, 80, 120], cls: 'amber' },
+  { name: 'توقف فوراً', hint: 'طويلة ثم نبضتان', p: [1200, 250, 200, 150, 200], cls: 'hot' },
+];
+const SCALE = 2000;
+const lang = document.getElementById('lang');
+PATTERNS.forEach((pt, i) => {
+  const row = document.createElement('div');
+  row.className = 'row';
+  let t = 0, bars = '';
+  pt.p.forEach((ms, k) => { if (k % 2 === 0) bars += `<b class="${pt.cls}" style="right:${t / SCALE * 100}%;width:${ms / SCALE * 100}%"></b>`; t += ms; });
+  const total = pt.p.reduce((a, b) => a + b, 0);
+  row.innerHTML = `<div class="name">${pt.name}<small>${pt.hint} · ${total} ms</small></div><div class="track" role="img" aria-label="${pt.hint}، ${total} ميلّي ثانية">${bars}</div><button class="feel" type="button" id="feel${i}">اشعر بها</button>`;
+  row.querySelector('button').addEventListener('click', () => {
+    try { navigator.vibrate && navigator.vibrate(pt.p); } catch (e) {}
+    row.classList.remove('playing'); void row.offsetWidth; row.classList.add('playing');
+  });
+  lang.append(row);
+});
+
+document.getElementById('copy').addEventListener('click', async e => {
+  const btn = e.currentTarget, text = document.getElementById('mail').textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = 'نُسخ'; }
+  catch (err) { const r = document.createRange(); r.selectNodeContents(document.getElementById('mail')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'محدّد، انسخه'; }
+  setTimeout(() => { btn.textContent = 'نسخ'; }, 2200);
+});
+
+// The camera view: a lane with a guideline that bends, the planned path in green, an
+// obstacle box in red, and the cue the runner would feel and hear.
+(() => {
+  const cv = document.getElementById('cam'), g = cv.getContext('2d');
+  const W = cv.width, H = cv.height, say = document.getElementById('say'), pulse = document.getElementById('pulse').querySelectorAll('i');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const horizon = H * 0.3;
+  const CUES = [
+    { at: 0, text: 'أنت تسير في منتصف المسار', p: [] },
+    { at: 3.2, text: 'المسار ينحني تدريجياً إلى اليمين', p: [1, 1] },
+    { at: 6.6, text: 'انحرف قليلاً إلى اليسار', p: [1] },
+    { at: 9.4, text: 'انتبه، يوجد جسم قريب من مسارك. خفف سرعتك', p: [1, 1, 1] },
+  ];
+  const LOOP = 12.5;
+  let lastCue = -1;
+  function lane(z, t) { // z: 0 near .. 1 far, returns x of the guideline centre
+    const bend = Math.sin(t * 0.45) * 0.22 + 0.1;
+    return W / 2 + bend * W * 0.6 * z * z - Math.sin(t * 0.9) * 26 * (1 - z);
+  }
+  function Y(z) { return H - (H - horizon) * (1 - Math.pow(1 - z, 2.2)); }
+  function frame(ms) {
+    const t = ms / 1000;
+    const sky = g.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, '#0b1730'); sky.addColorStop(1, '#1d3358');
+    g.fillStyle = sky; g.fillRect(0, 0, W, horizon);
+    const ground = g.createLinearGradient(0, horizon, 0, H);
+    ground.addColorStop(0, '#2a3346'); ground.addColorStop(1, '#3c4457');
+    g.fillStyle = ground; g.fillRect(0, horizon, W, H - horizon);
+    // track lanes
+    for (const off of [-1, 1]) {
+      g.beginPath();
+      for (let i = 0; i <= 60; i++) { const z = i / 60, w = (1 - z) * W * 0.62 + 18; const x = lane(z, t) + off * w; i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
+      g.strokeStyle = 'rgba(220,230,245,.55)'; g.lineWidth = 6; g.stroke();
+    }
+    // the guideline on the ground
+    g.beginPath();
+    for (let i = 0; i <= 60; i++) { const z = i / 60; const x = lane(z, t); i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
+    g.strokeStyle = '#7c6cf0'; g.lineWidth = 16; g.lineCap = 'round'; g.stroke();
+    // detected line overlay
+    g.beginPath();
+    for (let i = 0; i <= 50; i++) { const z = i / 50 * 0.8; const x = lane(z, t); i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z)); }
+    g.strokeStyle = 'rgba(59,130,246,.95)'; g.lineWidth = 5; g.setLineDash([18, 14]); g.stroke(); g.setLineDash([]);
+    // planned path: from the runner (bottom centre) onto the line
+    g.beginPath();
+    const sx = W / 2 + Math.sin(t * 0.9) * 26;
+    for (let i = 0; i <= 40; i++) {
+      const z = i / 40 * 0.62; const blend = Math.min(1, z / 0.28);
+      const x = sx * (1 - blend) + (lane(z, t) + W * 0.09 * (1 - z)) * blend;
+      i ? g.lineTo(x, Y(z)) : g.moveTo(x, Y(z));
+    }
+    g.strokeStyle = '#22c55e'; g.lineWidth = 12; g.shadowColor = '#22c55e'; g.shadowBlur = 24; g.stroke(); g.shadowBlur = 0;
+    // obstacle ahead in the last part of the loop
+    const phase = (t % LOOP);
+    if (phase > 8.6) {
+      const z = Math.max(0.35, 0.78 - (phase - 8.6) * 0.1), x = lane(z, t) - W * 0.2, y = Y(z), s = 160 * (1 - z) + 40;
+      g.fillStyle = '#151c2b'; g.fillRect(x - s * 0.18, y - s * 1.2, s * 0.36, s * 1.2);
+      g.beginPath(); g.arc(x, y - s * 1.3, s * 0.16, 0, 7); g.fill();
+      g.strokeStyle = '#ef4444'; g.lineWidth = 5; const bx = x - s * 0.4, by = y - s * 1.55, bw = s * 0.8, bh = s * 1.6, c = s * 0.18;
+      g.beginPath();
+      g.moveTo(bx, by + c); g.lineTo(bx, by); g.lineTo(bx + c, by);
+      g.moveTo(bx + bw - c, by); g.lineTo(bx + bw, by); g.lineTo(bx + bw, by + c);
+      g.moveTo(bx + bw, by + bh - c); g.lineTo(bx + bw, by + bh); g.lineTo(bx + bw - c, by + bh);
+      g.moveTo(bx + c, by + bh); g.lineTo(bx, by + bh); g.lineTo(bx, by + bh - c);
+      g.stroke();
+    }
+    // cue
+    let cue = 0; CUES.forEach((c, i) => { if (phase >= c.at) cue = i; });
+    if (cue !== lastCue) {
+      lastCue = cue; say.textContent = CUES[cue].text;
+      pulse.forEach((el, i) => el.classList.toggle('on', i < CUES[cue].p.length));
+      setTimeout(() => pulse.forEach(el => el.classList.remove('on')), 700);
+    }
+    if (!still) requestAnimationFrame(frame);
+  }
+  if (still) frame(4000); else requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
