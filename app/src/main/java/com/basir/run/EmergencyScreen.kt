@@ -53,11 +53,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 4. when the user comes back, opens the phone app with the first trusted contact's number.
  * Android does not let an ordinary app send a message or place a call without the user's last
  * tap, so every step says exactly what was opened and never claims that anything was sent.
- * In test mode nothing is opened: each step only says what would have happened, unless the
- * user explicitly chooses to open the messaging app.
  */
 @Composable
-fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Unit) {
+fun EmergencyScreen(prefs: Prefs, voice: Voice, onBack: () -> Unit) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val contacts = remember { prefs.contacts }
@@ -74,13 +72,12 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
 
     fun message(): String = if (link != null) "أحتاج مساعدة. هذا موقعي الآن: $link" else "أحتاج مساعدة. لم أتمكن من تحديد موقعي."
 
-    fun openMessage(really: Boolean) {
+    fun openMessage() {
         if (contacts.isEmpty()) return report(Phrase.SosNoContact, Danger)
-        if (!really) return report(Phrase.SosTest, Amber, ". كانت ستُفتح رسالة إلى ${contacts.joinToString("، ") { it.name }}: «${message()}»")
         val numbers = contacts.joinToString(";") { it.phone }
         if (start(context, Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$numbers")).putExtra("sms_body", message()))) {
             report(Phrase.SosMessageOpened, Good)
-            callWhenBack = !test
+            callWhenBack = true
         } else {
             report(Phrase.SosNoApp, Danger, " (الرسائل)")
         }
@@ -88,13 +85,11 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
 
     fun dial(number: String?, label: String) {
         if (number.isNullOrBlank()) return report(Phrase.SosNoContact, Danger)
-        if (test) return report(Phrase.SosTest, Amber, ". كانت ستُفتح شاشة الاتصال بـ $label")
         if (start(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))) report(Phrase.SosDialOpened, Good)
         else report(Phrase.SosNoApp, Danger, " (الاتصال)")
     }
 
     fun share() {
-        if (test) return report(Phrase.SosTest, Amber, ". كانت ستُفتح مشاركة: «${message()}»")
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message())
         if (start(context, Intent.createChooser(send, "مشاركة موقعي"))) report(Phrase.SosShareOpened, Good)
         else report(Phrase.SosNoApp, Danger)
@@ -102,7 +97,7 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
 
     LaunchedEffect(Unit) {
         voice.stopAll()
-        report(if (test) Phrase.SosTest else Phrase.SosStarted, if (test) Amber else Danger)
+        report(Phrase.SosStarted, Danger)
         if (!hasInternet(context)) report(Phrase.SosNoNetwork, Amber)
         val location = if (context.has(Manifest.permission.ACCESS_FINE_LOCATION) || context.has(Manifest.permission.ACCESS_COARSE_LOCATION)) {
             withTimeoutOrNull(10_000) { currentLocation(context) }
@@ -114,9 +109,8 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
         } else {
             report(Phrase.SosNoLocation, Amber)
         }
-        openMessage(really = !test)
-        if (!test && contacts.isEmpty() && localNumber.isNotBlank()) dial(localNumber, localNumber)
-        if (test) dial(contacts.firstOrNull()?.phone, contacts.firstOrNull()?.name ?: "")
+        openMessage()
+        if (contacts.isEmpty() && localNumber.isNotBlank()) dial(localNumber, localNumber)
     }
 
     // Back from the messaging app: go on to the call.
@@ -136,7 +130,7 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
             modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ScreenHeader(if (test) "اختبار الطوارئ" else "الطوارئ", onBack)
+            ScreenHeader("الطوارئ", onBack)
             Card {
                 if (!located) StatusLine("جارٍ تحديد الموقع…", Blue)
                 log.forEach { (text, color) ->
@@ -146,19 +140,10 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, test: Boolean, onBack: () -> Uni
             contacts.firstOrNull()?.let { c ->
                 SpeakButton("اتصال بـ ${c.name}", { dial(c.phone, c.name) }, spoken = Phrase.ButtonCallContact.ar, tone = ButtonTone.Danger, height = 76.dp, modifier = Modifier.fillMaxWidth())
             }
-            SpeakButton("فتح رسالة الطوارئ", { openMessage(really = !test) }, spoken = Phrase.ButtonOpenMessage.ar, tone = ButtonTone.Danger, modifier = Modifier.fillMaxWidth())
+            SpeakButton("فتح رسالة الطوارئ", { openMessage() }, spoken = Phrase.ButtonOpenMessage.ar, tone = ButtonTone.Danger, modifier = Modifier.fillMaxWidth())
             SpeakButton("مشاركة الموقع بتطبيق آخر", ::share, spoken = Phrase.ButtonShareLocation.ar, modifier = Modifier.fillMaxWidth())
             if (localNumber.isNotBlank()) {
                 SpeakButton("اتصال برقم الطوارئ $localNumber", { dial(localNumber, localNumber) }, spoken = Phrase.ButtonCallLocal.ar, tone = ButtonTone.Danger, modifier = Modifier.fillMaxWidth())
-            }
-            if (test) {
-                SpeakButton(
-                    "تجربة فعلية: فتح تطبيق الرسائل",
-                    { openMessage(really = true) },
-                    spoken = Phrase.ButtonRealTrial.ar,
-                    tone = ButtonTone.Accent,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
             Text(
                 "لا يرسل التطبيق ولا يتصل وحده: يفتح لك الرسالة وشاشة الاتصال، والإرسال والاتصال يحتاجان ضغطتك. قد لا يتوفر الموقع أو الشبكة في كل مكان.",

@@ -80,7 +80,6 @@ private fun BasirApp() {
 
     var page by rememberSaveable { mutableStateOf(if (prefs.onboarded) Page.Home else Page.Guide) }
     var emergencyFrom by remember { mutableStateOf(Page.Home) }
-    var emergencyTest by remember { mutableStateOf(false) }
     var summary by remember { mutableStateOf<SessionSummary?>(null) }
     var summaryLog by remember { mutableStateOf<java.io.File?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -103,9 +102,8 @@ private fun BasirApp() {
         }
     }
 
-    fun emergency(from: Page, test: Boolean = false) {
+    fun emergency(from: Page) {
         emergencyFrom = from
-        emergencyTest = test
         page = Page.Emergency
     }
 
@@ -199,7 +197,6 @@ private fun BasirApp() {
             Page.Emergency -> EmergencyScreen(
                 prefs = prefs,
                 voice = voice,
-                test = emergencyTest,
                 // A run interrupted by an emergency is over; it is not resumed silently.
                 onBack = { page = if (emergencyFrom == Page.Run) Page.Home else emergencyFrom },
             )
@@ -209,7 +206,6 @@ private fun BasirApp() {
                 voice = voice,
                 onTraining = { page = Page.SettingsTraining },
                 onGuide = { page = Page.SettingsGuide },
-                onEmergencyTest = { emergency(Page.Settings, test = true) },
                 onBack = { page = Page.Home },
             )
 

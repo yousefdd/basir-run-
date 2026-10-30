@@ -291,7 +291,6 @@ fun SettingsScreen(
     voice: Voice,
     onTraining: () -> Unit,
     onGuide: () -> Unit,
-    onEmergencyTest: () -> Unit,
     onBack: () -> Unit,
 ) {
     var vibrate by remember { mutableStateOf(prefs.vibrateOn) }
@@ -338,7 +337,6 @@ fun SettingsScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.fillMaxWidth(),
             )
-            SpeakButton("اختبار الطوارئ بلا إرسال", onEmergencyTest, spoken = Phrase.ButtonEmergencyTest.ar, modifier = Modifier.fillMaxWidth())
 
             SectionTitle("الصوت")
             SpeakSwitch(Phrase.SwitchVoice.ar, "يقول التصحيحات والمنحنيات بالكلام أيضاً", verbose) { verbose = it; prefs.verboseVoice = it }

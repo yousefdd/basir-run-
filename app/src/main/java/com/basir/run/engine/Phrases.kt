@@ -78,7 +78,6 @@ enum class Phrase(val id: String, val ar: String) {
     ButtonAddContact("btn_add_contact", "إضافة الاسم والرقم المكتوبين"),
     ButtonDeleteContact("btn_delete_contact", "حذف جهة الاتصال"),
     ButtonHapticLessons("btn_haptic_lessons", "تعلّم أنماط الاهتزاز وتعديل قوتها ومدتها واختبار التعرّف عليها"),
-    ButtonEmergencyTest("btn_emergency_test", "تجربة إجراء الطوارئ دون إرسال رسالة أو إجراء اتصال"),
     ButtonGuide("btn_guide", "إعادة قراءة إرشادات الاستخدام الأول"),
     ButtonStopRun("btn_stop_run", "إيقاف الجري وإنهاء التوجيه"),
     ButtonCancelCheck("btn_cancel_check", "إلغاء الفحص والعودة"),
@@ -88,7 +87,6 @@ enum class Phrase(val id: String, val ar: String) {
     ButtonOpenMessage("btn_open_message", "فتح رسالة الطوارئ مع الموقع"),
     ButtonShareLocation("btn_share_location", "مشاركة رسالة الموقع عبر تطبيق آخر"),
     ButtonCallLocal("btn_call_local", "اتصال برقم الطوارئ المحلي"),
-    ButtonRealTrial("btn_real_trial", "تجربة فعلية: سيُفتح تطبيق الرسائل بالنص جاهزاً، ولن يُرسل شيء إلا إذا ضغطت إرسال"),
     ButtonAllPatterns("btn_all_patterns", "تشغيل كل الأنماط بالترتيب مع شرحها"),
     ButtonQuiz("btn_quiz", "اختبار التعرّف على الأنماط: ستة أسئلة، ويلزم خمس إجابات صحيحة قبل الجري"),
     ButtonReplayPattern("btn_replay_pattern", "أعد تشغيل النمط"),
@@ -111,7 +109,6 @@ enum class Phrase(val id: String, val ar: String) {
 
     // Emergency
     SosStarted("sos_started", "بدأ إجراء الطوارئ"),
-    SosTest("sos_test", "وضع الاختبار. لن يُرسل أي شيء ولن يُجرى اتصال"),
     SosLocationReady("sos_location_ready", "تم تحديد موقعك"),
     SosNoLocation("sos_no_location", "لم أتمكن من تحديد موقعك. ستُرسل الرسالة بدون موقع"),
     SosNoNetwork("sos_no_network", "لا يوجد اتصال بالإنترنت. الرسالة النصية والاتصال يعتمدان على شبكة الجوال"),
