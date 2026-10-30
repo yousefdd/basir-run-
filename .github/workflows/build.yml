@@ -31,6 +31,20 @@ jobs:
             || echo "::warning::Obstacle model download failed"
           ls -l app/src/main/assets || true
 
+      # Depth Anything V2 Small (Apache 2.0), int8, dynamic input size, from HuggingFace; if that
+      # fails, the same weights from the GitHub mirror the blind-navigation tool uses (fixed 518×518,
+      # checked against its SHA-256). Without either the app refuses guided runs.
+      - name: Download depth model
+        run: |
+          curl -fL --retry 3 -o app/src/main/assets/depth_anything_v2_small.onnx \
+            https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model_quantized.onnx \
+          || { curl -fL --retry 3 -o app/src/main/assets/depth_anything_v2_small.onnx \
+                 https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v2.0.0/depth_anything_v2_vits.onnx \
+               && echo "d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be  app/src/main/assets/depth_anything_v2_small.onnx" | sha256sum -c - \
+               && echo "::warning::Depth model taken from the GitHub mirror (518×518, slower)"; } \
+          || { rm -f app/src/main/assets/depth_anything_v2_small.onnx; echo "::warning::Depth model download failed"; }
+          ls -l app/src/main/assets
+
       # Compile errors and failed tests are also raised as annotations, readable through the API.
       - name: Test and build debug APK
         run: |

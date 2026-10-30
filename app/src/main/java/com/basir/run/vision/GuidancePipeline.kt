@@ -2,6 +2,8 @@ package com.basir.run.vision
 
 import android.os.SystemClock
 import androidx.camera.core.ImageProxy
+import com.basir.run.vision.depth.DeepChannel
+import com.basir.run.vision.depth.DeepResult
 import kotlin.math.ceil
 
 /** Everything measured on one frame, handed from the camera thread to the screen. */
@@ -16,7 +18,14 @@ data class FrameSnapshot(
     val detections: List<Detection>,
     val findings: List<ObstacleFinding>,
     val obstacle: ObstacleLevel,
+    /** Which hazard set [obstacle]; only meaningful when it is not None. */
+    val hazardKind: HazardKind,
     val obstacleDetectorReady: Boolean,
+    /** Latest result of the depth and YOLO channel, or null if none is recent enough. */
+    val deep: DeepResult?,
+    val depthReady: Boolean,
+    /** The depth channel is loaded but its results stopped arriving in time. */
+    val depthStale: Boolean,
     val shaky: Boolean,
     val framesPerSecond: Float,
     val processingP50Ms: Float,
@@ -29,15 +38,20 @@ data class FrameSnapshot(
  * 2. run both path detectors (painted lines and walkable surface) and let the environment
  *    selector keep the one that fits this scene, with no mode chosen by the user;
  * 3. smooth the path over time, damped while the gyroscope reports a sharp jolt;
- * 4. on every third frame, look for obstacles: the object model plus surface changes inside the
- *    corridor, with motion between runs and a short confirmation;
+ * 4. look for obstacles: whenever the background channel is free it gets the frame for YOLO26n
+ *    and Depth Anything V2 (floor, obstacles of any kind, head-level hazards, drops); its
+ *    objects and the surface changes inside the corridor are confirmed with motion between
+ *    runs. If YOLO26n is missing, EfficientDet-Lite0 runs on every third frame instead;
  * 5. build the multi-point virtual path from this frame only.
  * Processing time per frame is measured here and reported, not assumed.
  */
 class GuidancePipeline(
     private val obstacles: ObstacleDetector,
+    private val deepChannel: DeepChannel,
     /** Current rotation rate of the phone in rad/s, or null if there is no gyroscope. */
     private val rotationRate: () -> Float?,
+    /** Camera angle below the horizon from the gravity sensor, or null if unknown. */
+    private val pitch: () -> Float?,
 ) {
 
     @Volatile var calibration = Calibration()
@@ -61,8 +75,11 @@ class GuidancePipeline(
     private var lastDetections = emptyList<Detection>()
     private var lastFindings = emptyList<ObstacleFinding>()
     private var obstacle = ObstacleLevel.None
+    private var lastDeepTime = -1L
 
     fun reset() {
+        deepChannel.reset()
+        lastDeepTime = -1L
         lanes.reset()
         selector.reset()
         tracker.reset()
@@ -81,8 +98,20 @@ class GuidancePipeline(
         val shaky = (rotationRate() ?: 0f) > JOLT_RAD_PER_S
         val path = tracker.update(estimate, shaky)
 
-        if (frameIndex % OBSTACLE_EVERY == 0L) {
-            lastDetections = if (obstacles.ready) obstacles.detect(image.toBitmap(), image.imageInfo.rotationDegrees) else emptyList()
+        val now = SystemClock.elapsedRealtime()
+        val deep = deepChannel.latest?.takeIf { now - it.frameTimeMs <= DEEP_STALE_MS }
+        // YOLO26n results are used while they keep coming; otherwise EfficientDet fills in.
+        val yoloLive = deepChannel.detectorReady && deep != null
+        val freshYolo = yoloLive && deep!!.frameTimeMs != lastDeepTime
+        val wantDeep = deepChannel.idle && (deepChannel.depthReady || deepChannel.detectorReady)
+        val wantFallback = !yoloLive && frameIndex % OBSTACLE_EVERY == 0L
+        val bitmap = if (wantDeep || wantFallback) image.toBitmap() else null
+        if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch())
+
+        if (freshYolo || (wantFallback && bitmap != null)) {
+            lastDetections = if (freshYolo) deep!!.detections
+            else if (obstacles.ready) obstacles.detect(bitmap!!, image.imageInfo.rotationDegrees) else emptyList()
+            if (freshYolo) lastDeepTime = deep!!.frameTimeMs
             val runnerX = calibration.runnerX
             val modelFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, runnerX) }
             val surfaceFindings = if (path.stable) intrusions.detect(frame, path.estimate, runnerX) else emptyList()
@@ -91,6 +120,10 @@ class GuidancePipeline(
             obstacle = obstacleTracker.update(lastFindings)
         }
         frameIndex++
+        val depthHazard = deep?.hazard?.takeIf { it.level != ObstacleLevel.None }
+        val combined = if (depthHazard != null && depthHazard.level > obstacle) depthHazard.level else obstacle
+        val kind = if (depthHazard != null && depthHazard.level >= obstacle) depthHazard.kind else HazardKind.Object
+        val depthStale = deepChannel.depthReady && deepChannel.latest.let { it == null || now - it.frameTimeMs > DEEP_STALE_MS }
 
         val end = SystemClock.elapsedRealtime()
         durations.addLast(end - start)
@@ -108,8 +141,12 @@ class GuidancePipeline(
             environment = selector.active,
             detections = lastDetections,
             findings = lastFindings,
-            obstacle = obstacle,
-            obstacleDetectorReady = obstacles.ready,
+            obstacle = combined,
+            hazardKind = kind,
+            obstacleDetectorReady = deepChannel.detectorReady || obstacles.ready,
+            deep = deep,
+            depthReady = deepChannel.depthReady,
+            depthStale = depthStale,
             shaky = shaky,
             framesPerSecond = fps,
             processingP50Ms = percentile(sorted, 0.5),
@@ -122,6 +159,8 @@ class GuidancePipeline(
 
     companion object {
         private const val OBSTACLE_EVERY = 3L
+        /** A depth or YOLO result older than this no longer describes what is ahead. */
+        const val DEEP_STALE_MS = 1500L
         private const val WINDOW = 60
         /** Rotation faster than this blurs the frame and swings the view; such frames count less. */
         private const val JOLT_RAD_PER_S = 2.5f

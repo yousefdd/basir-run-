@@ -19,6 +19,8 @@ enum class Phrase(val id: String, val ar: String) {
     // Warnings and stops
     Obstacle("obstacle", "يوجد عائق محتمل أمامك. خفف سرعتك وتوقف للتحقق"),
     ObstacleNear("obstacle_near", "انتبه، يوجد جسم قريب من مسارك. خفف سرعتك"),
+    HeadLevel("head_level", "انتبه، عائق على مستوى الرأس أمامك. توقف وتحقق"),
+    DropAhead("drop_ahead", "انتبه، قد يوجد درج نازل أو حفرة أمامك. توقف وتحقق"),
     PathUnclear("path_unclear", "المسار غير واضح. خفف سرعتك"),
     EdgeOnly("edge_only", "أرى حداً واحداً فقط للمسار. خفف سرعتك"),
     EdgeNearStop("edge_near_stop", "اقتربت من حد المسار ولا أرى الجهة الأخرى. توقف وتحقق"),
@@ -74,6 +76,8 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.CurveAhead -> curve(d.curve)
             Cue.Obstacle -> Obstacle
             Cue.ObstacleNear -> ObstacleNear
+            Cue.HeadLevelStop -> HeadLevel
+            Cue.DropStop -> DropAhead
             Cue.PathUnclear -> PathUnclear
             Cue.EdgeOnlyCaution -> EdgeOnly
             Cue.EdgeNearStop -> EdgeNearStop

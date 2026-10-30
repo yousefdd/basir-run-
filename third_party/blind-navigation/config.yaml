@@ -1,0 +1,131 @@
+# Blind Navigation Skill — Configuration Schema
+# Parsed by Aegis skill-registry-service.cjs → parseConfigYaml()
+# Format: params[] with key, type, label, default, description, options
+
+params:
+  - key: auto_start
+    label: Auto Start
+    type: boolean
+    default: false
+    description: "Start this skill automatically when Aegis launches"
+
+  - key: language
+    label: Guidance Language
+    type: select
+    default: ar
+    description: "Language of spoken guidance and scene descriptions"
+    options:
+      - { value: ar, label: "العربية (Arabic)" }
+      - { value: en, label: "English" }
+
+  - key: camera_height_m
+    label: Camera Height (m)
+    type: number
+    default: 1.3
+    description: "Height of the camera above the ground — chest mount ≈ 1.3, head mount ≈ 1.6"
+
+  - key: camera_pitch_deg
+    label: Camera Tilt Down (°)
+    type: string
+    default: auto
+    description: "'auto' estimates the tilt from every frame; or a fixed angle below the horizon (e.g. 20)"
+
+  - key: camera_hfov_deg
+    label: Horizontal Field of View (°)
+    type: number
+    default: 70
+    description: "Phone main camera ≈ 65–75°, wide-angle ≈ 100°"
+
+  - key: body_width_m
+    label: Walking Corridor Width (m)
+    type: number
+    default: 0.75
+    description: "Width the user needs to pass between obstacles"
+
+  - key: safe_distance_m
+    label: Safe Distance (m)
+    type: number
+    default: 2.0
+    description: "Keep walking straight while at least this much free path is ahead"
+
+  - key: stop_distance_m
+    label: Stop Distance (m)
+    type: number
+    default: 1.2
+    description: "Say 'stop' when an obstacle is closer than this"
+
+  - key: lookahead_m
+    label: Look-ahead (m)
+    type: number
+    default: 5.0
+    description: "Ignore obstacles farther than this"
+
+  - key: detect_drops
+    label: Detect Steps Down / Holes
+    type: boolean
+    default: true
+    description: "Experimental — warn about stairs going down, holes and platform edges"
+
+  - key: detect_objects
+    label: Name Obstacles (YOLO26)
+    type: boolean
+    default: true
+    description: "Say what the obstacle is (person, car, bench …) and warn about vehicles"
+
+  - key: confidence
+    label: Object Confidence
+    type: number
+    default: 0.4
+    description: "Minimum detection confidence for naming objects (0.1–1.0)"
+
+  - key: describe_scenes
+    label: Describe Surroundings (VLM)
+    type: select
+    default: on_change
+    description: "Describe the place with the Aegis VLM when the scene changes, only on request, or never"
+    options:
+      - { value: on_change, label: "When entering a new place" }
+      - { value: on_request, label: "Only on request" }
+      - { value: "off", label: "Off" }
+
+  - key: fps
+    label: Frame Rate
+    type: select
+    default: 3
+    description: "Guidance updates per second — 3+ recommended while walking"
+    options:
+      - { value: 1, label: "1 FPS (battery saver)" }
+      - { value: 3, label: "3 FPS (walking)" }
+      - { value: 5, label: "5 FPS" }
+      - { value: 10, label: "10 FPS (GPU)" }
+
+  - key: depth_precision
+    label: Depth Model Precision
+    type: select
+    default: fp32
+    description: "INT8 is ~3× smaller and faster on CPU, slightly less accurate"
+    options:
+      - { value: fp32, label: "FP32 (accurate)" }
+      - { value: int8, label: "INT8 (fast, CPU)" }
+
+  - key: emit_overlay
+    label: Show Path Overlay
+    type: boolean
+    default: false
+    description: "Send an overlay frame (green floor, red obstacles, arrow) for sighted helpers"
+
+  - key: local_tts
+    label: Speak on This Computer
+    type: boolean
+    default: false
+    description: "Speak guidance with espeak-ng / macOS say (for wearable or standalone setups)"
+
+  - key: device
+    label: Inference Device
+    type: select
+    default: auto
+    description: "Compute backend for inference"
+    options:
+      - { value: auto, label: "Auto-detect" }
+      - { value: cpu, label: "CPU" }
+      - { value: cuda, label: "NVIDIA CUDA" }

@@ -140,6 +140,8 @@ class GuidanceSession(
                 quality = s?.quality,
                 path = s?.path,
                 obstacle = s?.obstacle ?: com.basir.run.vision.ObstacleLevel.None,
+                obstacleKind = s?.hazardKind ?: com.basir.run.vision.HazardKind.Object,
+                depthStale = s?.depthStale ?: false,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
                 calibratedPitchDeg = calibratedPitchDeg,
@@ -155,7 +157,7 @@ class GuidanceSession(
         }
         if (d.cue != lastCue) {
             if (d.severity == Severity.Critical) stopAlerts++
-            if (d.cue == Cue.Obstacle || d.cue == Cue.ObstacleNear) obstacleAlerts++
+            if (d.cue in setOf(Cue.Obstacle, Cue.ObstacleNear, Cue.HeadLevelStop, Cue.DropStop)) obstacleAlerts++
             lastCue = d.cue
         }
 

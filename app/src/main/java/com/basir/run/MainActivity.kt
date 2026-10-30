@@ -31,6 +31,7 @@ import com.basir.run.engine.Phrase
 import com.basir.run.sensors.MotionMonitor
 import com.basir.run.vision.GuidancePipeline
 import com.basir.run.vision.ObstacleDetector
+import com.basir.run.vision.depth.DeepChannel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,11 +68,13 @@ private fun BasirApp() {
     val motion = remember { MotionMonitor(context) }
     val haptics = remember { HapticEngine(context, prefs) }
     val obstacles = remember { ObstacleDetector(context) }
-    val pipeline = remember { GuidancePipeline(obstacles) { motion.rotationRadPerS } }
+    val deep = remember { DeepChannel(context) }
+    val pipeline = remember { GuidancePipeline(obstacles, deep, { motion.rotationRadPerS }, { motion.pitchBelowHorizonDeg }) }
     DisposableEffect(Unit) {
         onDispose {
             voice.shutdown()
             obstacles.close()
+            deep.close()
         }
     }
 
@@ -144,7 +147,8 @@ private fun BasirApp() {
             Page.Home -> HomeScreen(
                 status = SystemStatus(
                     cameraAllowed = context.has(Manifest.permission.CAMERA),
-                    detectorReady = obstacles.ready,
+                    detectorReady = deep.detectorReady || obstacles.ready,
+                    depthReady = deep.depthReady,
                     vibration = haptics.available,
                     contact = prefs.contacts.firstOrNull(),
                 ),

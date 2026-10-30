@@ -13,6 +13,7 @@ enum class Check(val label: String) {
     Steady("ثبات الهاتف"),
     Path("المسار ظاهر بثقة"),
     Obstacles("كاشف العوائق"),
+    Depth("تقدير العمق والأرض"),
 }
 
 data class CheckResult(val check: Check, val passed: Boolean, val detail: String)
@@ -26,6 +27,13 @@ data class ReadinessInput(
     /** Rotation rate of the phone in rad/s, smoothed. */
     val shakeRadPerS: Float?,
     val obstacleDetectorReady: Boolean,
+    /** The depth model is loaded. */
+    val depthReady: Boolean,
+    /** Age of the newest depth result, or null if none has arrived. */
+    val depthAgeMs: Long?,
+    /** The newest depth result found the floor in front. */
+    val floorVisible: Boolean,
+    val depthMs: Long,
 )
 
 /**
@@ -40,6 +48,7 @@ object Readiness {
     const val MAX_PITCH = 75f
     const val MAX_SHAKE = 0.6f
     const val MIN_CONFIDENCE = 0.5f
+    const val MAX_DEPTH_AGE_MS = 1500L
 
     fun evaluate(i: ReadinessInput): List<CheckResult> {
         val q = i.quality
@@ -90,6 +99,17 @@ object Readiness {
                 Check.Obstacles,
                 i.obstacleDetectorReady,
                 if (i.obstacleDetectorReady) "يعمل" else "النموذج غير محمّل",
+            ),
+            CheckResult(
+                Check.Depth,
+                i.depthReady && i.depthAgeMs != null && i.depthAgeMs <= MAX_DEPTH_AGE_MS && i.floorVisible,
+                when {
+                    !i.depthReady -> "نموذج العمق غير محمّل"
+                    i.depthAgeMs == null -> "لم تصل نتيجة بعد"
+                    i.depthAgeMs > MAX_DEPTH_AGE_MS -> "النتائج متأخرة"
+                    !i.floorVisible -> "لا أرى الأرض أمامك"
+                    else -> String.format(Locale.US, "الأرض ظاهرة · %d ملّي ثانية", i.depthMs)
+                },
             ),
         )
     }

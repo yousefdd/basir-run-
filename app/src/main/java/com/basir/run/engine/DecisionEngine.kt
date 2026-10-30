@@ -1,6 +1,7 @@
 package com.basir.run.engine
 
 import com.basir.run.vision.FrameQuality
+import com.basir.run.vision.HazardKind
 import com.basir.run.vision.ObstacleLevel
 import com.basir.run.vision.PathStatus
 import com.basir.run.vision.Side
@@ -36,6 +37,8 @@ enum class Cue {
     CurveAhead,
     Obstacle,
     ObstacleNear,
+    HeadLevelStop,
+    DropStop,
     PathUnclear,
     EdgeOnlyCaution,
     EdgeNearStop,
@@ -74,6 +77,10 @@ data class EngineInput(
     val cameraPitchDeg: Float? = null,
     /** The angle measured at calibration; when known, the check is relative to it. */
     val calibratedPitchDeg: Float? = null,
+    /** What raised [obstacle]: something on the ground, at head height, or a drop. */
+    val obstacleKind: HazardKind = HazardKind.Object,
+    /** The depth channel is loaded but its results stopped arriving in time. */
+    val depthStale: Boolean = false,
 )
 
 data class EngineConfig(
@@ -138,7 +145,14 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
 
         if (i.processingP90Ms > cfg.latencyStopMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
         // No way around an obstacle is offered: the space beside it has not been assessed.
-        if (i.obstacle == ObstacleLevel.Hazard) return Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
+        if (i.obstacle == ObstacleLevel.Hazard) {
+            val cue = when (i.obstacleKind) {
+                HazardKind.HeadLevel -> Cue.HeadLevelStop
+                HazardKind.Drop -> Cue.DropStop
+                HazardKind.Object -> Cue.Obstacle
+            }
+            return Decision(SystemState.ObstacleAhead, Severity.Critical, cue)
+        }
         if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
 
         val p = i.path
@@ -171,7 +185,8 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             p.curvature < -cfg.curveThreshold -> Side.Left
             else -> null
         }
-        if (i.processingP90Ms > cfg.latencyWarnMs) {
+        // Without fresh depth results obstacles of unknown kind may be missed: slow down, no steering.
+        if (i.processingP90Ms > cfg.latencyWarnMs || i.depthStale) {
             return Decision(SystemState.HighLatency, Severity.Warning, Cue.LatencySlow, curve = curve)
         }
         val off = p.offset

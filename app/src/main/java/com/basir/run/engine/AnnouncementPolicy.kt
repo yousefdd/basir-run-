@@ -57,7 +57,7 @@ class AnnouncementPolicy(var verbose: Boolean = false) {
         when (d.severity) {
             Severity.Critical -> if (phrase != null && (changed || since >= CRITICAL_REPEAT_MS)) {
                 say(phrase, interrupt = true, important = true)
-                out += Output.Buzz(if (d.cue == Cue.Obstacle) Haptic.Attention else Haptic.Stop)
+                out += Output.Buzz(if (d.cue in OBSTACLE_CUES) Haptic.Attention else Haptic.Stop)
             }
             Severity.Warning -> {
                 // A larger drift is a steering matter: firmer pulses, words only on request.
@@ -114,5 +114,7 @@ class AnnouncementPolicy(var verbose: Boolean = false) {
         private const val MIN_GAP_MS = 1500L
         private const val REVERSAL_HOLD_MS = 1200L
         private val STEER_PERIOD_MS = longArrayOf(0, 1200, 600)
+        /** Hazards in front get the obstacle pattern (three quick pulses); everything else critical gets the stop pattern. */
+        private val OBSTACLE_CUES = setOf(Cue.Obstacle, Cue.HeadLevelStop, Cue.DropStop)
     }
 }

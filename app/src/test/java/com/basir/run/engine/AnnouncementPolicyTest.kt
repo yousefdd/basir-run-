@@ -36,6 +36,15 @@ class AnnouncementPolicyTest {
     }
 
     @Test
+    fun headLevelAndDropAreSpokenWithThreeQuickPulses() {
+        val head = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.HeadLevelStop), 0)
+        assertEquals(listOf(Haptic.Attention), buzzes(head))
+        assertEquals(listOf(Phrase.HeadLevel), said(head))
+        val drop = AnnouncementPolicy().next(Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.DropStop), 0)
+        assertEquals(listOf(Phrase.DropAhead), said(drop))
+    }
+
+    @Test
     fun unclearPathIsSpokenWithThreeQuickPulses() {
         val out = AnnouncementPolicy().next(unclear, 0)
         assertEquals(listOf(Phrase.PathUnclear), said(out))

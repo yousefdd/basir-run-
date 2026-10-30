@@ -1,0 +1,6 @@
+# Blind Navigation — ONNX Runtime (CPU, also CoreML EP on macOS)
+# Default install. NVIDIA GPUs: requirements_cuda.txt
+onnxruntime>=1.17.0
+huggingface_hub>=0.20.0
+numpy>=1.24.0
+opencv-python-headless>=4.8.0

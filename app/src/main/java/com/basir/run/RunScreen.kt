@@ -115,6 +115,10 @@ fun RunScreen(
                     cameraPitchDeg = motion.pitchBelowHorizonDeg,
                     shakeRadPerS = motion.shakeRadPerS,
                     obstacleDetectorReady = s?.obstacleDetectorReady ?: false,
+                    depthReady = s?.depthReady ?: false,
+                    depthAgeMs = if (fresh) s!!.deep?.let { now - it.frameTimeMs } else null,
+                    floorVisible = s?.deep?.hazard?.floorVisible ?: false,
+                    depthMs = s?.deep?.depthMs ?: 0L,
                 )
             )
             val estimate = s?.path?.estimate

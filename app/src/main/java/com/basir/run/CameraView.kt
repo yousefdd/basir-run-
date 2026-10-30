@@ -164,6 +164,22 @@ fun PathOverlay(snapshot: FrameSnapshot?, nowMs: Long, runnerX: Float, developer
             }
         }
 
+        // Developer mode: what the depth planner marked as obstacle (red) or drop (violet).
+        val analysis = shot.deep?.analysis
+        if (developer && analysis != null && analysis.floorValid) {
+            val cw = analysis.width
+            val ch = analysis.height
+            for (v in 0 until ch step 3) for (u in 0 until cw step 3) {
+                val i = v * cw + u
+                val color = when {
+                    analysis.obstacleMask?.get(i) == true -> Danger
+                    analysis.dropMask?.get(i) == true -> Color(0xFFA855F7)
+                    else -> continue
+                }
+                drawCircle(color.copy(alpha = 0.7f), 2.px(this), at((u + 0.5f) / cw, (v + 0.5f) / ch))
+            }
+        }
+
         val findings = shot.findings.associateBy { it.detection }
         shot.detections.forEach { d ->
             val f = findings[d]
@@ -201,7 +217,17 @@ fun DeveloperReadout(snapshot: FrameSnapshot?, nowMs: Long) {
             s.path.offset, s.path.curvature, s.virtualPath.observedShare * 100,
             s.framesPerSecond, s.processingP50Ms, s.processingP90Ms, nowMs - s.timeMs,
             q.meanLuma, q.contrast, q.sharpness, s.obstacle, s.detections.size,
-        )
+        ) + (s.deep?.let { d ->
+            val a = d.analysis
+            String.format(
+                java.util.Locale.US,
+                "\nعمق %d ملّي ث · YOLO %d ملّي ث · أرض %s · خالٍ تقديرياً %s م · ميل %s° (%s) · %s %s",
+                d.depthMs, d.detectMs, if (a?.floorValid == true) "نعم" else "لا",
+                a?.clearDistanceM?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "-",
+                a?.pitchDeg?.let { String.format(java.util.Locale.US, "%.0f", it) } ?: "-", a?.pitchSource ?: "-",
+                d.hazard.level, d.hazard.kind,
+            )
+        } ?: if (s.depthReady) "\nعمق: لا نتيجة حديثة" else "\nعمق: النموذج غير محمّل")
     }
     androidx.compose.material3.Text(
         text,

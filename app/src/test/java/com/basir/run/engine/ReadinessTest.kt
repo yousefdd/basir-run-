@@ -14,7 +14,7 @@ class ReadinessTest {
 
     private val good = FrameQuality(120f, 40f, 12f, 0f, 0f)
     private val path = TrackedPath(PathEstimate(PathStatus.Tracked, PathSource.PaintedLines, confidence = 0.8f), 0f, 0f, true)
-    private val allGood = ReadinessInput(24f, 60f, good, path, 40f, 0.2f, true)
+    private val allGood = ReadinessInput(24f, 60f, good, path, 40f, 0.2f, true, true, 300L, true, 400L)
 
     @Test
     fun allChecksPass() {
@@ -30,6 +30,10 @@ class ReadinessTest {
         assertEquals(listOf(Check.Steady), failed(allGood.copy(shakeRadPerS = 2f)))
         assertEquals(listOf(Check.Obstacles), failed(allGood.copy(obstacleDetectorReady = false)))
         assertEquals(listOf(Check.Path), failed(allGood.copy(path = path.copy(stable = false))))
+        assertEquals(listOf(Check.Depth), failed(allGood.copy(depthReady = false)))
+        assertEquals(listOf(Check.Depth), failed(allGood.copy(depthAgeMs = null)))
+        assertEquals(listOf(Check.Depth), failed(allGood.copy(depthAgeMs = 2500L)))
+        assertEquals(listOf(Check.Depth), failed(allGood.copy(floorVisible = false)))
     }
 
     @Test

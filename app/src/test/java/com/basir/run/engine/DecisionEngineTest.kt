@@ -1,6 +1,7 @@
 package com.basir.run.engine
 
 import com.basir.run.vision.FrameQuality
+import com.basir.run.vision.HazardKind
 import com.basir.run.vision.ObstacleLevel
 import com.basir.run.vision.PathEstimate
 import com.basir.run.vision.PathSource
@@ -108,6 +109,23 @@ class DecisionEngineTest {
         val near = DecisionEngine().decide(input(obstacle = ObstacleLevel.Possible, path = tracked(0.3f)))
         assertEquals(Cue.ObstacleNear, near.cue)
         assertNull(near.moveTo)
+    }
+
+    @Test
+    fun headLevelAndDropHazardsHaveTheirOwnStop() {
+        val head = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel))
+        assertEquals(Cue.HeadLevelStop, head.cue)
+        assertEquals(Severity.Critical, head.severity)
+        assertNull(head.moveTo)
+        val drop = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.Drop))
+        assertEquals(Cue.DropStop, drop.cue)
+    }
+
+    @Test
+    fun staleDepthSlowsDownWithoutSteering() {
+        val d = DecisionEngine().decide(input(path = tracked(0.3f)).copy(depthStale = true))
+        assertEquals(Cue.LatencySlow, d.cue)
+        assertNull(d.moveTo)
     }
 
     @Test

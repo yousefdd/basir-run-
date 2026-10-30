@@ -23,6 +23,16 @@ enum class ObstacleLevel {
 
 enum class ObstacleMotion { Unknown, Still, Approaching, Crossing }
 
+/** What kind of hazard raised the obstacle level, so the runner hears the right sentence. */
+enum class HazardKind {
+    /** Something on the ground in the corridor (a person, a bench, a pole). */
+    Object,
+    /** Something at head height that a cane would pass under (a branch, a sign). */
+    HeadLevel,
+    /** A possible step down or hole. */
+    Drop,
+}
+
 data class ObstacleFinding(
     val detection: Detection,
     val overlap: Float,

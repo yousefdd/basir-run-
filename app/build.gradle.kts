@@ -12,8 +12,13 @@ android {
         applicationId = "com.basir.run"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
+
+        // Phones only: keeps the native libraries of MediaPipe and ONNX Runtime to two ABIs.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     signingConfigs {
@@ -31,9 +36,9 @@ android {
         buildConfig = true
     }
 
-    // The obstacle model is memory-mapped by MediaPipe, so it must stay uncompressed.
+    // Models are read straight from the APK, so they stay uncompressed.
     androidResources {
-        noCompress += "tflite"
+        noCompress += listOf("tflite", "onnx")
     }
 
     compileOptions {
@@ -67,6 +72,9 @@ dependencies {
 
     // On-device object detection (Apache 2.0).
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
+
+    // Depth Anything V2 and YOLO26n from the blind-navigation tool, on the phone's CPU.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
     testImplementation("junit:junit:4.13.2")
 }
