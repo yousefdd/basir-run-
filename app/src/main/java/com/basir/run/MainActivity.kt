@@ -213,7 +213,7 @@ private fun BasirApp() {
 
             Page.SettingsGuide -> GuideScreen(voice, nextLabel = Phrase.ButtonDone.ar, onNext = { page = Page.Settings }, onBack = { page = Page.Settings })
 
-            Page.DeveloperLogin -> DeveloperLoginScreen(voice, onOpen = { page = Page.Developer }, onBack = { page = Page.Home })
+            Page.DeveloperLogin -> DeveloperLoginScreen(onOpen = { page = Page.Developer }, onBack = { page = Page.Home })
 
             Page.Developer -> DeveloperScreen(
                 onLiveVision = {

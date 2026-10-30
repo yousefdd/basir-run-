@@ -122,6 +122,7 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                     hint = null,
                     icon = Icons.Filled.Build,
                     height = 44.dp,
+                    silent = true,
                     modifier = Modifier.width(56.dp),
                 )
             }

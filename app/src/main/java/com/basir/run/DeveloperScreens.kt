@@ -51,7 +51,7 @@ import kotlinx.coroutines.delay
 private const val DEVELOPER_CODE = "00000000"
 
 @Composable
-fun DeveloperLoginScreen(voice: Voice, onOpen: () -> Unit, onBack: () -> Unit) {
+fun DeveloperLoginScreen(onOpen: () -> Unit, onBack: () -> Unit) {
     var code by remember { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
     BasirBackground {
@@ -59,7 +59,7 @@ fun DeveloperLoginScreen(voice: Voice, onOpen: () -> Unit, onBack: () -> Unit) {
             modifier = screenModifier().padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("المطوّر", onBack)
+            ScreenHeader("المطوّر", onBack, silent = true)
             OutlinedTextField(
                 code,
                 { code = it.filter(Char::isDigit).take(16); wrong = false },
@@ -76,12 +76,11 @@ fun DeveloperLoginScreen(voice: Voice, onOpen: () -> Unit, onBack: () -> Unit) {
             SpeakButton(
                 "دخول",
                 {
-                    if (code == DEVELOPER_CODE) onOpen() else {
-                        wrong = true
-                        voice.sayText("كلمة السر غير صحيحة", interrupt = true)
-                    }
+                    if (code == DEVELOPER_CODE) onOpen() else wrong = true
                 },
+                hint = null,
                 tone = ButtonTone.Primary,
+                silent = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -98,7 +97,7 @@ fun DeveloperScreen(onLiveVision: () -> Unit, onBack: () -> Unit) {
             modifier = screenModifier().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ScreenHeader("المطوّر", onBack)
+            ScreenHeader("المطوّر", onBack, silent = true)
             Card {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Image(
@@ -122,9 +121,11 @@ fun DeveloperScreen(onLiveVision: () -> Unit, onBack: () -> Unit) {
                 "الرؤية المباشرة بالكاميرا",
                 onLiveVision,
                 spoken = "الرؤية المباشرة بالكاميرا: ما يراه التطبيق ويكتشفه الآن",
+                hint = null,
                 tone = ButtonTone.Primary,
                 icon = Icons.Filled.PlayArrow,
                 height = 76.dp,
+                silent = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
@@ -170,7 +171,7 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
             modifier = screenModifier().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ScreenHeader("الرؤية المباشرة", onBack)
+            ScreenHeader("الرؤية المباشرة", onBack, silent = true)
             cameraError?.let { Text(it, color = Danger, style = MaterialTheme.typography.titleMedium) }
             val line = snapshot?.line
             Text(

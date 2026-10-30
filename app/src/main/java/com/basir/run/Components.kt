@@ -88,6 +88,8 @@ fun SpeakButton(
     enabled: Boolean = true,
     /** Say "press and hold to activate" after the name on a tap; off where it is obvious (lessons). */
     sayHowToUse: Boolean = true,
+    /** Developer controls: a plain tap acts, and nothing is spoken (they are not for the runner). */
+    silent: Boolean = false,
 ) {
     val voice = LocalVoice.current
     val feedback = LocalHapticFeedback.current
@@ -111,14 +113,14 @@ fun SpeakButton(
                 interactionSource = interaction,
                 indication = androidx.compose.material3.ripple(),
                 role = Role.Button,
-                onClickLabel = "قراءة",
+                onClickLabel = if (silent) label else "قراءة",
                 onLongClickLabel = label,
-                onClick = { voice?.sayControl(spoken, enabled, sayHowToUse) },
+                onClick = { if (silent) { if (enabled) onHold() } else voice?.sayControl(spoken, enabled, sayHowToUse) },
                 onLongClick = {
                     if (enabled) {
                         feedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         onHold()
-                    } else {
+                    } else if (!silent) {
                         voice?.sayControl(spoken, enabled = false)
                     }
                 },
@@ -257,10 +259,10 @@ fun screenModifier(): Modifier = Modifier
     .windowInsetsPadding(WindowInsets.safeDrawing)
 
 @Composable
-fun ScreenHeader(title: String, onBack: (() -> Unit)?) {
+fun ScreenHeader(title: String, onBack: (() -> Unit)?, silent: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (onBack != null) {
-            SpeakButton("رجوع", onBack, hint = null, height = 52.dp, spoken = Phrase.ButtonBack.ar)
+            SpeakButton("رجوع", onBack, hint = null, height = 52.dp, spoken = Phrase.ButtonBack.ar, silent = silent)
         }
         Text(
             title,
