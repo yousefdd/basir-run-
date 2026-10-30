@@ -144,9 +144,9 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
 
             if (question < 0) {
                 LESSONS.forEach { l ->
-                    SpeakButton(l.title, { teach(listOf(l)) }, spoken = l.phrase.ar, hint = "اضغط مطولاً للتجربة", modifier = Modifier.fillMaxWidth())
+                    SpeakButton(l.title, { teach(listOf(l)) }, spoken = l.phrase.ar, hint = "اضغط مطولاً للتجربة", sayHowToUse = false, modifier = Modifier.fillMaxWidth())
                 }
-                SpeakButton("كل الأنماط بالترتيب", { teach(LESSONS) }, spoken = Phrase.ButtonAllPatterns.ar, tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
+                SpeakButton("كل الأنماط بالترتيب", { teach(LESSONS) }, spoken = Phrase.ButtonAllPatterns.ar, tone = ButtonTone.Accent, sayHowToUse = false, modifier = Modifier.fillMaxWidth())
 
                 Card {
                     SectionTitle("قوة الاهتزاز")
@@ -189,6 +189,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                             scope.launch { delay(3500); ask(0) }
                         },
                         spoken = Phrase.ButtonQuiz.ar,
+                        sayHowToUse = false,
                         tone = ButtonTone.Primary,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -201,6 +202,7 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                         onDone()
                     },
                     tone = if (prefs.hapticQuizPassed || !haptics.available) ButtonTone.Primary else ButtonTone.Neutral,
+                    sayHowToUse = false,
                     height = 76.dp,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -216,8 +218,8 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
-                SpeakButton(Phrase.ButtonReplayPattern.ar, { asked?.let { playing.value = play(it.patterns(haptics.language)) } }, tone = ButtonTone.Accent, modifier = Modifier.fillMaxWidth())
-                options.forEach { o -> SpeakButton(o.answer, { answer(o) }, hint = "اضغط مطولاً للاختيار", modifier = Modifier.fillMaxWidth()) }
+                SpeakButton(Phrase.ButtonReplayPattern.ar, { asked?.let { playing.value = play(it.patterns(haptics.language)) } }, tone = ButtonTone.Accent, sayHowToUse = false, modifier = Modifier.fillMaxWidth())
+                options.forEach { o -> SpeakButton(o.answer, { answer(o) }, hint = "اضغط مطولاً للاختيار", sayHowToUse = false, modifier = Modifier.fillMaxWidth()) }
             }
         }
     }

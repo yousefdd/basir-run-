@@ -86,6 +86,8 @@ fun SpeakButton(
     icon: ImageVector? = null,
     height: Dp = 64.dp,
     enabled: Boolean = true,
+    /** Say "press and hold to activate" after the name on a tap; off where it is obvious (lessons). */
+    sayHowToUse: Boolean = true,
 ) {
     val voice = LocalVoice.current
     val feedback = LocalHapticFeedback.current
@@ -111,7 +113,7 @@ fun SpeakButton(
                 role = Role.Button,
                 onClickLabel = "قراءة",
                 onLongClickLabel = label,
-                onClick = { voice?.sayControl(spoken, enabled) },
+                onClick = { voice?.sayControl(spoken, enabled, sayHowToUse) },
                 onLongClick = {
                     if (enabled) {
                         feedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -233,19 +235,19 @@ fun SectionTitle(text: String) {
     )
 }
 
-/** The app mark: the launcher icon's runner and lane on a navy disc. */
+/** The app mark: the launcher icon's eye with its vibration arcs, on a navy disc. */
 @Composable
 fun BasirLogo(size: Dp) {
     Box(
         Modifier
             .size(size)
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFF13284F), NavyDeep)))
-            .border(1.dp, Tactile.copy(alpha = 0.35f), CircleShape)
+            .background(NavyDeep)
+            .border(1.dp, Blue.copy(alpha = 0.35f), CircleShape)
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.size(size * 1.45f))
+        Image(painterResource(R.drawable.basir_logo), contentDescription = null, modifier = Modifier.size(size))
     }
 }
 

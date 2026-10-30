@@ -51,10 +51,10 @@ class Voice(context: Context) {
         if (phrase != null) say(phrase) else enqueue(Item.Text(text))
     }
 
-    /** What a single tap on a control says: its name, then how to use it. */
-    fun sayControl(spoken: String, enabled: Boolean = true) {
+    /** What a single tap on a control says: its name, then (unless [howToUse] is off) how to use it. */
+    fun sayControl(spoken: String, enabled: Boolean = true, howToUse: Boolean = true) {
         sayText(spoken, interrupt = true)
-        say(if (enabled) Phrase.HoldToActivate else Phrase.Unavailable)
+        if (!enabled) say(Phrase.Unavailable) else if (howToUse) say(Phrase.HoldToActivate)
     }
 
     /** A setting that is on or off: its name, its state, and how to change it. */
