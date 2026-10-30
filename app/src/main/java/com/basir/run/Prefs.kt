@@ -30,12 +30,12 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("guide_tones", false)
         set(value) = sp.edit().putBoolean("guide_tones", value).apply()
 
-    /** 0.3 to 1.0: vibration strength on phones that support amplitude control. */
+    /** 0.3 to 1.0: vibration strength on phones that support amplitude control (lessons offer 0.45, 0.7, 1). */
     var hapticStrength: Float
         get() = sp.getFloat("haptic_strength", 0.8f)
         set(value) = sp.edit().putFloat("haptic_strength", value).apply()
 
-    /** 0.6 to 2.0: multiplies the length of each pulse. */
+    /** 0.6 to 2.0: multiplies the length of each pulse (lessons offer 0.7, 1, 1.4, 2). */
     var hapticDuration: Float
         get() = sp.getFloat("haptic_duration", 1f)
         set(value) = sp.edit().putFloat("haptic_duration", value).apply()

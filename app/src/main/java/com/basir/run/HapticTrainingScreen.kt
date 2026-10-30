@@ -2,18 +2,16 @@ package com.basir.run
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,16 +19,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.basir.run.engine.Phrase
 import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import run.basir.engine.HapticLanguage
 import run.basir.engine.HapticPattern
 import run.basir.engine.Level
@@ -52,6 +49,23 @@ private val LESSONS = listOf(
 )
 
 /** The meanings the quiz asks about: every pattern that guides or stops the runner. */
+/** The pulse length and strength a runner chooses by ear and feel, in steps with spoken names. */
+private class Step(val value: Float, val name: String, val phrase: Phrase)
+
+private val DURATIONS = listOf(
+    Step(0.7f, "قصيرة", Phrase.DurationShort),
+    Step(1f, "متوسطة", Phrase.DurationMedium),
+    Step(1.4f, "طويلة", Phrase.DurationLong),
+    Step(2f, "طويلة جداً", Phrase.DurationVeryLong),
+)
+private val STRENGTHS = listOf(
+    Step(0.45f, "خفيف", Phrase.StrengthLight),
+    Step(0.7f, "متوسط", Phrase.StrengthMedium),
+    Step(1f, "قوي", Phrase.StrengthStrong),
+)
+
+private fun List<Step>.nearest(value: Float) = indices.minBy { abs(this[it].value - value) }
+
 private val QUIZ = LESSONS.filter { it.answer.isNotEmpty() }
 private const val QUESTIONS = 6
 private const val PASS = 5
@@ -65,8 +79,8 @@ private const val PASS = 5
 @Composable
 fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, doneLabel: String, onDone: () -> Unit, onBack: (() -> Unit)?) {
     val scope = rememberCoroutineScope()
-    var strength by remember { mutableFloatStateOf(prefs.hapticStrength) }
-    var duration by remember { mutableFloatStateOf(prefs.hapticDuration) }
+    var strength by remember { mutableIntStateOf(STRENGTHS.nearest(prefs.hapticStrength)) }
+    var duration by remember { mutableIntStateOf(DURATIONS.nearest(prefs.hapticDuration)) }
     val playing = remember { mutableStateOf<Job?>(null) }
     var question by remember { mutableIntStateOf(-1) } // -1: not started
     var correct by remember { mutableIntStateOf(0) }
@@ -96,6 +110,21 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
         }
     }
 
+    // One step longer/shorter or stronger/weaker: say where it is now, then one pulse and two
+    // pulses, the pair that has to be easy to tell apart.
+    fun tune(durationStep: Int = 0, strengthStep: Int = 0) {
+        duration = (duration + durationStep).coerceIn(DURATIONS.indices)
+        strength = (strength + strengthStep).coerceIn(STRENGTHS.indices)
+        prefs.hapticDuration = DURATIONS[duration].value
+        prefs.hapticStrength = STRENGTHS[strength].value
+        playing.value?.cancel()
+        playing.value = scope.launch {
+            voice.say(if (durationStep != 0) DURATIONS[duration].phrase else STRENGTHS[strength].phrase, interrupt = true)
+            delay(2000)
+            play(listOf(haptics.language.correct(Side.LEFT, Level.MEDIUM), haptics.language.correct(Side.RIGHT, Level.MEDIUM))).join()
+        }
+    }
+
     fun ask(n: Int) {
         val l = QUIZ.random()
         asked = l
@@ -120,12 +149,21 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
             if (passed) prefs.hapticQuizPassed = true
             result = String.format(Locale.US, "%d من %d صحيحة. %s", correct, QUESTIONS, if (passed) "اجتزت الاختبار" else "لم تجتز الاختبار بعد")
             voice.say(if (passed) Phrase.QuizPassed else Phrase.QuizFailed, interrupt = false)
+            // Missed patterns are most often pulses too short to tell apart: lengthen by one step.
+            if (!passed && duration < DURATIONS.lastIndex) {
+                duration++
+                prefs.hapticDuration = DURATIONS[duration].value
+                voice.say(Phrase.QuizMadeLonger)
+            }
             question = -1
             asked = null
         }
     }
 
-    LaunchedEffect(Unit) { voice.say(Phrase.TrainingIntro, interrupt = true) }
+    LaunchedEffect(Unit) {
+        voice.say(Phrase.TrainingIntro, interrupt = true)
+        voice.say(Phrase.TuneHint)
+    }
 
     BasirBackground {
         Column(
@@ -143,30 +181,16 @@ fun HapticTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, done
             }
 
             Card {
-                SectionTitle("قوة الاهتزاز")
-                Slider(
-                    value = strength,
-                    onValueChange = { strength = it },
-                    onValueChangeFinished = { prefs.hapticStrength = strength; haptics.play(haptics.language.correct(Side.LEFT, Level.MEDIUM)) },
-                    valueRange = 0.3f..1f,
-                    colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
-                    modifier = Modifier.semantics {
-                        contentDescription = "قوة الاهتزاز"
-                        stateDescription = String.format(Locale.US, "%.0f%%", strength * 100)
-                    },
-                )
-                SectionTitle("مدة النبضة")
-                Slider(
-                    value = duration,
-                    onValueChange = { duration = it },
-                    onValueChangeFinished = { prefs.hapticDuration = duration; haptics.play(haptics.language.correct(Side.RIGHT, Level.MEDIUM)) },
-                    valueRange = 0.6f..2f,
-                    colors = SliderDefaults.colors(thumbColor = Tactile, activeTrackColor = Teal, inactiveTrackColor = NavyRaised),
-                    modifier = Modifier.semantics {
-                        contentDescription = "مدة النبضة"
-                        stateDescription = String.format(Locale.US, "×%.1f", duration)
-                    },
-                )
+                Text("مدة النبضة: ${DURATIONS[duration].name}", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SpeakButton("نبضة أقصر", { tune(durationStep = -1) }, spoken = Phrase.ButtonShorter.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
+                    SpeakButton("نبضة أطول", { tune(durationStep = 1) }, spoken = Phrase.ButtonLonger.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
+                }
+                Text("قوة الاهتزاز: ${STRENGTHS[strength].name}", style = MaterialTheme.typography.titleMedium, color = Ink)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SpeakButton("اهتزاز أضعف", { tune(strengthStep = -1) }, spoken = Phrase.ButtonWeaker.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
+                    SpeakButton("اهتزاز أقوى", { tune(strengthStep = 1) }, spoken = Phrase.ButtonStronger.ar, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
+                }
             }
             if (question < 0) {
                 LESSONS.forEach { l ->
