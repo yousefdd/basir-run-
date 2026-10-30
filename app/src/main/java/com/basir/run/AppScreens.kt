@@ -112,19 +112,11 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
                 height = 80.dp,
                 modifier = Modifier.fillMaxWidth(),
             )
-            // A small entry for the developer, in the bottom corner, behind a password.
+            // A small, silent entry for the developer in the bottom corner. It opens only after
+            // a six-second press, so a blind runner cannot land in it by accident.
             Row(Modifier.fillMaxWidth()) {
                 Spacer(Modifier.weight(1f))
-                SpeakButton(
-                    "",
-                    onDeveloper,
-                    spoken = "المطوّر",
-                    hint = null,
-                    icon = Icons.Filled.Build,
-                    height = 44.dp,
-                    silent = true,
-                    modifier = Modifier.width(56.dp),
-                )
+                LongHoldIcon(Icons.Filled.Build, holdMs = 6_000, onDone = onDeveloper)
             }
         }
     }

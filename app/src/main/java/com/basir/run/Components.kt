@@ -1,5 +1,13 @@
 package com.basir.run
 
+import kotlinx.coroutines.launch
+
+import androidx.compose.ui.input.pointer.pointerInput
+
+import androidx.compose.foundation.gestures.detectTapGestures
+
+import androidx.compose.foundation.Canvas
+
 import com.basir.run.engine.Phrase
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -276,4 +284,42 @@ fun ScreenHeader(title: String, onBack: (() -> Unit)?, silent: Boolean = false) 
 /** Hardware volume keys during a guided session: down pauses or resumes, up repeats. */
 object VolumeKeys {
     @Volatile var handler: ((up: Boolean) -> Boolean)? = null
+}
+
+/**
+ * An icon that acts only after being held for [holdMs], with a ring that fills while it is
+ * held; letting go earlier cancels. Silent: it is meant for the developer, not the runner.
+ */
+@Composable
+fun LongHoldIcon(icon: ImageVector, holdMs: Long, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val progress = remember { androidx.compose.animation.core.Animatable(0f) }
+    val done by androidx.compose.runtime.rememberUpdatedState(onDone)
+    Box(
+        modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(NavyCard.copy(alpha = 0.9f))
+            .pointerInput(holdMs) {
+                detectTapGestures(onPress = {
+                    val job = scope.launch {
+                        progress.snapTo(0f)
+                        progress.animateTo(1f, androidx.compose.animation.core.tween(holdMs.toInt(), easing = androidx.compose.animation.core.LinearEasing))
+                        done()
+                    }
+                    tryAwaitRelease()
+                    job.cancel()
+                    scope.launch { progress.snapTo(0f) }
+                })
+            }
+            .clearAndSetSemantics { },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize().padding(3.dp)) {
+            if (progress.value > 0f) {
+                drawArc(Teal, -90f, 360f * progress.value, useCenter = false, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+        }
+        Icon(icon, contentDescription = null, tint = InkMuted, modifier = Modifier.size(22.dp))
+    }
 }
