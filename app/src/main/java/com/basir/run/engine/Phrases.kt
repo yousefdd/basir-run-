@@ -45,7 +45,7 @@ enum class Phrase(val id: String, val ar: String) {
     OnboardingMount("onboarding_mount", "ثانياً: ثبّت الهاتف بإحكام على صدرك، والكاميرا الخلفية إلى الأمام"),
     OnboardingSafe("onboarding_safe", "ثالثاً: أجرِ التجارب الأولى في مكان آمن تعرفه، ومع مرافق مؤهل"),
     OnboardingCamera("onboarding_camera", "رابعاً: سيتحقق التطبيق قبل كل جري أن الكاميرا ترى المسار وأن التحليل سريع بما يكفي"),
-    OnboardingLimits("onboarding_limits", "التطبيق لا يضمن سلامتك ولا يكتشف كل المخاطر. إذا طلب منك التوقف، توقف فوراً"),
+    OnboardingLimits("onboarding_limits", "التطبيق لا يضمن سلامتك، ولا يكتشف كل المخاطر. إذا طلب منك التوقف، فتوقف فوراً"),
     TrainingIntro("training_intro", "تعرّف على أنماط الاهتزاز قبل الجري. اليسار نبضة واحدة، واليمين نبضتان. سأشرح كل نمط ثم أشغّله"),
     PatternLeft("pattern_left", "نبضة قصيرة واحدة: صحّح قليلاً إلى اليسار"),
     PatternRight("pattern_right", "نبضتان قصيرتان: صحّح قليلاً إلى اليمين"),
