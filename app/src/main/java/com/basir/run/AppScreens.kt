@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,8 +115,14 @@ fun HomeScreen(status: SystemStatus, notice: String?, onStart: () -> Unit, onEme
             )
             // A small, silent entry for the developer in the bottom corner. It opens only after
             // a six-second press, so a blind runner cannot land in it by accident.
-            Row(Modifier.fillMaxWidth()) {
-                Spacer(Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val voice = LocalVoice.current
+                Text(
+                    Phrase.BeltSoon.ar,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = InkMuted,
+                    modifier = Modifier.weight(1f).clickable { voice?.say(Phrase.BeltSoon, interrupt = true) },
+                )
                 LongHoldIcon(Icons.Filled.Build, holdMs = 6_000, onDone = onDeveloper)
             }
         }
@@ -256,7 +263,8 @@ fun TrustedContactsEditor(prefs: Prefs, voice: Voice, onChange: (List<Contact>) 
         if (c != null && contacts.none { it.phone == c.phone }) {
             save(contacts + c)
             note = "أُضيفت ${c.name}"
-            voice.sayText("أُضيفت ${c.name}", interrupt = true)
+            voice.say(Phrase.ContactAdded, interrupt = true)
+            voice.sayText(c.name)
         }
     }
 

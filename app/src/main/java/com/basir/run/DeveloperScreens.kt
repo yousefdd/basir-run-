@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -149,6 +151,17 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
             Text("يهدف هذا القسم إلى توفير بيئة مرنة للتطوير المستمر، واكتشاف المشكلات ومعالجتها، وتحسين دقة اكتشاف العوائق وكفاءة توجيه المستخدم، بما يساهم في تقديم تجربة أكثر أمانًا وموثوقية واستقرارًا للمكفوفين وضعاف البصر.", style = MaterialTheme.typography.labelMedium, color = InkMuted)
+            Image(
+                painterResource(R.drawable.basir_belt),
+                contentDescription = "حزام بصير ران للاهتزاز",
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+            )
+            Text(
+                "هذه النسخة النهائية للجهاز المنفصل، وسيتم توفيره قريباً بسعر مناسب. للمساعدة في عملية توفير المنتج وتصنيعه، يرجى التواصل عبر البريد الإلكتروني في الأعلى.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = InkMuted,
+            )
         }
     }
 }
