@@ -4,7 +4,6 @@ import android.os.SystemClock
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.platform.LocalContext
@@ -107,21 +106,16 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             ScreenHeader("مساحة المطوّر والتحديثات", onBack, silent = true)
-            Card {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Image(
-                        painterResource(R.drawable.istaps_logo),
-                        contentDescription = "شعار معهد علوم وتقنيات النشاطات البدنية والرياضية، جامعة العربي التبسي، تبسة",
-                        modifier = Modifier.size(96.dp).clip(CircleShape).background(Color.White),
-                    )
-                    Text(
-                        "هذا القسم مخصص للمطوّر لإجراء التجارب والاختبارات، ومتابعة تطوير التطبيق، واستعراض التحديثات الجديدة. كما يتيح تدوين الاقتراحات والأفكار المستقبلية، وتجربة الميزات قبل اعتمادها رسميًا.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Ink,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
+            Text(
+                "هذا القسم مخصص للمطوّر لإدارة عمليات تطوير التطبيق، وإجراء التجارب والاختبارات على الميزات والوظائف الجديدة، ومتابعة أداء النظام ومدى كفاءته. كما يُستخدم لاستعراض التحديثات الحالية والمستقبلية، وتسجيل الاقتراحات والأفكار التطويرية، وتجربة التحسينات قبل إطلاقها رسميًا للمستخدمين.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = InkMuted,
+            )
+            Text(
+                "يهدف هذا القسم إلى توفير بيئة مرنة للتطوير المستمر، واكتشاف المشكلات ومعالجتها، وتحسين دقة اكتشاف العوائق وكفاءة توجيه المستخدم، بما يساهم في تقديم تجربة أكثر أمانًا وموثوقية واستقرارًا للمكفوفين وضعاف البصر.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = InkMuted,
+            )
             Card {
                 Text("للمراسلة وإرسال الاقتراحات", style = MaterialTheme.typography.labelLarge, color = InkMuted)
                 SelectionContainer {
