@@ -81,8 +81,6 @@ data class EngineInput(
     val processingP90Ms: Float = 0f,
     /** Camera angle below the horizon from the gravity sensor, or null if unknown. */
     val cameraPitchDeg: Float? = null,
-    /** The angle measured at calibration; when known, the check is relative to it. */
-    val calibratedPitchDeg: Float? = null,
     /** What raised [obstacle]: something on the ground, at head height, or a drop. */
     val obstacleKind: HazardKind = HazardKind.Object,
     /** The depth channel is loaded but its results stopped arriving in time. */
@@ -98,11 +96,13 @@ data class EngineConfig(
     val lostStopMs: Long = 1500,
     val latencyWarnMs: Float = 180f,
     val latencyStopMs: Float = 350f,
-    val pitchMinDeg: Float = 15f,
+    // Only angles where the ground ahead cannot be seen stop guidance. The tilt is not compared
+    // with its value at the start: a chest-mounted phone swings more than that at every stride,
+    // and the line and free-space engines project with the current tilt of every frame.
+    // A chest camera looking ahead sits around 10° (SANPO chest recordings: median 9.8°).
+    val pitchMinDeg: Float = 5f,
     val pitchMaxDeg: Float = 75f,
     val angleGraceMs: Long = 1000,
-    /** Largest change from the calibrated angle before guidance stops. */
-    val pitchToleranceDeg: Float = 15f,
     val slight: Float = 0.2f,
     val nearEdge: Float = 0.45f,
     val atEdge: Float = 0.75f,
@@ -137,11 +137,7 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         if (q != null && q.blocked) return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.CameraStop)
 
         val pitch = i.cameraPitchDeg
-        val reference = i.calibratedPitchDeg
-        val angleBad = pitch != null && (
-            pitch < cfg.pitchMinDeg || pitch > cfg.pitchMaxDeg ||
-                (reference != null && kotlin.math.abs(pitch - reference) > cfg.pitchToleranceDeg)
-            )
+        val angleBad = pitch != null && (pitch < cfg.pitchMinDeg || pitch > cfg.pitchMaxDeg)
         if (angleBad) {
             if (angleBadSince < 0) angleBadSince = i.nowMs
             if (i.nowMs - angleBadSince >= cfg.angleGraceMs) {

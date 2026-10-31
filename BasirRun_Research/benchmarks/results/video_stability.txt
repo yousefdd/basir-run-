@@ -1,0 +1,4 @@
+sanpo_running_1uta1HvN: frames 90 | new path available 100%, steer jitter median 0.0 deg p90 6.2 | current engine path 70%, jitter median 2.2 deg p90 9.7
+sanpo_jogging_0X2rC_H2: frames 90 | new path available 100%, steer jitter median 0.0 deg p90 17.5 | current engine path 16%, jitter median 2.3 deg p90 3.0
+sanpo_gravel_5n1pzdkv: frames 90 | new path available 100%, steer jitter median 0.0 deg p90 35.0 | current engine path 28%, jitter median 4.5 deg p90 9.9
+sanpo_terrain_park_-F9N8JhM: frames 90 | new path available 100%, steer jitter median 0.0 deg p90 17.5 | current engine path 51%, jitter median 2.0 deg p90 6.7

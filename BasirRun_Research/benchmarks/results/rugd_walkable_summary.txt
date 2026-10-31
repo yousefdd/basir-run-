@@ -1,0 +1,12 @@
+method | IoU all | prec | recall | corridor IoU | corridor false-walkable | frames corridor IoU<0.5 | ms median
+current_engine | 0.132 | 0.820 | 0.135 | 0.305 | 0.330 | 111/184 | -
+segformer_b0_sanpo_walkable_224 | 0.010 | 0.992 | 0.010 | 0.012 | 0.000 | 182/184 | 40.5
+segformer_b0_sanpo_walkable | 0.004 | 0.997 | 0.004 | 0.005 | 0.000 | 183/184 | 208.0
+segformer_b0_ade20k | 0.754 | 0.974 | 0.770 | 0.783 | 0.249 | 34/184 | 211.3
+
+corridor IoU by category
+method | park-8 | trail-5
+current_engine | 0.32 | 0.29
+segformer_b0_sanpo_walkable_224 | 0.02 | 0.00
+segformer_b0_sanpo_walkable | 0.00 | 0.01
+segformer_b0_ade20k | 0.75 | 0.82

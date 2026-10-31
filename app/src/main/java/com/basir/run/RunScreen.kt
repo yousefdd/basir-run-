@@ -121,6 +121,7 @@ fun RunScreen(
                     depthReady = s?.depthReady ?: false,
                     depthAgeMs = if (fresh) s!!.deep?.let { now - it.frameTimeMs } else null,
                     floorVisible = s?.deep?.hazard?.floorVisible ?: false,
+                    walkableAhead = fresh && (s!!.surface?.walkableAheadShare() ?: 0f) >= WALKABLE_AHEAD_SHARE,
                     depthMs = s?.deep?.depthMs ?: 0L,
                     lineTracked = fresh && s!!.line?.command?.kind.let { it != null && it != CommandKind.STOP },
                     lineDetail = s?.line?.decision?.mode?.let { modeLabel(it) },
@@ -147,7 +148,7 @@ fun RunScreen(
                 pipeline.calibration = cal
                 haptics.confirm()
                 voice.say(Phrase.GuidanceStarted, interrupt = true)
-                val g = GuidanceSession(context, haptics, voice, tone, prefs, motion, cal.pitchDeg)
+                val g = GuidanceSession(context, haptics, voice, tone, prefs, motion)
                 g.start(now)
                 session = g
                 break
@@ -407,3 +408,6 @@ fun modeLabel(mode: PathMode): String = when (mode) {
     PathMode.DETOUR -> "يلتف حول عائق"
     PathMode.STOP -> "لا مسار مؤكداً"
 }
+
+/** Walkable share of the corridor ahead that counts as ground in view when depth finds no flat floor. */
+private const val WALKABLE_AHEAD_SHARE = 0.5f

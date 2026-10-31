@@ -6,6 +6,8 @@ import com.basir.run.vision.depth.DeepChannel
 import com.basir.run.vision.depth.DeepResult
 import com.basir.run.vision.line.LineEngine
 import com.basir.run.vision.line.LineResult
+import com.basir.run.vision.seg.SurfaceChannel
+import com.basir.run.vision.seg.SurfaceResult
 import kotlin.math.ceil
 
 /** Everything measured on one frame, handed from the camera thread to the screen. */
@@ -30,6 +32,8 @@ data class FrameSnapshot(
     val depthStale: Boolean,
     /** The Virtual Path Engine's lines, chosen path and guidance command for this frame. */
     val line: LineResult?,
+    /** Latest walkable-ground and guide-line masks, if recent enough to describe this frame. */
+    val surface: SurfaceResult?,
     val shaky: Boolean,
     val framesPerSecond: Float,
     val processingP50Ms: Float,
@@ -56,10 +60,13 @@ data class FrameSnapshot(
 class GuidancePipeline(
     private val obstacles: ObstacleDetector,
     private val deepChannel: DeepChannel,
+    private val surfaceChannel: SurfaceChannel,
     /** Current rotation rate of the phone in rad/s, or null if there is no gyroscope. */
     private val rotationRate: () -> Float?,
     /** Camera angle below the horizon from the gravity sensor, or null if unknown. */
     private val pitch: () -> Float?,
+    /** Sideways lean of the phone from the gravity sensor (top to the right positive), or null. */
+    private val roll: () -> Float?,
 ) {
 
     @Volatile var calibration = Calibration()
@@ -93,9 +100,13 @@ class GuidancePipeline(
     private var lastFindings = emptyList<ObstacleFinding>()
     private var obstacle = ObstacleLevel.None
     private var lastDeepTime = -1L
+    /** Bearing of the path being followed, 3 m ahead; depth hazards are measured along it. */
+    @Volatile private var pathBearingDeg: Double? = null
 
     fun reset() {
         deepChannel.reset()
+        surfaceChannel.reset()
+        pathBearingDeg = null
         lineEngine.reset()
         lastDeepTime = -1L
         lanes.reset()
@@ -123,8 +134,14 @@ class GuidancePipeline(
         val freshModel = modelLive && deep!!.frameTimeMs != lastDeepTime
         val wantDeep = deepChannel.idle && (deepChannel.depthReady || deepChannel.detectorReady)
         val wantFallback = !modelLive && frameIndex % OBSTACLE_EVERY == 0L
-        val bitmap = if (wantDeep || wantFallback) image.toBitmap() else null
-        if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch())
+        val wantSurface = surfaceChannel.idle && (surfaceChannel.walkableReady || surfaceChannel.lineReady)
+        val bitmap = if (wantDeep || wantFallback || wantSurface) image.toBitmap() else null
+        if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch(), pathBearingDeg)
+        if (wantSurface && bitmap != null) {
+            val outH = (frame.uprightHeight / (frame.uprightWidth.toFloat() / LineEngine.WIDTH)).toInt()
+            surfaceChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, LineEngine.WIDTH, outH)
+        }
+        val surface = surfaceChannel.latest?.takeIf { now - it.frameTimeMs <= SURFACE_STALE_MS }
 
         val detectorRan = freshModel || (wantFallback && bitmap != null)
         if (detectorRan) {
@@ -141,8 +158,9 @@ class GuidancePipeline(
         frameIndex++
         val line = lineEngine.process(
             frame, deepChannel.hfovDeg(image.imageInfo.rotationDegrees), (pitch() ?: FALLBACK_PITCH).toDouble(),
-            quality, if (detectorRan) lastDetections else null,
+            (roll() ?: 0f).toDouble(), quality, if (detectorRan) lastDetections else null, surface,
         )
+        pathBearingDeg = line.decision.path?.let { Math.toDegrees(kotlin.math.atan2(it.lateralAt(BEARING_AT_M), BEARING_AT_M)) }
         val depthHazard = deep?.hazard?.takeIf { it.level != ObstacleLevel.None }
         val combined = if (depthHazard != null && depthHazard.level > obstacle) depthHazard.level else obstacle
         val kind = if (depthHazard != null && depthHazard.level >= obstacle) depthHazard.kind else HazardKind.Object
@@ -171,6 +189,7 @@ class GuidancePipeline(
             depthReady = deepChannel.depthReady,
             depthStale = depthStale,
             line = line,
+            surface = surface,
             shaky = shaky,
             framesPerSecond = fps,
             processingP50Ms = percentile(sorted, 0.5),
@@ -187,6 +206,9 @@ class GuidancePipeline(
         private const val FALLBACK_PITCH = 20f
         /** A depth or object result older than this no longer describes what is ahead. */
         const val DEEP_STALE_MS = 1500L
+        /** Surface masks older than this no longer match the frame (a runner covers ~1.5 m). */
+        const val SURFACE_STALE_MS = 500L
+        private const val BEARING_AT_M = 3.0
         private const val WINDOW = 60
         /** Rotation faster than this blurs the frame and swings the view; such frames count less. */
         private const val JOLT_RAD_PER_S = 2.5f

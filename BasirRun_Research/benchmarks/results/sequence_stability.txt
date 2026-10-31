@@ -1,0 +1,8 @@
+sanpo_running_1uta1HvN       before path 100% | bearing change median  0.1 deg p90  4.5 | left/right flips  0 | stop frames 0
+sanpo_running_1uta1HvN       after  path 100% | bearing change median  0.5 deg p90  3.5 | left/right flips  0 | stop frames 0
+sanpo_jogging_0X2rC_H2       before path 100% | bearing change median  0.0 deg p90  7.6 | left/right flips  0 | stop frames 0
+sanpo_jogging_0X2rC_H2       after  path 100% | bearing change median  0.0 deg p90  3.6 | left/right flips  0 | stop frames 0
+sanpo_gravel_5n1pzdkv        before path 100% | bearing change median  0.0 deg p90  3.8 | left/right flips  1 | stop frames 0
+sanpo_gravel_5n1pzdkv        after  path 100% | bearing change median  0.0 deg p90  3.5 | left/right flips  1 | stop frames 0
+sanpo_terrain_park_-F9N8JhM  before path 100% | bearing change median  0.0 deg p90  3.4 | left/right flips  0 | stop frames 0
+sanpo_terrain_park_-F9N8JhM  after  path 100% | bearing change median  0.1 deg p90  2.7 | left/right flips  0 | stop frames 0

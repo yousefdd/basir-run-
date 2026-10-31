@@ -42,6 +42,11 @@ data class ReadinessInput(
     /** The runner has learned the vibration patterns (passed the quiz), or the phone cannot vibrate. */
     val hapticsReady: Boolean = true,
     val hapticsDetail: String = "",
+    /**
+     * The walkable-ground model sees runnable ground in the corridor ahead. On uneven ground
+     * (stones, roots) one floor plane does not fit the depth map, but the ground is still there.
+     */
+    val walkableAhead: Boolean = false,
 )
 
 /**
@@ -52,7 +57,7 @@ object Readiness {
 
     const val MIN_FPS = 10f
     const val MAX_P90_MS = 150f
-    const val MIN_PITCH = 15f
+    const val MIN_PITCH = 5f
     const val MAX_PITCH = 75f
     const val MAX_SHAKE = 0.6f
     const val MIN_CONFIDENCE = 0.5f
@@ -111,12 +116,13 @@ object Readiness {
             ),
             CheckResult(
                 Check.Depth,
-                i.depthReady && i.depthAgeMs != null && i.depthAgeMs <= MAX_DEPTH_AGE_MS && i.floorVisible,
+                i.depthReady && i.depthAgeMs != null && i.depthAgeMs <= MAX_DEPTH_AGE_MS && (i.floorVisible || i.walkableAhead),
                 when {
                     !i.depthReady -> "نموذج العمق غير محمّل"
                     i.depthAgeMs == null -> "لم تصل نتيجة بعد"
                     i.depthAgeMs > MAX_DEPTH_AGE_MS -> "النتائج متأخرة"
-                    !i.floorVisible -> "لا أرى الأرض أمامك"
+                    !i.floorVisible && !i.walkableAhead -> "لا أرى الأرض أمامك"
+                    !i.floorVisible -> "أرض غير مستوية ظاهرة أمامك"
                     else -> String.format(Locale.US, "الأرض ظاهرة · %d ملّي ثانية", i.depthMs)
                 },
             ),

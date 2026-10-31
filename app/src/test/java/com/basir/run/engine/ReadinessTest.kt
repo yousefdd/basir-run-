@@ -26,7 +26,7 @@ class ReadinessTest {
         fun failed(i: ReadinessInput) = Readiness.evaluate(i).filter { !it.passed }.map { it.check }
         assertEquals(listOf(Check.Speed), failed(allGood.copy(framesPerSecond = 6f)))
         assertEquals(listOf(Check.Speed), failed(allGood.copy(processingP90Ms = 300f)))
-        assertEquals(listOf(Check.Angle), failed(allGood.copy(cameraPitchDeg = 5f)))
+        assertEquals(listOf(Check.Angle), failed(allGood.copy(cameraPitchDeg = 2f)))
         assertEquals(listOf(Check.Steady), failed(allGood.copy(shakeRadPerS = 2f)))
         assertEquals(listOf(Check.Obstacles), failed(allGood.copy(obstacleDetectorReady = false)))
         assertEquals(listOf(Check.Path), failed(allGood.copy(path = path.copy(stable = false))))
@@ -34,6 +34,14 @@ class ReadinessTest {
         assertEquals(listOf(Check.Depth), failed(allGood.copy(depthAgeMs = null)))
         assertEquals(listOf(Check.Depth), failed(allGood.copy(depthAgeMs = 2500L)))
         assertEquals(listOf(Check.Depth), failed(allGood.copy(floorVisible = false)))
+    }
+
+    @Test
+    fun unevenGroundSeenByTheSurfaceModelPassesTheDepthCheck() {
+        // Stones: no single floor plane in the depth map, but walkable ground ahead in the image
+        val stones = allGood.copy(floorVisible = false, walkableAhead = true)
+        assertTrue(Readiness.evaluate(stones).all { it.passed })
+        assertEquals(listOf(Check.Depth), Readiness.evaluate(stones.copy(walkableAhead = false)).filter { !it.passed }.map { it.check })
     }
 
     @Test
@@ -52,7 +60,7 @@ class ReadinessTest {
     fun readyOnlyAfterHoldingForThreeSeconds() {
         val timer = ReadinessTimer()
         val ok = Readiness.evaluate(allGood)
-        val bad = Readiness.evaluate(allGood.copy(cameraPitchDeg = 5f))
+        val bad = Readiness.evaluate(allGood.copy(cameraPitchDeg = 2f))
         assertFalse(timer.update(ok, 0))
         assertFalse(timer.update(ok, 2000))
         assertFalse(timer.update(bad, 2500))

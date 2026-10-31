@@ -18,7 +18,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Opens an ONNX model from assets; null if the file is missing or cannot be loaded. */
-private fun openSession(context: Context, asset: String, threads: Int): OrtSession? = try {
+internal fun openSession(context: Context, asset: String, threads: Int): OrtSession? = try {
     val bytes = context.assets.open(asset).use { it.readBytes() }
     val options = OrtSession.SessionOptions().apply {
         setIntraOpNumThreads(threads)

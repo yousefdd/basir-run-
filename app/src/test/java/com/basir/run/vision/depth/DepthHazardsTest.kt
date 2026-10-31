@@ -10,10 +10,19 @@ import org.junit.Test
 /** The running thresholds on synthetic scenes with known geometry (chest height, 20° tilt). */
 class DepthHazardsTest {
 
-    private fun hazard(scene: Scene): DepthHazard {
+    private fun hazard(scene: Scene, pathBearingDeg: Double? = null): DepthHazard {
         val a = FloorPlanner(FloorPlanner.Geometry(pitchDeg = 20.0), DepthHazards.RUNNING)
             .analyze(SyntheticDepth.render(scene), SyntheticDepth.WIDTH, SyntheticDepth.HEIGHT)
-        return DepthHazards.assess(a)
+        return DepthHazards.assess(a, headingDeg = pathBearingDeg)
+    }
+
+    @Test
+    fun somethingStraightAheadDoesNotStopARunnerWhosePathBendsAway() {
+        // The field report: a wall beside a bending path stopped the runner. Measured along the
+        // path (20° to the right) the block straight ahead is out of the way; straight it is not.
+        val ahead = box(3.0, 3.4)
+        assertEquals(ObstacleLevel.Possible, hazard(ahead, pathBearingDeg = 0.0).level)
+        assertEquals(ObstacleLevel.None, hazard(ahead, pathBearingDeg = 20.0).level)
     }
 
     private fun box(near: Double, far: Double, x0: Double = -0.3, x1: Double = 0.3, y0: Double = 0.0, y1: Double = 1.0) =

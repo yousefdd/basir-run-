@@ -1,0 +1,15 @@
+# Large research material stays out of git; manifests and notes are kept.
+github_repositories/*
+pretrained_models/*
+datasets/*
+raw_videos/*
+walking_videos/*
+running_videos/*
+athletics_tracks/*
+park_paths/*
+difficult_surfaces/*
+obstacles/*
+experiment_results/*
+!*/README.md
+tools/kt/*.jar
+__pycache__/

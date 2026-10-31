@@ -22,6 +22,13 @@ class MotionMonitor(context: Context) : SensorEventListener {
 
     @Volatile var pitchBelowHorizonDeg: Float? = null
         private set
+    /**
+     * Sideways lean of the phone, positive when its top leans to the right (the picture then
+     * turns counter-clockwise). Upright portrait gravity reads +Y; a lean to the right puts the
+     * "up" direction toward the phone's left, so X becomes negative.
+     */
+    @Volatile var rollDeg: Float? = null
+        private set
     @Volatile var shakeRadPerS: Float? = null
         private set
     /** Instant rotation rate, unsmoothed, so a single jolt of the harness is seen at once. */
@@ -43,7 +50,10 @@ class MotionMonitor(context: Context) : SensorEventListener {
             Sensor.TYPE_GRAVITY -> {
                 val g = sqrt(x * x + y * y + z * z)
                 // The rear camera looks along -Z; gravity reads +Z when the phone lies face up.
-                if (g > 1f) pitchBelowHorizonDeg = Math.toDegrees(asin((z / g).coerceIn(-1f, 1f).toDouble())).toFloat()
+                if (g > 1f) {
+                    pitchBelowHorizonDeg = Math.toDegrees(asin((z / g).coerceIn(-1f, 1f).toDouble())).toFloat()
+                    rollDeg = Math.toDegrees(kotlin.math.atan2(-x.toDouble(), y.toDouble())).toFloat()
+                }
             }
             Sensor.TYPE_GYROSCOPE -> {
                 val sq = x * x + y * y + z * z

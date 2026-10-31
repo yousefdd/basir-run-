@@ -67,6 +67,27 @@ jobs:
           || { rm -f app/src/main/assets/depth_anything_v2_small.onnx; echo "::warning::Depth model download failed"; }
           ls -l app/src/main/assets
 
+      # Walkable ground: SegFormer-B0 trained on ADE20K (NVIDIA Source Code License, research and
+      # evaluation use only), exported to ONNX at 256x256 and checked against PyTorch
+      # (tools/models/export_segformer.py). Chosen by the benchmark in BasirRun_Research. The
+      # guide-line model (Project Guideline, Apache 2.0) is small and kept in the repository.
+      - name: Cache walkable-ground model
+        id: segformer-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/walkable_segformer_b0_ade_256.onnx
+          key: segformer-b0-ade-256-${{ hashFiles('tools/models/export_segformer.py') }}
+
+      - name: Export walkable-ground model
+        if: steps.segformer-cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet transformers onnx onnxscript onnxruntime
+          python tools/models/export_segformer.py app/src/main/assets/walkable_segformer_b0_ade_256.onnx 2>&1 | tail -3 \
+            | while IFS= read -r line; do echo "$line"; echo "::notice title=segformer-export::$line"; done
+          test -s app/src/main/assets/walkable_segformer_b0_ade_256.onnx \
+            || { rm -f app/src/main/assets/walkable_segformer_b0_ade_256.onnx; echo "::warning::Walkable-ground model export failed"; }
+
       # Compile errors and failed tests are also raised as annotations, readable through the API.
       - name: Test and build debug APK
         run: |

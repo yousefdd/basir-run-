@@ -194,18 +194,18 @@ class DecisionEngineTest {
     @Test
     fun badAngleStopsOnlyAfterGrace() {
         val e = DecisionEngine()
-        assertEquals(Cue.Centered, e.decide(input(now = 0, pitch = 5f)).cue)
-        assertEquals(Cue.AngleStop, e.decide(input(now = 1200, pitch = 5f)).cue)
+        assertEquals(Cue.Centered, e.decide(input(now = 0, pitch = 2f)).cue)
+        assertEquals(Cue.AngleStop, e.decide(input(now = 1200, pitch = 2f)).cue)
     }
 
     @Test
-    fun angleIsCheckedAgainstTheCalibration() {
+    fun tiltSwingsOfAStrideDoNotStopGuidance() {
+        // The phone swings between 8° and 30° below the horizon while running: never a stop.
         val e = DecisionEngine()
-        // 50 degrees is inside the absolute range but 20 away from the calibrated 30.
-        val base = EngineInput(0, false, 50, good, tracked(0f), cameraPitchDeg = 50f, calibratedPitchDeg = 30f)
-        assertEquals(Cue.Centered, e.decide(base).cue)
-        assertEquals(Cue.AngleStop, e.decide(base.copy(nowMs = 1200)).cue)
-        assertEquals(Cue.Centered, DecisionEngine().decide(base.copy(cameraPitchDeg = 38f, nowMs = 5000)).cue)
+        for (t in 0L..4000L step 100L) {
+            val swing = if ((t / 300) % 2 == 0L) 8f else 30f
+            assertEquals(Cue.Centered, e.decide(EngineInput(t, false, 50, good, tracked(0f), cameraPitchDeg = swing)).cue)
+        }
     }
 
     @Test

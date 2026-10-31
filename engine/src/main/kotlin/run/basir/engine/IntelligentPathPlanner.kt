@@ -84,6 +84,11 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
                 parallelOffset = offset
                 shifted(line.curve, -offset) to PathMode.LINE_PARALLEL
             }
+            // No line: the route through walkable ground is smoothed by the same tracker, so the
+            // runner does not feel it jump between frames (raw routes jump 15–35° at p90 on
+            // SANPO clips because the planner's goal cell changes from frame to frame).
+            input.freeRoute != null && input.freeRoute.progressM >= config.minFreeProgressM ->
+                input.freeRoute.toCurve() to PathMode.FREE_PATH
             else -> null to null
         }
         if (kind != null && kind != trackedMode && tracker.state == TrackState.TRACKING) tracker.reset()
@@ -95,7 +100,8 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         val tracked = tracker.curve
         if (tracked != null && tracker.confidence >= config.minPathConfidence && trackedMode != null) {
             if (input.freeGrid == null || staysWalkable(tracked, input.freeGrid)) {
-                decision = PathDecision(trackedMode!!, tracked, tracker.confidence)
+                val conf = if (trackedMode == PathMode.FREE_PATH) 0.7 * input.visibility * tracker.confidence else tracker.confidence
+                decision = PathDecision(trackedMode!!, tracked, conf)
             }
         }
         val free = input.freeRoute

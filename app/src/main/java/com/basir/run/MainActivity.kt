@@ -33,6 +33,7 @@ import com.basir.run.sensors.MotionMonitor
 import com.basir.run.vision.GuidancePipeline
 import com.basir.run.vision.ObstacleDetector
 import com.basir.run.vision.depth.DeepChannel
+import com.basir.run.vision.seg.SurfaceChannel
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -71,18 +72,20 @@ private fun BasirApp() {
     val haptics = remember { HapticEngine(context, prefs) }
     val obstacles = remember { ObstacleDetector(context) }
     val deep = remember { DeepChannel(context) }
-    val pipeline = remember { GuidancePipeline(obstacles, deep, { motion.rotationRadPerS }, { motion.pitchBelowHorizonDeg }) }
+    val surface = remember { SurfaceChannel(context) }
+    val pipeline = remember { GuidancePipeline(obstacles, deep, surface, { motion.rotationRadPerS }, { motion.pitchBelowHorizonDeg }, { motion.rollDeg }) }
     DisposableEffect(Unit) {
         onDispose {
             voice.shutdown()
             obstacles.close()
             deep.close()
+            surface.close()
         }
     }
 
     // The models load in the background; the home screen follows them until loading is over.
-    val modelsLoaded by produceState(deep.loaded && obstacles.loaded) {
-        while (!(deep.loaded && obstacles.loaded)) delay(300)
+    val modelsLoaded by produceState(deep.loaded && obstacles.loaded && surface.loaded) {
+        while (!(deep.loaded && obstacles.loaded && surface.loaded)) delay(300)
         value = true
     }
 

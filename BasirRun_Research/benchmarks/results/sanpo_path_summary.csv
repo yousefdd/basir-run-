@@ -1,0 +1,41 @@
+method,category,frames,no_path,safe_path,through_obstacle,mean_on_walkable
+current_engine,all,280,172,84,16,0.858
+current_engine,crowded_obstacles,40,24,13,3,0.932
+current_engine,dark_gray(train),50,22,23,1,0.833
+current_engine,rain_snow_lowvis,40,26,11,0,0.869
+current_engine,terrain_gravel,10,7,2,1,0.861
+current_engine,terrain_gravel(train),20,12,7,1,0.953
+current_engine,park,20,11,3,6,0.556
+current_engine,urban_lightgray,40,28,11,1,0.951
+current_engine,pavers_colored,40,27,11,1,0.955
+current_engine,running(train),20,15,3,2,0.644
+planner_on_ade_b0_256 (fixed classes),all,280,60,167,30,0.899
+planner_on_ade_b0_256 (fixed classes),crowded_obstacles,40,8,25,6,0.957
+planner_on_ade_b0_256 (fixed classes),dark_gray(train),50,21,19,3,0.818
+planner_on_ade_b0_256 (fixed classes),rain_snow_lowvis,40,3,28,6,0.908
+planner_on_ade_b0_256 (fixed classes),terrain_gravel,10,0,6,1,0.762
+planner_on_ade_b0_256 (fixed classes),terrain_gravel(train),20,2,12,3,0.876
+planner_on_ade_b0_256 (fixed classes),park,20,1,14,2,0.91
+planner_on_ade_b0_256 (fixed classes),urban_lightgray,40,5,26,7,0.853
+planner_on_ade_b0_256 (fixed classes),pavers_colored,40,3,34,2,0.984
+planner_on_ade_b0_256 (fixed classes),running(train),20,17,3,0,1.0
+planner_on_ade_b0_256 (surface underfoot),all,280,38,190,25,0.916
+planner_on_ade_b0_256 (surface underfoot),crowded_obstacles,40,2,29,6,0.955
+planner_on_ade_b0_256 (surface underfoot),dark_gray(train),50,9,24,5,0.741
+planner_on_ade_b0_256 (surface underfoot),rain_snow_lowvis,40,2,29,6,0.91
+planner_on_ade_b0_256 (surface underfoot),terrain_gravel,10,3,7,0,0.991
+planner_on_ade_b0_256 (surface underfoot),terrain_gravel(train),20,1,15,2,0.932
+planner_on_ade_b0_256 (surface underfoot),park,20,2,15,1,0.964
+planner_on_ade_b0_256 (surface underfoot),urban_lightgray,40,4,30,3,0.953
+planner_on_ade_b0_256 (surface underfoot),pavers_colored,40,0,36,2,0.976
+planner_on_ade_b0_256 (surface underfoot),running(train),20,15,5,0,1.0
+planner_on_human_mask (upper bound),all,280,18,220,30,0.972
+planner_on_human_mask (upper bound),crowded_obstacles,40,1,32,5,0.975
+planner_on_human_mask (upper bound),dark_gray(train),50,6,35,4,0.958
+planner_on_human_mask (upper bound),rain_snow_lowvis,40,2,33,4,0.989
+planner_on_human_mask (upper bound),terrain_gravel,10,0,7,2,0.954
+planner_on_human_mask (upper bound),terrain_gravel(train),20,1,19,0,0.997
+planner_on_human_mask (upper bound),park,20,0,14,5,0.931
+planner_on_human_mask (upper bound),urban_lightgray,40,0,33,5,0.962
+planner_on_human_mask (upper bound),pavers_colored,40,0,39,1,0.99
+planner_on_human_mask (upper bound),running(train),20,8,8,4,0.981

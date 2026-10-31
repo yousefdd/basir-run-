@@ -27,6 +27,12 @@ fun Double.toDegrees() = this * 180.0 / PI
  * Pinhole camera on the runner's body looking forward and tilted down by [pitchDeg]
  * (negative = tilted up), at [heightM] above flat ground. Maps image pixels to ground
  * points and back. Pitch should come from the phone's motion sensor; height is calibrated.
+ *
+ * [rollDeg] is how far the picture is turned counter-clockwise because the phone leans to one
+ * side on the chest (positive when the phone's top leans right). Pixels are turned back before
+ * they are projected, so a straight line ahead stays straight on the ground while the phone
+ * rocks from side to side. Row-based helpers ([horizonRow], [groundDepth]) stay those of the
+ * level camera; they are only used to bound searches.
  */
 data class CameraModel(
     val width: Int,
@@ -34,6 +40,7 @@ data class CameraModel(
     val hfovDeg: Double,
     val heightM: Double,
     val pitchDeg: Double,
+    val rollDeg: Double = 0.0,
 ) {
     val focalPx: Double = (width / 2.0) / tan(hfovDeg.toRadians() / 2.0)
     private val cx = (width - 1) / 2.0
@@ -53,10 +60,18 @@ data class CameraModel(
         return if (down > 1e-4) heightM / down else null
     }
 
+    private val sinR = sin(rollDeg.toRadians())
+    private val cosR = cos(rollDeg.toRadians())
+
     fun imageToGround(u: Double, v: Double): GroundPoint? {
-        val y = (v - cy) / focalPx
-        val x = (u - cx) / focalPx
-        val t = groundDepth(v) ?: return null
+        // Turn the pixel back clockwise by the roll: where a level camera would have seen it
+        val du = u - cx
+        val dv = v - cy
+        val lu = cx + du * cosR - dv * sinR
+        val lv = cy + du * sinR + dv * cosR
+        val y = (lv - cy) / focalPx
+        val x = (lu - cx) / focalPx
+        val t = groundDepth(lv) ?: return null
         return GroundPoint(forward = t * (cosT - y * sinT), lateral = t * x)
     }
 
@@ -65,7 +80,10 @@ data class CameraModel(
         val z = heightM * sinT + p.forward * cosT
         if (z <= 1e-6) return null
         val y = heightM * cosT - p.forward * sinT
-        return Pair(cx + focalPx * p.lateral / z, cy + focalPx * y / z)
+        val du = focalPx * p.lateral / z
+        val dv = focalPx * y / z
+        // The picture of a rolled phone is turned counter-clockwise (image rows grow downwards)
+        return Pair(cx + du * cosR + dv * sinR, cy - du * sinR + dv * cosR)
     }
 
     /** Ground meters covered by one pixel horizontally at row [v]. */

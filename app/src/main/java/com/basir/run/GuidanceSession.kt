@@ -42,8 +42,6 @@ class GuidanceSession(
     private val tone: ToneGuide,
     private val prefs: Prefs,
     private val motion: MotionMonitor,
-    /** Camera angle measured when the path was confirmed; the angle check is relative to it. */
-    private val calibratedPitchDeg: Float?,
 ) {
     private val engine = DecisionEngine()
     private val policy = AnnouncementPolicy(verbose = prefs.verboseVoice)
@@ -146,7 +144,6 @@ class GuidanceSession(
                 line = s?.line?.command,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
-                calibratedPitchDeg = calibratedPitchDeg,
             )
         )
         decision = d

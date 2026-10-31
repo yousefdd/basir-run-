@@ -1,0 +1,4 @@
+size 256: corridor IoU sanpo 0.635 rugd 0.822 | onnxruntime CPU 18.7 ms | onnx 15.2 MB
+size 320: corridor IoU sanpo 0.618 rugd 0.815 | onnxruntime CPU 30.5 ms | onnx 15.2 MB
+size 384: corridor IoU sanpo 0.641 rugd 0.804 | onnxruntime CPU 47.4 ms | onnx 15.2 MB
+size 512: corridor IoU sanpo 0.626 rugd 0.789 | onnxruntime CPU 101.4 ms | onnx 15.2 MB

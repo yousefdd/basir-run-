@@ -6,7 +6,11 @@ import com.basir.run.vision.Detection
 import com.basir.run.vision.FrameQuality
 import run.basir.engine.CameraModel
 import run.basir.engine.ContrastLineDetector
+import run.basir.engine.FreeRoute
+import run.basir.engine.FreeSpaceConfig
+import run.basir.engine.FreeSpacePlanner
 import run.basir.engine.FrameInput
+import run.basir.engine.GroundGrid
 import run.basir.engine.GuidanceCommand
 import run.basir.engine.GuidanceController
 import run.basir.engine.IntelligentPathPlanner
@@ -15,6 +19,7 @@ import run.basir.engine.LineExtractor
 import run.basir.engine.ObstacleDetection
 import run.basir.engine.PathDecision
 import run.basir.engine.RgbImage
+import com.basir.run.vision.seg.SurfaceResult
 import kotlin.math.max
 
 /** What the Virtual Path Engine made of one frame. */
@@ -25,6 +30,10 @@ class LineResult(
     val decision: PathDecision,
     val command: GuidanceCommand,
     val processingMs: Long,
+    /** Route through the walkable ground when the surface model is available (drawn for the developer). */
+    val freeRoute: FreeRoute? = null,
+    /** The lines came from the guide-line model rather than the colour-contrast detector. */
+    val lineFromModel: Boolean = false,
 ) {
     val width get() = camera.width
     val height get() = camera.height
@@ -32,9 +41,12 @@ class LineResult(
 
 /**
  * Runs the Virtual Path Engine (engine module, run.basir.engine) on each camera frame:
- * color-agnostic line detection → line candidates on the ground → path planner (guide line,
- * lane centre, or parallel to a lone side line, with obstacles checked against the path) →
- * guidance command (pure pursuit, bend preview, no left-right flicker).
+ * line detection (the guide-line model when it sees a line, else the colour-contrast detector)
+ * → line candidates on the ground → walkable ground from the surface model → a route through it
+ * (free-space planner) → path planner (guide line, lane centre, parallel to a lone side line,
+ * or the free route when there is no line; obstacles checked against the path) → guidance
+ * command (pure pursuit, bend preview, no left-right flicker). Without a line and without
+ * walkable ground the planner stops; it never guesses a side.
  *
  * The frame is read straight from the YUV planes into a small upright RGB image, [WIDTH]
  * pixels wide, which keeps the work per frame low. The camera tilt comes from the gravity
@@ -44,6 +56,9 @@ class LineEngine {
 
     private val detector = ContrastLineDetector()
     private val extractor = LineExtractor()
+    private val freeConfig = FreeSpaceConfig()
+    private val freePlanner = FreeSpacePlanner(freeConfig)
+    private var lastFreeSteerDeg = 0.0
     private var planner = IntelligentPathPlanner()
     private var guidance = GuidanceController()
     private var obstacles = run.basir.engine.ObstacleTracker()
@@ -57,28 +72,70 @@ class LineEngine {
         guidance = GuidanceController()
         obstacles = run.basir.engine.ObstacleTracker()
         lastMs = -1L
+        lastFreeSteerDeg = 0.0
     }
 
     /**
      * [freshDetections] are object detections from a detector run that finished since the last
      * frame (empty otherwise), so one detection is never counted twice by the obstacle tracker.
      */
-    fun process(frame: CameraFrame, hfovDeg: Double, pitchDeg: Double, quality: FrameQuality, freshDetections: List<Detection>?): LineResult {
+    fun process(
+        frame: CameraFrame,
+        hfovDeg: Double,
+        pitchDeg: Double,
+        rollDeg: Double,
+        quality: FrameQuality,
+        freshDetections: List<Detection>?,
+        surface: SurfaceResult? = null,
+    ): LineResult {
         val start = SystemClock.elapsedRealtime()
         val dt = if (lastMs < 0) 1.0 / 15 else ((start - lastMs) / 1000.0).coerceIn(0.01, 0.5)
         lastMs = start
         val image = toRgb(frame, WIDTH)
-        val cam = CameraModel(image.width, image.height, hfovDeg, cameraHeightM, pitchDeg)
-        val lines = extractor.extract(detector.detect(image, cam), cam)
+        val cam = CameraModel(image.width, image.height, hfovDeg, cameraHeightM, pitchDeg, rollDeg)
+        // The guide-line model is far more precise on the line it knows; the contrast detector
+        // covers every other kind of line and phones without the model.
+        val modelLines = surface?.line?.let { extractor.extract(it, cam) }.orEmpty()
+        val lines = modelLines.ifEmpty { extractor.extract(detector.detect(image, cam), cam) }
         val tracked = obstacles.update(freshDetections.orEmpty().mapNotNull { toGround(it, cam) }, dt)
+        // Walkable ground → grid (objects block their cells) → best route through it
+        val grid = surface?.walkable?.let { GroundGrid.build(it, cam, footprints(tracked), freeConfig) }
+        val route = grid?.let { freePlanner.plan(it, lastFreeSteerDeg.coerceIn(-MAX_GOAL_DEG, MAX_GOAL_DEG)) }
+        lastFreeSteerDeg = route?.let { 0.7 * it.steerDeg } ?: 0.0
         val visibility = when {
             quality.blocked || quality.tooDark || quality.glare -> 0.2
             quality.blurry -> 0.3
             else -> 1.0
         }
-        val decision = planner.update(FrameInput(lines, null, null, tracked, visibility, dt = dt))
+        val decision = planner.update(FrameInput(lines, route, grid, tracked, visibility, dt = dt))
         val command = guidance.update(decision)
-        return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start)
+        return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start, route, modelLines.isNotEmpty())
+    }
+
+    /**
+     * Ground points covering each tracked object's footprint, two per grid cell, so the grid
+     * (which needs [FreeSpaceConfig.minPointsPerCell] points to call a cell occupied) blocks it.
+     */
+    private fun footprints(obstacles: List<run.basir.engine.TrackedObstacle>): List<run.basir.engine.GroundPoint> {
+        val step = freeConfig.cellM
+        val out = ArrayList<run.basir.engine.GroundPoint>()
+        for (o in obstacles) {
+            val r = o.radiusM
+            var df = -r
+            while (df <= r) {
+                var dl = -r
+                while (dl <= r) {
+                    if (df * df + dl * dl <= r * r) {
+                        val p = run.basir.engine.GroundPoint(o.position.forward + df, o.position.lateral + dl)
+                        out += p
+                        out += p
+                    }
+                    dl += step
+                }
+                df += step
+            }
+        }
+        return out
     }
 
     /** An object's foot point (bottom centre of its box) on the ground, with its width as size. */
@@ -94,6 +151,8 @@ class LineEngine {
     companion object {
         /** Analysis width in pixels; the reference photo gives the same path at 320 as at 640. */
         const val WIDTH = 240
+        /** The free route aims where it went last frame, within this bearing, so it follows bends. */
+        private const val MAX_GOAL_DEG = 30.0
         const val DEFAULT_HEIGHT_M = 1.3
 
         /** Upright RGB at [width] pixels, sampled from the YUV planes (BT.601). */
