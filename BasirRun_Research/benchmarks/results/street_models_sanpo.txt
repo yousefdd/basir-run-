@@ -1,0 +1,13 @@
+reference (shipped): depth only 16/54 fixed obstacles, false 4/145; SegFormer ADE20K walkable IoU 0.739, false-walkable 0.366
+pidnet_s_cityscapes_1024: walkable corridor IoU 0.664, false-walkable 0.379
+   fixed obstacles pole/light/sign: alone 4/54 (4+0), false alarms 2/145; OR depth 17/54, false 6/145
+   fixed obstacles +fence: alone 7/54 (5+2), false alarms 6/145; OR depth 18/54, false 10/145
+segformer_b0_cityscapes_768: walkable corridor IoU 0.755, false-walkable 0.405
+   fixed obstacles pole/light/sign: alone 8/54 (2+6), false alarms 3/145; OR depth 21/54, false 7/145
+   fixed obstacles +fence: alone 20/54 (7+13), false alarms 5/145; OR depth 29/54, false 9/145
+segformer_b0_cityscapes_512: walkable corridor IoU 0.756, false-walkable 0.422, 165 ms/frame desktop CPU
+   fixed obstacles pole/light/sign: alone 10/54 (5+5), false alarms 6/145; OR depth 21/54, false 10/145
+   fixed obstacles +fence: alone 23/54 (10+13), false alarms 7/145; OR depth 29/54, false 11/145
+segformer_b0_cityscapes_384: walkable corridor IoU 0.759, false-walkable 0.446, 78 ms/frame desktop CPU
+   fixed obstacles pole/light/sign: alone 8/54 (4+4), false alarms 7/145; OR depth 20/54, false 11/145
+   fixed obstacles +fence: alone 20/54 (9+11), false alarms 8/145; OR depth 26/54, false 12/145
