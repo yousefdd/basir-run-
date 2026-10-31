@@ -12,7 +12,15 @@ fun main(a: Array<String>) {
     val planner = IntelligentPathPlanner()
     val guidance = GuidanceController()
     var goal = 0.0
-    val out = StringBuilder("frame,route_steer,route_bearing3,mode,path_bearing3,cmd,side,level,steer,points\n")
+    // What the runner actually feels: the app's haptic scheduler with a recording motor
+    val felt = ArrayList<String>()
+    val motor = object : HapticOutput {
+        override val hasAmplitudeControl = true
+        override fun play(pattern: HapticPattern) { felt += pattern.name }
+        override fun cancel() {}
+    }
+    val haptics = HapticScheduler(motor)
+    val out = StringBuilder("frame,route_steer,route_bearing3,mode,path_bearing3,cmd,side,level,steer,felt,points\n")
     File(a[0]).readLines().filter { it.isNotBlank() }.forEachIndexed { i, line ->
         val (path, hfov, height, pitch) = line.split(",")
         val src = ImageIO.read(File(path)); val w = 160; val h = src.height * w / src.width
@@ -24,9 +32,11 @@ fun main(a: Array<String>) {
         goal = route?.let { 0.7 * it.steerDeg } ?: 0.0
         val d = planner.update(FrameInput(emptyList(), route, grid, emptyList(), 1.0, dt = 1.0 / 15))
         val c = guidance.update(d)
+        felt.clear()
+        haptics.onCommand(c, (i * 1000L) / 15)
         fun bearing(p: PathCurve?) = p?.let { Math.toDegrees(atan2(it.lateralAt(3.0), 3.0)) }
         val pts = d.path?.sample(0.25, maxOf(d.path.nearM, 0.8), d.path.farM)?.mapNotNull { cam.groundToImage(it) }?.joinToString(" ") { (u, v) -> "%.3f:%.3f".format(u / w, v / h) } ?: ""
-        out.append("$i,${route?.steerDeg ?: ""},${bearing(route?.toCurve()) ?: ""},${d.mode},${bearing(d.path) ?: ""},${c.kind},${c.side ?: ""},${c.level ?: ""},${c.steerDeg},$pts\n")
+        out.append("$i,${route?.steerDeg ?: ""},${bearing(route?.toCurve()) ?: ""},${d.mode},${bearing(d.path) ?: ""},${c.kind},${c.side ?: ""},${c.level ?: ""},${c.steerDeg},${felt.joinToString("+")},$pts\n")
     }
     File(a[1]).writeText(out.toString())
 }

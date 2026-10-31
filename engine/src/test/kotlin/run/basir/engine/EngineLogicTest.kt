@@ -271,6 +271,33 @@ class EngineLogicTest {
     }
 
     @Test
+    fun `a stop during the run is not followed by a flickering go`() {
+        // Ground that clears for single frames between stops (the owner's night video) must not
+        // be felt as stop, go, stop: guidance resumes only after ~0.7 s of usable path.
+        val p = IntelligentPathPlanner()
+        fun route(progress: Double) = FreeRoute((0..12).map { GroundPoint(it * progress / 12, 0.0) }, progress, progress, 0.0, 1.0)
+        fun step(progress: Double) = p.update(FrameInput(emptyList(), route(progress), null, emptyList(), 1.0)).mode
+        repeat(5) { step(6.0) }
+        assertEquals(PathMode.FREE_PATH, step(6.0))
+        assertEquals(PathMode.STOP, step(3.0))
+        // one clear frame, then blocked again: never a go in between
+        assertEquals(PathMode.STOP, step(6.0))
+        assertEquals(PathMode.STOP, step(3.0))
+        val modes = (1..12).map { step(6.0) }
+        assertTrue(modes.take(8).all { it == PathMode.STOP } && modes.last() == PathMode.FREE_PATH, "$modes")
+    }
+
+    @Test
+    fun `a different cue that is not more serious waits, a more serious one does not`() {
+        val r = Recorder()
+        val s = HapticScheduler(r)
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.LOW), 0))
+        assertNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 600))     // bend cue 0.6 s later: waits
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE), 650))                       // obstacle: at once
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 1500))
+    }
+
+    @Test
     fun `opposite side cues are not fired back to back`() {
         val s = HapticScheduler(Recorder())
         assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.LOW), 0))

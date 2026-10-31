@@ -129,6 +129,7 @@ data class SchedulerConfig(
     val onPathRepeatMs: Long = 3500,
     val enableOnPathTick: Boolean = true,
     val oppositeSideGuardMs: Long = 500,  // no left right after right (and back) unless HIGH
+    val changeGapMs: Long = 800,          // a different cue that is not more serious waits this long
 )
 
 /**
@@ -149,6 +150,9 @@ class HapticScheduler(
     private var clearFrames = 0
     private var lastSide: Side? = null
     private var lastSideAt = Long.MIN_VALUE / 2
+    private var lastKey: String? = null
+    private var lastKeyAt = Long.MIN_VALUE / 2
+    private var lastKeyPriority = 0
 
     /** Feed one guidance command per frame; returns the pattern started now, if any. */
     fun onCommand(cmd: GuidanceCommand, nowMs: Long): HapticPattern? {
@@ -156,6 +160,7 @@ class HapticScheduler(
             clearFrames = 0
             if (!stopLatched || since("stop", nowMs) >= max(config.stopRepeatMs, output.playedDurationMs(language.stop()) + REPEAT_GAP_MS)) {
                 stopLatched = true
+                lastKey = "STOP"; lastKeyAt = nowMs; lastKeyPriority = HapticLanguage.P_STOP
                 return start(language.stop(), nowMs, preempt = true)
             }
             return null
@@ -183,7 +188,12 @@ class HapticScheduler(
         if (cmd.side != null && cmd.side != lastSide && nowMs - lastSideAt < config.oppositeSideGuardMs && cmd.level != Level.HIGH) {
             return null
         }
+        // A different cue that is not more serious than the last one waits: several patterns in a
+        // second cannot be told apart. More serious ones (obstacle after a correction) and strong
+        // corrections (about to leave the path) go at once.
+        if (key != lastKey && nowMs - lastKeyAt < config.changeGapMs && pattern.priority <= lastKeyPriority && cmd.level != Level.HIGH) return null
         if (cmd.side != null) { lastSide = cmd.side; lastSideAt = nowMs }
+        lastKey = key; lastKeyAt = nowMs; lastKeyPriority = pattern.priority
         lastPlayed[key] = nowMs
         return start(pattern, nowMs, preempt = busy)
     }

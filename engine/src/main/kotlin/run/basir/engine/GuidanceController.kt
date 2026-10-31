@@ -39,6 +39,7 @@ data class GuidanceConfig(
     val curveMediumCurvature: Double = 0.08,
     val curveSharpCurvature: Double = 0.15, // radius < ~7 m
     val previewMaxM: Double = 8.0,
+    val calmFrames: Int = 12,            // ~0.8 s after a stop or warning without small corrections or bends
 )
 
 /**
@@ -53,11 +54,13 @@ class GuidanceController(private val config: GuidanceConfig = GuidanceConfig()) 
     private var lastSide: Side? = null
     private var pendingSide: Side? = null
     private var pendingCount = 0
+    private var calm = 0
 
     fun update(decision: PathDecision, speedMps: Double = 2.5): GuidanceCommand {
         val path = decision.path
         if (decision.mode == PathMode.STOP || path == null) {
             reset()
+            calm = config.calmFrames
             return GuidanceCommand(CommandKind.STOP, stopReason = decision.stopReason, mode = decision.mode)
         }
         val lookahead = (speedMps * 0.8).coerceIn(1.5, 3.0)
@@ -98,7 +101,16 @@ class GuidanceController(private val config: GuidanceConfig = GuidanceConfig()) 
 
         val base = GuidanceCommand(CommandKind.ON_PATH, steerDeg = steer, confidence = decision.confidence, mode = decision.mode,
             curveCurvature = kappa, curveInM = curveAt)
-        if (decision.obstacleAheadM != null) return base.copy(kind = CommandKind.OBSTACLE, side = side, level = Level.HIGH)
+        if (decision.obstacleAheadM != null) {
+            calm = config.calmFrames
+            return base.copy(kind = CommandKind.OBSTACLE, side = side, level = Level.HIGH)
+        }
+        // Right after a stop or a warning the runner is slowing down and listening: only a
+        // strong correction gets through, no small nudges and no bend cues.
+        if (calm > 0) {
+            calm--
+            return if (side != null && level == Level.HIGH) base.copy(kind = CommandKind.CORRECT, side = side, level = level) else base
+        }
         if (side != null) {
             return base.copy(kind = CommandKind.CORRECT, side = side, level = level)
         }

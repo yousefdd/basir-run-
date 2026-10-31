@@ -42,6 +42,8 @@ data class PlannerConfig(
     val minPathConfidence: Double = 0.5,
     val modeHoldFrames: Int = 5,         // hysteresis before switching between modes
     val freeEndWarnMarginM: Double = 1.0, // warn when walkable ground ends within stop distance + this
+    val freeEndHysteresisM: Double = 0.5, // leaving a stop or a warning needs this much more ground
+    val resumeFrames: Int = 10,          // ~0.7 s of a usable path before guidance resumes after a stop
 )
 
 /**
@@ -58,6 +60,10 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
     private var pendingMode: PathMode? = null
     private var pendingCount = 0
     private var parallelOffset: Double? = null   // locked distance to a line followed alongside
+    private var resumeCount = 0
+    private var guided = false                   // guidance has started once; later stops resume slowly
+    private var freeEndStopped = false
+    private var freeEndWarned = false
 
     fun update(input: FrameInput): PathDecision {
         if (input.visibility < config.minVisibility) {
@@ -119,13 +125,21 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         // 2b. Without a line, the way ahead is only as long as the walkable ground: when it ends
         // (a bench, a wall, a hedge across the path) before the runner could stop, stop now; a
         // little further, warn. Found on the owner's night video: the path ran into a bench.
+        // Both thresholds have hysteresis, so ground that wavers around them does not make the
+        // runner feel stop, go, stop.
         if (decision.mode == PathMode.FREE_PATH && free != null) {
-            if (free.progressM < stopAt) {
+            val stopLimit = stopAt + if (freeEndStopped) config.freeEndHysteresisM else 0.0
+            freeEndStopped = free.progressM < stopLimit
+            if (freeEndStopped) {
+                freeEndWarned = true
                 return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = free.progressM))
             }
-            if (free.progressM < stopAt + config.freeEndWarnMarginM) {
-                decision = decision.copy(obstacleAheadM = free.progressM)
-            }
+            val warnLimit = stopAt + config.freeEndWarnMarginM + if (freeEndWarned) config.freeEndHysteresisM else 0.0
+            freeEndWarned = free.progressM < warnLimit
+            if (freeEndWarned) decision = decision.copy(obstacleAheadM = free.progressM)
+        } else {
+            freeEndStopped = false
+            freeEndWarned = false
         }
 
         // 3. Obstacles on the chosen path
@@ -167,13 +181,30 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.OBSTACLE_NO_ALTERNATIVE, along, obstacle))
     }
 
-    /** Mode hysteresis: STOP is immediate; other mode changes must persist for a few frames. */
+    /**
+     * Mode hysteresis: STOP is immediate; resuming after a stop needs [PlannerConfig.resumeFrames]
+     * usable frames in a row (a brief clear frame between stops must not be felt as "go"); other
+     * mode changes must persist for a few frames.
+     */
     private fun commit(d: PathDecision): PathDecision {
-        if (d.mode == PathMode.STOP || d.mode == lastMode) {
-            lastMode = d.mode; pendingMode = null; pendingCount = 0
+        if (d.mode == PathMode.STOP) {
+            lastMode = d.mode; pendingMode = null; pendingCount = 0; resumeCount = 0
             return d
         }
-        if (lastMode == PathMode.STOP || d.mode == PathMode.DETOUR) { // resuming or avoiding: act now
+        if (lastMode == PathMode.STOP) {
+            // The first start is already held back by the readiness check (and the tracker's
+            // confirmation); a stop during the run must not be followed by a flickering "go".
+            if (guided && ++resumeCount < config.resumeFrames) {
+                return PathDecision(PathMode.STOP, null, 0.0, StopReason.LOW_CONFIDENCE, d.obstacleAheadM, d.blocking)
+            }
+            lastMode = d.mode; resumeCount = 0; guided = true
+            return d
+        }
+        if (d.mode == lastMode) {
+            pendingMode = null; pendingCount = 0
+            return d
+        }
+        if (d.mode == PathMode.DETOUR) { // avoiding: act now
             lastMode = d.mode
             return d
         }
