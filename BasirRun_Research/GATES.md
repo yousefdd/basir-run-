@@ -67,7 +67,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
   EVIDENCE: pending
 
 ABANDON: G13 needs a human annotator and track footage that does not exist yet (no openly licensed track video found; owner recording requested); fabricated labels are forbidden. Handoff: a Label Studio task file is prepared by G11's tool so frames can be labelled once footage exists.
-ABANDON: G14 needs the APK on the owner's phone, which needs a CI build after the owner allows a push. Handoff: the app already logs per-frame p50/p90 timings in the session CSV.
+ABANDON: G14 needs measurements on the owner's phone (frame time, battery drain, heat, a long session without stalls); the APK 0.12.0 is now built and published, but only a run on the device can measure these. Handoff: the app logs per-frame p50/p90 timings in the session CSV; a 30-minute run with the log saved answers all four.
 
 - [x] G15: Owner request "no stop except extreme cases, guide the turn": named engine and app tests pass, the curved park path has no stop and the night video stops once (at the bench), with the detector in the loop
   CHECK: python3 BasirRun_Research/tools/gates/check_stop_policy.py
