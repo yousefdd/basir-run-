@@ -37,12 +37,12 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G7: Obstacle/person detection recall and false-clear rate measured on human-labelled SANPO frames for the detector the app ships
   CHECK: python3 BasirRun_Research/tools/gates/check_obstacles.py
   EXPECT: OBSTACLES_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=caff4730390597563bc5a6519a453f735170c1d92450563deacea99e665fca51; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=4e8d06559a3f831d4612f95da5fa65816abe6c57b1f050c1248e3355ab36df0e; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
   CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
   EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=dc7c6f35e51313734fd38ca7a86f85bb334976a33461ff1f394c188ff4e75467; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=48dda6897a79974a3d510e75d3ad2b08c0e6b2e8f9118dcc89a761672f0e2861; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
@@ -68,3 +68,18 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 
 ABANDON: G13 needs a human annotator and track footage that does not exist yet (no openly licensed track video found; owner recording requested); fabricated labels are forbidden. Handoff: a Label Studio task file is prepared by G11's tool so frames can be labelled once footage exists.
 ABANDON: G14 needs the APK on the owner's phone, which needs a CI build after the owner allows a push. Handoff: the app already logs per-frame p50/p90 timings in the session CSV.
+
+- [x] G15: Owner request "no stop except extreme cases, guide the turn": named engine and app tests pass, the curved park path has no stop and the night video stops once (at the bench), with the detector in the loop
+  CHECK: python3 BasirRun_Research/tools/gates/check_stop_policy.py
+  EXPECT: STOP_POLICY_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=b38c38bda76bbaa801e3ec8d10056d001a6ecd9746ecd1663a56ad34bdb906c9; exit=0; EXPECT=matched; output-sha256=c79b3cd2d67d9e21eb6ec57e672190b7bf0254a5a037ff62cea2cc3b8d8e7682; output-bytes=106; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G16: Owner request "the stop vibration does not stop": stop pattern <= 1.1 s of vibration, played once plus at most two reminders >= 5 s apart (named tests + night video)
+  CHECK: python3 BasirRun_Research/tools/gates/check_stop_vibration.py
+  EXPECT: STOP_VIBRATION_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d90a1f661894f615eb23f633b2bee98f6cbc7f8c19ba170869f903aef9c397b6; exit=0; EXPECT=matched; output-sha256=774aae0f180c73a352c81559a7e74ddf8725b13eb5f7ce840ea74de9654f232d; output-bytes=114; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G17: Android files changed this round (LineEngine, app Haptics, training lessons) type-check against Android stand-ins
+  CHECK: bash BasirRun_Research/tools/gates/compile_android_changes.sh
+  EXPECT: ANDROID_CHANGES_COMPILE_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=e5411ab2ea179d4244297f4b70c21cc7e4fc3665d5cc2fb0a170b5961238c9a4; exit=0; EXPECT=matched; output-sha256=32a3b30c08cddc9a70e56a779b862d193522c73684b4593fd4f688877580e4bd; output-bytes=52; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries

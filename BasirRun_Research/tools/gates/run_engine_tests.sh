@@ -15,6 +15,7 @@ cd $E
 classes=$(ls src/test/kotlin/run/basir/engine/*.kt | xargs -n1 basename | sed 's/\.kt$//' | sed 's/^/run.basir.engine./')
 res=$(java -cp $OUT/t.jar:/tmp/json.jar:$S/kc/kotlinc/lib/kotlin-stdlib.jar RunKt $classes)
 echo "$res" | grep -E "FAIL|failures" || true
+[ "${SHOW:-0}" = 1 ] && echo "$res" | grep "^PASS" || true
 n=$(echo "$res" | grep -c '^PASS')
 echo "passed $n"
 echo "$res" | grep -q '^failures: 0$' && [ "$n" -ge 50 ] && echo ENGINE_TESTS_OK
