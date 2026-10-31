@@ -1,0 +1,307 @@
+<title>محرك التوجيه المستقر</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (RTL), wide tables scroll inside their own frame; navy ink + signal amber like the app */
+:root{
+  --bg:#f5f6f9; --paper:#ffffff; --ink:#14203a; --muted:#56607a; --line:#d9dde7;
+  --accent:#c77a12; --accent-soft:#fbefdc; --navy:#1d2f5c;
+  --good:#1f7a4d; --good-soft:#e2f3ea; --bad:#b4372b; --bad-soft:#f9e3e0; --warn:#9a6a00; --warn-soft:#fbf1d6;
+  --bar-old:#9aa3b8; --bar-new:#c77a12;
+  --f-display:"Noto Kufi Arabic","IBM Plex Sans Arabic",Tahoma,sans-serif;
+  --f-body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1424; --paper:#151d33; --ink:#e7ebf5; --muted:#a3acc2; --line:#2a3552;
+  --accent:#f0a640; --accent-soft:#3a2b14; --navy:#9fb4ea;
+  --good:#5cc994; --good-soft:#13301f; --bad:#f08a7e; --bad-soft:#3a1a17; --warn:#e9c15a; --warn-soft:#352a0f;
+  --bar-old:#56607a; --bar-new:#f0a640; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1424; --paper:#151d33; --ink:#e7ebf5; --muted:#a3acc2; --line:#2a3552;
+  --accent:#f0a640; --accent-soft:#3a2b14; --navy:#9fb4ea;
+  --good:#5cc994; --good-soft:#13301f; --bad:#f08a7e; --bad-soft:#3a1a17; --warn:#e9c15a; --warn-soft:#352a0f;
+  --bar-old:#56607a; --bar-new:#f0a640; color-scheme:dark}
+html{direction:rtl}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.75;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:860px;margin:0 auto;display:grid;gap:28px}
+header{display:grid;gap:10px}
+.eyebrow{font-size:13px;letter-spacing:.02em;color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,5vw,38px);line-height:1.35;margin:0;text-wrap:balance;color:var(--navy)}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0 0 6px;text-wrap:balance;color:var(--navy)}
+h3{font-size:17px;margin:14px 0 4px}
+p{margin:0}
+.lead{color:var(--muted);max-width:68ch}
+section{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px 20px 22px;display:grid;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg);display:grid;gap:2px}
+.kpi b{font-family:var(--f-mono);font-size:24px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.kpi span{font-size:13px;color:var(--muted)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th{background:var(--bg);font-weight:600;color:var(--muted);font-size:13px;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;direction:ltr;text-align:left;white-space:nowrap}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;white-space:nowrap}
+.ok{background:var(--good-soft);color:var(--good)} .no{background:var(--bad-soft);color:var(--bad)} .mid{background:var(--warn-soft);color:var(--warn)}
+.note{border-inline-start:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:6px}
+ul{margin:0;padding-inline-start:22px;display:grid;gap:6px}
+code,.mono{font-family:var(--f-mono);font-size:13px;direction:ltr;unicode-bidi:isolate}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;direction:ltr;text-align:left;font-size:13px;margin:0}
+a{color:var(--navy)}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-body);fill:var(--ink);font-size:13px}
+.chart .sub{fill:var(--muted);font-size:12px}
+details summary{cursor:pointer;font-weight:600;color:var(--navy)}
+details[open] summary{margin-bottom:10px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">بصير ران · الإصدار 0.11.0 · جولة البحث الثانية · 31 أكتوبر 2026</div>
+  <h1>محرك التوجيه المستقر: ما قسناه، ما دمجناه، وما بقي</h1>
+  <p class="lead">بحث في 32 مشروعًا مستنسخًا فعليًا، وتجارب على إطارات وسمها بشر من SANPO وعلى فيديو ميدانك الليلي، ثم وحدة توجيه جديدة بتسع حالات. كل رقم هنا خرج من تشغيل فعلي محفوظ في <code>BasirRun_Research/benchmarks/results</code>. لم يُرفع شيء إلى GitHub.</p>
+</header>
+
+<section>
+  <h2>الخلاصة</h2>
+  <div class="kpis">
+    <div class="kpi"><b>25 → 15</b><span>تغيّر الأوامر على 5 مقاطع حقيقية (القديم ← الجديد)</span></div>
+    <div class="kpi"><b>27 → 10</b><span>اهتزازات يشعر بها العدّاء على المقاطع نفسها</span></div>
+    <div class="kpi"><b>0</b><span>تبديل يمين/يسار، وعدد إطارات التوقف لم يزد (34 = 34)</span></div>
+    <div class="kpi"><b>0.96 / 0.24</b><span>اكتشاف الأشخاص / العوائق الثابتة (أعمدة، لافتات)</span></div>
+  </div>
+  <ul>
+    <li><b>المشكلة الأساسية في التوجيه القديم:</b> كان يخلط بين انحناء الطريق وانحراف العدّاء، فالعدّاء في منتصف طريق منحنٍ يصله أمر «صحّح يمينًا». الوحدة الجديدة تفصل ثلاث قيم: الإزاحة تحت القدمين، وزاوية الاتجاه، والانحناء أمامه.</li>
+    <li><b>دُمج في التطبيق:</b> وحدة التوجيه الجديدة، ونمط «عائق: تجاوزه من اليسار/اليمين» (لا يُعطى إلا بعد رؤية الجانب في عدة إطارات)، ونمط «عدت إلى المسار» بثلاث نقرات خفيفة، مع صمت تام ما دمت على المسار.</li>
+    <li><b>أخطر فجوة متبقية:</b> العوائق الثابتة. كاشف الأجسام لا يعرف الأعمدة واللافتات (24% فقط)، و61 منها لم يُنبّه عليها أي جزء من النظام في إطارات الاختبار.</li>
+    <li><b>لم يُدمج بعد:</b> نموذج YOLOP وخط منتصف الممر. كلاهما قيس وأفاد في حالات وأضرّ في أخرى، والتفاصيل أدناه.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>ماذا وجدنا في المحرك قبل التحديث</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>المشكلة</th><th>السبب في الكود</th><th>الدليل</th><th>الحالة</th></tr></thead>
+    <tbody>
+      <tr><td>أمر «صحّح» في منتصف منعطف</td><td>المتحكم القديم يوجّه نحو نقطة أمامية واحدة، فتختلط الإزاحة بالانحناء (<code>GuidanceController.kt</code>)</td><td>اختبار وحدة: مسار منحنٍ والعدّاء في منتصفه، القديم يعطي CORRECT والجديد CURVE</td><td><span class="pill ok">أُصلح</span></td></tr>
+      <tr><td>أوامر كثيرة متقلبة</td><td>لا حالات ولا مدة دنيا للحالة ولا عتبات دخول وخروج منفصلة</td><td>25 تغيّرًا مقابل 15، و27 اهتزازًا مقابل 10</td><td><span class="pill ok">أُصلح</span></td></tr>
+      <tr><td>التصحيح يتجاوز الهدف</td><td>أفق التنبؤ 0.8 ث أقصر من زمن استجابة الإنسان (رد فعل 0.5 + تنفيذ 0.5)</td><td>محاكاة: خروج من المسار في 24 من 36 تشغيلًا بأفق 0.8 ث، وفي 6 بأفق 1.6 ث</td><td><span class="pill ok">أُصلح (1.6 ث)</span></td></tr>
+      <tr><td>المنعطف يظهر كتصحيح لا كانحناء</td><td>مخطِّط المساحة الحرة يختار أقصر طريق فيقطع المنعطف بخط شبه مستقيم</td><td>على منعطف حقيقي بـ92°: الانحناء المرئي للمحرك 0.000</td><td><span class="pill mid">حل تجريبي، غير مفعّل</span></td></tr>
+      <tr><td>حواف وهمية للممر</td><td>حدّ مجال رؤية الكاميرا كان يُعامل كحافة للطريق</td><td>اتجاه مستنتج بين −15° و−33° على ممر يسير فيه الماشي باستقامة</td><td><span class="pill ok">أُصلح في خط المنتصف</span></td></tr>
+      <tr><td>عوائق ثابتة لا يُنبّه عليها</td><td>D-FINE مدرّب على فئات COCO التي لا تشمل الأعمدة واللافتات</td><td>استدعاء 0.24، و61 حالة صامتة</td><td><span class="pill no">باقية</span></td></tr>
+      <tr><td>أرض غير قابلة للمشي تُحسب قابلة</td><td>نموذج SegFormer مع قاعدة «ما تحت القدم» يقبل الطريق المعبّد للسيارات حين تقف عليه</td><td>نسبة الخطأ في الممر أمامك 0.37، و82 من 162 إطارًا</td><td><span class="pill no">باقية (جزئيًا اصطلاح وسم)</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>وحدة التوجيه الجديدة: الحالات والاهتزازات</h2>
+  <p>حالة واحدة في كل لحظة. لا تُغيّر الحالة إلا بعد ثبات الجديدة 3 إطارات واستمرار الحالية 0.6 ث على الأقل، والتبديل بين اليمين واليسار يحتاج 6 إطارات. التوقف والعائق والتصحيح القوي تتجاوز هذه القيود فورًا.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>الحالة</th><th>متى</th><th>الخطورة</th><th>ما تشعر به</th></tr></thead>
+    <tbody>
+      <tr><td>TRACK_CENTERED</td><td>على المسار</td><td class="n">0</td><td>لا شيء (صمت)</td></tr>
+      <tr><td>CURVE_LEFT / RIGHT</td><td>الطريق نفسه ينحني (انحناء ≥ 0.05، يخرج تحت 0.03)، يُعلن مبكرًا ويصمت بعد ثانيتين داخل المنعطف</td><td class="n">1</td><td>نبضة طويلة ناعمة يسارًا، نبضتان يمينًا</td></tr>
+      <tr><td>CORRECT_LEFT / RIGHT</td><td>ستخرج عن المسار خلال 1.6 ث (يبدأ عند 0.30 م، ينتهي تحت 0.15 م)؛ على ممر عريض لا تصحيح ما دام بينك وبين الحافة هامش</td><td class="n">2</td><td>نبضة قصيرة يسارًا، نبضتان يمينًا، والشدة حسب الحجم؛ عند الجري لا تُعطى القوية إلا لانحراف كبير</td></tr>
+      <tr><td>عودة إلى المسار</td><td>مرة واحدة بعد انتهاء التصحيح</td><td class="n">0</td><td>ثلاث نقرات سريعة خفيفة</td></tr>
+      <tr><td>OBSTACLE_WARNING</td><td>شيء على المسار قبل مسافة التوقف</td><td class="n">3</td><td>ثلاث نبضات سريعة؛ وإن ثبت جانب التجاوز 4 إطارات تتبعها نبضة الجانب</td></tr>
+      <tr><td>VISION_UNCERTAIN</td><td>المسار غير موثوق لحظيًا</td><td class="n">1→4</td><td>صمت دون أي اتجاه حتى 0.5 ث مشيًا و0.3 ث جريًا، ثم توقف</td></tr>
+      <tr><td>TRACK_LOST</td><td>لا مسار</td><td class="n">4</td><td>نمط التوقف</td></tr>
+      <tr><td>STOP_REQUIRED</td><td>عائق بلا بديل مؤكد أو نهاية الأرض الصالحة</td><td class="n">4</td><td>نمط التوقف فورًا، ثم جانب الانعطاف إن ثبت 4 إطارات</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">اختبار آلي يتحقق أن كل نمطين في القائمة يختلفان بوضوح (عدد النبضات، أو المدة بفارق 100 م.ث، أو الشدة بفارق 60). وجد الاختبار أن نمط «عدت إلى المسار» الأول كان يشبه «تصحيح بسيط يسارًا»، فغُيّر. هل تميّزها يدك فعلًا؟ هذا لا يقرره إلا تجربتك.</p>
+</section>
+
+<section>
+  <h2>التوجيه القديم والجديد على مقاطع حقيقية</h2>
+  <p>4 مقاطع من SANPO بكاميرا صدر (مشي وهرولة وجري) + فيديو ميدانك الليلي. سلسلة المحرك نفسها في الحالتين، ولا يتغير إلا المتحكم.</p>
+  <div class="chart" role="img" aria-label="مقارنة: تغيّر الأوامر 25 مقابل 15، والاهتزازات 27 مقابل 10">
+    <svg viewBox="0 0 640 170">
+      <!-- scale: 0..30 over 400px starting x=200 (RTL labels on the right side drawn at x=630) -->
+      <text x="630" y="30" text-anchor="end">تغيّر الأوامر</text>
+      <rect x="200" y="16" width="333.3" height="14" rx="2" fill="var(--bar-old)"/><text x="190" y="28" text-anchor="end" class="sub">25 قديم</text>
+      <rect x="200" y="34" width="200" height="14" rx="2" fill="var(--bar-new)"/><text x="190" y="46" text-anchor="end" class="sub">15 جديد</text>
+      <text x="630" y="96" text-anchor="end">اهتزازات محسوسة</text>
+      <rect x="200" y="82" width="360" height="14" rx="2" fill="var(--bar-old)"/><text x="190" y="94" text-anchor="end" class="sub">27 قديم</text>
+      <rect x="200" y="100" width="133.3" height="14" rx="2" fill="var(--bar-new)"/><text x="190" y="112" text-anchor="end" class="sub">10 جديد</text>
+      <line x1="200" y1="132" x2="600" y2="132" stroke="var(--line)"/>
+      <text x="200" y="152" class="sub" text-anchor="middle">0</text><text x="333.3" y="152" class="sub" text-anchor="middle">10</text><text x="466.7" y="152" class="sub" text-anchor="middle">20</text><text x="600" y="152" class="sub" text-anchor="middle">30</text>
+    </svg>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>المقطع</th><th>السرعة</th><th>تغيّر الأوامر قديم / جديد</th><th>اهتزازات قديم / جديد</th><th>إطارات توقف</th></tr></thead>
+    <tbody>
+      <tr><td>فيديو ميدانك الليلي</td><td class="n">1.4 m/s</td><td class="n">9 / 8</td><td class="n">10 / 4</td><td class="n">11 / 11</td></tr>
+      <tr><td>SANPO جري</td><td class="n">2.8 m/s</td><td class="n">8 / 5</td><td class="n">8 / 5</td><td class="n">0 / 0</td></tr>
+      <tr><td>SANPO هرولة</td><td class="n">2.5 m/s</td><td class="n">2 / 0</td><td class="n">3 / 0</td><td class="n">0 / 0</td></tr>
+      <tr><td>المجموع (5 مقاطع)</td><td></td><td class="n">25 / 15</td><td class="n">27 / 10</td><td class="n">34 / 34</td></tr>
+    </tbody>
+  </table></div>
+  <p>إطارات التوقف الـ34 كلها من قرار المخطِّط (نهاية الأرض أمام المقعد في فيديوك، ومقطع غابة مظلم)، لا من وحدة التوجيه، فلم تزد ولم تنقص.</p>
+</section>
+
+<section>
+  <h2>المنعطفات الحقيقية</h2>
+  <p>لم أجد فيديو مفتوح الترخيص لمضمار ألعاب قوى (التفاصيل في قسم البيانات). لذلك استخرجت منعطفات حقيقية من مسارات كاميرا SANPO المنشورة: 7 نوافذ دوران، تحققت منها بالتدفق البصري (Optical Flow) وبالنظر. تبيّن أن اتجاه الدوران من مسار الكاميرا وحده غير موثوق، فاعتمدت 3 مقاطع دورانها واضح.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>المقطع</th><th>الدوران (تدفق بصري)</th><th>القديم: إطارات نحو المنعطف / عكسه</th><th>الجديد</th><th>الجديد + خط المنتصف</th></tr></thead>
+    <tbody>
+      <tr><td>ممر إسفلتي بخط أصفر منحنٍ</td><td class="n">R 92°</td><td class="n">30 / 0 (كلها «صحّح»)</td><td class="n">33 / 0</td><td class="n">33 / 0</td></tr>
+      <tr><td>ساحة مفتوحة</td><td class="n">L 50°</td><td class="n">0 / 9</td><td class="n">0 / 8</td><td class="n">0 / 8</td></tr>
+      <tr><td>درب غابة ضبابي</td><td class="n">R 29°</td><td class="n">1 / 0</td><td class="n">0 / 0</td><td class="n">0 / 0</td></tr>
+    </tbody>
+  </table></div>
+  <p>في الممر المنحني تشير الإشارة إلى الاتجاه الصحيح، لكن كتصحيح لا كانحناء، لأن المخطِّط يقطع المنعطف. أضفت <b>خط منتصف الممر</b> (منتصف الشريط الصالح في كل صف): في نسخته الأولى رأى المنعطف (انحناء 0.155، و59 إطار «انحناء يمين»، بلا أي إشارة عكسية)، لكنه أضاف انحناءات وهمية في الأماكن الواسعة (40 تغيّرًا و4 إشارات متعاكسة). بعد إصلاح خطأ حافة مجال الرؤية صار محافظًا وآمنًا: 8 تغيّرات مقابل 17 للقديم على المقاطع المستقيمة، وفي فيديوك 6 مقابل 10، دون تبديل يمين/يسار، لكنه لم يعد يلتقط إلا جزءًا صغيرًا من المنعطف. <b>القرار:</b> يبقى في المحرك مختبرًا وغير مفعّل حتى تتوفر تسجيلات مضمار حقيقية.</p>
+  <p>ساحة L 50°: الماشي استدار بنفسه في ساحة مفتوحة لا منعطف فيها. الإشارات العكسية (8) تعني أن المحرك رأى أرضًا أوسع إلى اليمين. هذه حالة لا يملك فيها المحرك «طريقًا» صحيحًا ليتبعه.</p>
+</section>
+
+<section>
+  <h2>المقارنة بين خوارزميات تتبّع المسار (محاكاة)</h2>
+  <p class="note">هذه محاكاة لا قياس ميداني: عدّاء لا يتلقى إلا إشارات منفصلة، يستجيب بعد 0.5 ث، ويستدير بسرعة محدودة، ويتأثر بانجراف وبرؤية كاميرا محدودة فيها ضجيج. 6 سيناريوهات منها منعطف مضمار بنصف قطر 36.5 م وعائق على ممر بعرض 3 م، بسرعتين، و8 بذور لكل حالة (96 تشغيلًا لكل خوارزمية).</p>
+  <div class="tbl"><table>
+    <thead><tr><th>الخوارزمية</th><th>RMS انحراف</th><th>وقت خارج الحافة</th><th>اصطدام</th><th>لم يكمل</th><th>إشارات/دقيقة</th><th>إشارة معاكسة خلال 1 ث</th></tr></thead>
+    <tbody>
+      <tr><td>DWA</td><td class="n">0.36 m</td><td class="n">16%</td><td class="n">15</td><td class="n">2</td><td class="n">77</td><td class="n">13.4</td></tr>
+      <tr><td>MPC (اختيار من الإشارات)</td><td class="n">0.37 m</td><td class="n">15%</td><td class="n">15</td><td class="n">4</td><td class="n">86</td><td class="n">15.3</td></tr>
+      <tr><td>Stanley</td><td class="n">0.38 m</td><td class="n">14%</td><td class="n">16</td><td class="n">16</td><td class="n">66</td><td class="n">8.1</td></tr>
+      <tr><td>A* محلي</td><td class="n">0.45 m</td><td class="n">14%</td><td class="n">6</td><td class="n">27</td><td class="n">46</td><td class="n">4.8</td></tr>
+      <tr><td>A* واعٍ بالمخاطر</td><td class="n">0.46 m</td><td class="n">14%</td><td class="n">5</td><td class="n">27</td><td class="n">46</td><td class="n">4.8</td></tr>
+      <tr><td>Pure Pursuit (القديم)</td><td class="n">0.46 m</td><td class="n">21%</td><td class="n">16</td><td class="n">15</td><td class="n">72</td><td class="n">9.3</td></tr>
+      <tr><td><b>انحناء + تغذية راجعة + حالات (الجديد)</b></td><td class="n">0.54 m</td><td class="n">20%</td><td class="n">3</td><td class="n">19</td><td class="n">48</td><td class="n">2.3</td></tr>
+      <tr><td>Potential Fields</td><td class="n">0.61 m</td><td class="n">27%</td><td class="n">6</td><td class="n">35</td><td class="n">75</td><td class="n">9.3</td></tr>
+    </tbody>
+  </table></div>
+  <p>الجديد هو الأهدأ: أقل إشارات وأقل تعاكس وأقل اصطدامات. لكن DWA وMPC أدق في البقاء على المسار، مقابل إشارات متعاكسة أكثر بست مرات. الخطوة التالية المقترحة: نموذج تنبؤي (MPC) يختار الإشارة بناءً على نموذج استجابة العدّاء، داخل آلة الحالات الحالية، فنجمع الدقة والهدوء. لم يُبنَ ذلك بعد.</p>
+</section>
+
+<section>
+  <h2>الأرض القابلة للمشي والعوائق</h2>
+  <h3>SegFormer (المدمج) وYOLOP (مهام متعددة، كاميرا سيارة) على 280 إطارًا وسمها بشر</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>الطريقة</th><th>IoU في الممر</th><th>أرض خاطئة تُحسب صالحة</th><th>مع المخطِّط وD-FINE: مسار آمن / عبر عائق / بلا مسار</th></tr></thead>
+    <tbody>
+      <tr><td>SegFormer + «ما تحت القدم» (المدمج)</td><td class="n">0.74</td><td class="n">0.37</td><td class="n">195 / 16 / 43</td></tr>
+      <tr><td>YOLOP 320</td><td class="n">0.53</td><td class="n">0.19</td><td class="n">164 / 7 / 95</td></tr>
+      <tr><td>الاثنان معًا (AND)</td><td class="n">0.46</td><td class="n">0.13</td><td class="n">152 / 4 / 113</td></tr>
+      <tr><td>قناع بشري (الحد الأعلى للمخطِّط)</td><td class="n">1.00</td><td class="n">0</td><td class="n">220 / 30 / 18</td></tr>
+    </tbody>
+  </table></div>
+  <p>الدمج (AND) يخفض المرور عبر العوائق من 16 إلى 4، لكنه يجعل المحرك يتوقف في 113 إطارًا بدل 43، فيعيد مشكلة التوقف التي اشتكيت منها. جرّبت حلًا وسطًا يحذف فقط البقع الصغيرة التي يختلف عليها النموذجان، ولم يفد (الحالات الصامتة 61 ← 54). لذلك لم يُدمج YOLOP.</p>
+  <h3>D-FINE-N (المدمج) على العوائق في الممر أمامك</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>الفئة</th><th>عوائق حقيقية</th><th>اكتُشف</th><th>الاستدعاء</th><th>صامتة (لم يُكتشف والأرض تحته اعتُبرت صالحة)</th></tr></thead>
+    <tbody>
+      <tr><td>أشخاص</td><td class="n">98</td><td class="n">94</td><td class="n">0.96</td><td class="n">2</td></tr>
+      <tr><td>مركبات</td><td class="n">23</td><td class="n">21</td><td class="n">0.91</td><td class="n">0</td></tr>
+      <tr><td>ثابتة (أعمدة، لافتات، حواجز، حوامل دراجات)</td><td class="n">202</td><td class="n">48</td><td class="n">0.24</td><td class="n">61</td></tr>
+    </tbody>
+  </table></div>
+  <p>9% من الصناديق في الممر لم تكن على شيء يعيق. الزمن 57 م.ث للإطار على معالج حاسوب، لا على هاتف. الحل المتوقع للعوائق الثابتة هو العمق (Depth Anything المدمج)، لكنه لم يُقَس هذه الجولة لأن خرائط العمق المرجعية من SANPO لم تُنزّل بعد.</p>
+</section>
+
+<section>
+  <h2>تنعيم الإشارات</h2>
+  <p>ضُبطت أربعة مرشحات على 4 مقاطع من SANPO، ثم فُحصت على فيديوك دون ضبط عليه. الخطأ مقيس نسبة إلى مرجع لا يعمل لحظيًا (الأقل أفضل).</p>
+  <div class="tbl"><table>
+    <thead><tr><th>المرشح</th><th>الإزاحة: SANPO / فيديوك</th><th>الاتجاه</th><th>الانحناء</th><th>التأخير</th></tr></thead>
+    <tbody>
+      <tr><td>بلا مرشح</td><td class="n">0.73 / 0.55</td><td class="n">0.67 / 0.55</td><td class="n">0.56 / 0.86</td><td class="n">0</td></tr>
+      <tr><td>One Euro (المعتمد)</td><td class="n">0.30 / 0.31</td><td class="n">0.30 / 0.30</td><td class="n">0.32 / 0.29</td><td class="n">≈2 إطار</td></tr>
+      <tr><td>EMA</td><td class="n">0.29 / 0.31</td><td class="n">0.30 / 0.32</td><td class="n">0.32 / 0.32</td><td class="n">≈2 إطار</td></tr>
+      <tr><td>Kalman</td><td class="n">0.35 / 0.46</td><td class="n">0.36 / 0.40</td><td class="n">0.40 / 0.33</td><td class="n">≈2 إطار</td></tr>
+      <tr><td>Median</td><td class="n">0.47 / 0.54</td><td class="n">0.44 / 0.60</td><td class="n">0.44 / 0.42</td><td class="n">2–3</td></tr>
+    </tbody>
+  </table></div>
+  <p>One Euro وEMA متعادلان. اخترت One Euro للإزاحة لأنه يسرّع استجابته حين يكون الانحراف حقيقيًا وسريعًا. على المقاطع الحقيقية أعطت كل المرشحات تقريبًا النتيجة نفسها، لأن العتبات والمدة الدنيا للحالة هي العامل الحاسم.</p>
+</section>
+
+<section>
+  <h2>المشاريع التي فُحصت (32)</h2>
+  <p>كل مستودع استُنسخ فعليًا (بيانات وصفية وREADME والترخيص فقط، دون تشغيل كوده)، وقُرئ منه تاريخ آخر Commit والترخيص. القرار مبني على ما قسناه، لا على عدد النجوم. القائمة كاملة مع الحقول في <code>research_notes/survey_evaluation.csv</code>.</p>
+  <details open><summary>عرض الجدول</summary>
+  <div class="tbl"><table>
+    <thead><tr><th>المشروع</th><th>المجال</th><th>الترخيص</th><th>آخر تحديث</th><th>ما قسناه / القرار</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://github.com/NVlabs/SegFormer">NVlabs/SegFormer</a></td><td>تقسيم البيئة</td><td><span class="pill no">بحثي فقط</span></td><td class="n">2023-06</td><td>مدمج: IoU 0.74؛ يجب استبداله قبل أي استخدام تجاري</td></tr>
+      <tr><td><a href="https://github.com/google-research/project-guideline">project-guideline</a></td><td>خط الجري</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2026-10</td><td>مدمج: IoU 0.94 للخط البنفسجي</td></tr>
+      <tr><td><a href="https://github.com/Peterande/D-FINE">Peterande/D-FINE</a></td><td>كشف الأجسام</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2026-08</td><td>مدمج: أشخاص 0.96، ثابتة 0.24</td></tr>
+      <tr><td><a href="https://github.com/DepthAnything/Depth-Anything-V2">Depth-Anything-V2</a></td><td>العمق</td><td><span class="pill mid">Small فقط</span></td><td class="n">2026-03</td><td>مدمج (Small)؛ لم يُقَس هذه الجولة</td></tr>
+      <tr><td><a href="https://github.com/hustvl/YOLOP">hustvl/YOLOP</a></td><td>طريق + خطوط</td><td><span class="pill ok">MIT</span></td><td class="n">2023-10</td><td>قيس: IoU 0.53، أرض خاطئة 0.19؛ لم يُدمج</td></tr>
+      <tr><td><a href="https://github.com/casiez/OneEuroFilter">casiez/OneEuroFilter</a></td><td>تنعيم</td><td><span class="pill mid">بلا ملف ترخيص</span></td><td class="n">2026-08</td><td>الخوارزمية منشورة؛ كُتبت من جديد بـKotlin ومدمجة</td></tr>
+      <tr><td><a href="https://github.com/google-research-datasets/sanpo_dataset">sanpo_dataset</a></td><td>بيانات مشي</td><td><span class="pill ok">CC BY 4.0</span></td><td class="n">2026-03</td><td>مصدر الاختبار الأساسي</td></tr>
+      <tr><td><a href="https://github.com/AtsushiSakai/PythonRobotics">PythonRobotics</a></td><td>خوارزميات تتبّع</td><td><span class="pill ok">MIT</span></td><td class="n">2026-10</td><td>مرجع المحاكاة</td></tr>
+      <tr><td><a href="https://github.com/CoinCheung/BiSeNet">CoinCheung/BiSeNet</a></td><td>تقسيم سريع</td><td><span class="pill ok">MIT</span></td><td class="n">2026-10</td><td>المرشح الأول لاستبدال SegFormer (لم يُشغّل)</td></tr>
+      <tr><td><a href="https://github.com/mit-han-lab/efficientvit">efficientvit</a></td><td>تقسيم للجوال</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2025-09</td><td>مرشح ثانٍ (لم يُشغّل)</td></tr>
+      <tr><td><a href="https://github.com/PaddlePaddle/PaddleSeg">PaddleSeg</a></td><td>PP-MobileSeg</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2025-11</td><td>خادم الأوزان محجوب هنا</td></tr>
+      <tr><td><a href="https://github.com/XuJiacong/PIDNet">XuJiacong/PIDNet</a></td><td>تقسيم سريع</td><td><span class="pill ok">MIT</span></td><td class="n">2025-12</td><td>مدرّب على مشاهد سيارات؛ يحتاج تدريبًا إضافيًا</td></tr>
+      <tr><td><a href="https://github.com/rayguan97/GANav-offroad">GANav-offroad</a></td><td>أرض وعرة</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2025-01</td><td>فكرة للدروب؛ تبعيات ثقيلة</td></tr>
+      <tr><td><a href="https://github.com/ShihuaHuang95/DEIM">DEIM</a></td><td>كشف الأجسام</td><td><span class="pill ok">Apache-2.0</span></td><td class="n">2026-03</td><td>بديل مباشر لـD-FINE وله فجوة الفئات نفسها</td></tr>
+      <tr><td><a href="https://github.com/ultralytics/ultralytics">ultralytics</a></td><td>YOLO</td><td><span class="pill no">AGPL-3.0</span></td><td class="n">2026-10</td><td>مستبعد بسبب الترخيص</td></tr>
+      <tr><td><a href="https://github.com/nianticlabs/footprints">footprints</a></td><td>أرض مخفية</td><td><span class="pill no">غير تجاري</span></td><td class="n">2021-06</td><td>فكرة مفيدة فقط</td></tr>
+      <tr><td colspan="5">والبقية (16): YOLOPv2، HybridNets، UFLDv2، CLRNet، TopFormer، Mask2Former، wild_visual_navigation، RELLIS-3D، RT-DETR، Video-Depth-Anything، ByteTrack، BoT-SORT، RAFT، MediaPipe، ONNX Runtime، mmsegmentation. معظم نماذج الخطوط مدرّبة من منظور سيارة ولا تنفع ممرات المشاة. القرار والتفاصيل لكل منها في الملف.</td></tr>
+    </tbody>
+  </table></div>
+  </details>
+</section>
+
+<section>
+  <h2>البيانات والفيديوهات</h2>
+  <ul>
+    <li>فهرس الفيديو: <b>49</b> صفًا، منها <b>41</b> نُزّل فعلًا. أُضيفت هذه الجولة 7 مقاطع منعطفات من SANPO (8 ث لكل منها)، اعتُمد 3 منها بعد التحقق.</li>
+    <li>280 إطارًا موسومًا بشريًا من SANPO (اختبار) لقياس الأرض والعوائق، و4 مقاطع متصلة، وفيديو ميدانك.</li>
+    <li><b>مضامير ألعاب القوى: لم أحصل على أي فيديو.</b> بحث أرشيف الإنترنت لم يُرجع لقطات مفتوحة الترخيص، وويكيميديا كومنز رفضت الطلبات (HTTP 429) من هذه البيئة، ولا تغطي SANPO وRUGD وRELLIS المضامير. سُجّلت 5 صفوف بهذا السبب بدل اختلاق مصادر.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>ما تغيّر في الكود (محليًا فقط)</h2>
+  <ul>
+    <li><code>engine/.../StableGuidance.kt</code>: الحالات التسع، والمرشحات الأربعة، والقواعد. و<code>StableGuidanceTest.kt</code> (17 اختبارًا).</li>
+    <li><code>engine/.../CorridorCenterline.kt</code> + اختباراته: خط منتصف الممر (غير مفعّل في التطبيق).</li>
+    <li><code>engine/.../Haptics.kt</code>: نمط تجاوز العائق، ونمط العودة إلى المسار، والصمت على المسار.</li>
+    <li>التطبيق: <code>LineEngine</code> يستخدم الوحدة الجديدة، و<code>DecisionEngine</code>/<code>HapticBridge</code> ينقلان جانب التجاوز والعودة إلى المسار.</li>
+    <li>الاختبارات: 61 في المحرك و102 في التطبيق كلها ناجحة على JVM، وتُخطّى اختبار واحد لعدم وجود مقاطع مسجلة. لم يُبنَ APK: تجميع Android يحتاج CI بعد إذنك بالرفع.</li>
+    <li>الإصدار 0.11.0، في commit محلي <code>1ca8073</code>. على GitHub ما زال <code>23902e7</code>، ومحليًا 8 commits غير مرفوعة.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>ما زال قائمًا</h2>
+  <ul>
+    <li>العوائق الثابتة (0.24) وإطارات الأرض الخاطئة (0.37): الأولوية القصوى. الخطوة: قياس العمق المدمج على خرائط عمق SANPO، ونموذج تقسيم بترخيص تجاري (BiSeNet أو EfficientViT) يُقارن بـSegFormer.</li>
+    <li>المنعطفات تُوجَّه كتصحيح لا كانحناء في المحرك المفعّل. الحل التجريبي يحتاج تسجيلات مضمار حقيقية لضبطه.</li>
+    <li>الدقة في المحاكاة أقل من DWA/MPC. الخطوة: MPC مبني على نموذج استجابة العدّاء داخل آلة الحالات.</li>
+    <li>زوايا الكاميرا في فيديوك مفترضة (مجال رؤية 40°، ارتفاع 1.3 م، ميل 17°)، ولم يُشغّل عليه كاشف العوائق ولا العمق.</li>
+    <li>النجاح على فيديوهات مسجلة ليس دليلًا على سلامة الجري الحقيقي.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>ما أحتاجه منك</h2>
+  <ul>
+    <li><b>تجربة الاهتزازات:</b> افتح التدريب على الاهتزازات وأخبرني هل تميّز يدك «عدت إلى المسار» و«تجاوز من اليمين/اليسار» عن البقية (البوابة G10 تنتظرك).</li>
+    <li><b>تسجيل مضمار:</b> لفّتان أو ثلاث والهاتف على الصدر، بالنهار، مع منعطف كامل، وأخرى في حديقة بممر منحنٍ. هذا ما ينقصنا لضبط المنعطفات.</li>
+    <li><b>إذن الرفع إلى GitHub</b> حين تريد بناء APK 0.11.0 وتجربته.</li>
+    <li>تسجيل الجزء السادس من الأصوات (توقف ثم انعطف يسارًا/يمينًا، وضع المشي) إن لم يصل بعد.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>إعادة التجارب</h2>
+<pre>cd BasirRun_Research
+python3 tools/guidance_bench.py          # old vs new on 5 clips + real curves
+python3 tools/smoothing_grid.py          # filter tuning (SANPO) + held-out owner video
+python3 tools/planner_sim.py 8           # 8 algorithms x 6 scenarios x 2 speeds (simulation)
+/tmp/tfl/bin/python tools/bench_obstacles.py   # D-FINE-N on 280 labelled SANPO frames
+/tmp/tfl/bin/python tools/bench_fusion.py      # SegFormer vs YOLOP vs fusion
+python3 tools/survey_probe.py            # re-clone and re-read the 32 repositories
+bash tools/gates/run_engine_tests.sh     # 61 engine tests
+node ../.claude/skills/unlazy/scripts/gate-check.mjs --root .. --cwd .. GATES.md</pre>
+</section>
+</div>
