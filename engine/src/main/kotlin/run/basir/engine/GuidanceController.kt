@@ -14,6 +14,7 @@ enum class CommandKind {
     OBSTACLE,      // something on the path ahead, not yet at stopping distance
     CORRECT,       // steer back toward the virtual path
     CURVE,         // the path bends ahead — prepare to follow it
+    CAUTION,       // the path is briefly unclear: slow down and pay attention, no direction given
     ON_PATH,       // on the path, nothing to do (quiet confirmation)
 }
 

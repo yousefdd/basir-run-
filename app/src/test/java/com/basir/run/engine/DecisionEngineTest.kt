@@ -223,10 +223,13 @@ class DecisionEngineTest {
     }
 
     @Test
-    fun badAngleStopsOnlyAfterGrace() {
+    fun noAngleStopAnyMore() {
+        // The owner asked to remove the angle check and its "recalibrate" request: an odd tilt does
+        // not stop guidance; only the path engine decides whether the ground is seen.
         val e = DecisionEngine()
         assertEquals(Cue.Centered, e.decide(input(now = 0, pitch = 2f)).cue)
-        assertEquals(Cue.AngleStop, e.decide(input(now = 1200, pitch = 2f)).cue)
+        assertEquals(Cue.Centered, e.decide(input(now = 5000, pitch = 2f)).cue)
+        assertEquals(Cue.Centered, e.decide(input(now = 9000, pitch = 85f)).cue)
     }
 
     @Test

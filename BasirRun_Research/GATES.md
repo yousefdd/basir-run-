@@ -27,7 +27,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G5: Engine has the nine guidance states and the unit tests for curve-vs-offset, hysteresis, dwell, low-confidence-no-direction, stop priority, side persistence and vibration distinctness pass
   CHECK: bash BasirRun_Research/tools/gates/run_engine_tests.sh
   EXPECT: ENGINE_TESTS_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=0a59e4e1c7fc8327703b8518547ad62bd5b70d94c196065c0a57c9f41bace641; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=25f0b939ffeced1d7a13e1494d2b30c89aa50350e5214a62617299352dc9f8fc; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G6: On real clips (4 SANPO sequences + owner's night video) the new controller gives fewer command changes than the current one, no left/right flips, and no more stops
   CHECK: python3 BasirRun_Research/tools/gates/check_e2e.py
@@ -42,7 +42,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
   CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
   EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=5631c1431379e0cdd5d0d8f212abb173abe249f62c1c0f2c67d09538ee4e0676; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=b175050b12f690948a9955001b76ada472d853c1bbc8f435cc1146cddc63359a; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
@@ -82,9 +82,24 @@ ABANDON: G14 needs the APK on the owner's phone, which needs a CI build after th
 - [x] G17: Android files changed this round (LineEngine, app Haptics, training lessons) type-check against Android stand-ins
   CHECK: bash BasirRun_Research/tools/gates/compile_android_changes.sh
   EXPECT: ANDROID_CHANGES_COMPILE_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=e5411ab2ea179d4244297f4b70c21cc7e4fc3665d5cc2fb0a170b5961238c9a4; exit=0; EXPECT=matched; output-sha256=32a3b30c08cddc9a70e56a779b862d193522c73684b4593fd4f688877580e4bd; output-bytes=52; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=e5411ab2ea179d4244297f4b70c21cc7e4fc3665d5cc2fb0a170b5961238c9a4; exit=0; EXPECT=matched; output-sha256=cddc67a41be948a50aa869c4be4464024b1b01c0ba2f2349a2c7317d62d09a87; output-bytes=52; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G18: The app's depth chain is measured on fixed obstacles (labelled SANPO), and the shipped depth settings catch more of them in both session halves with at most 2 more false alarms than the old settings
   CHECK: python3 BasirRun_Research/tools/gates/check_depth.py
   EXPECT: DEPTH_OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=4d017eddc0ffca0e12fa331f8faa4dd0074deb2e77a03d137ea4398ebb9dd246; exit=0; EXPECT=matched; output-sha256=bd58e72bb75ca01e558b571d64f781b864b8afe7af1ec43cf0ca6c14884adb4f; output-bytes=99; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G19: Angles: sensor tilt/roll and the ground projection agree with an independent 3-D camera model (signs, right = right), the app is locked to portrait, and the angle check and "recalibrate" request are gone
+  CHECK: python3 BasirRun_Research/tools/gates/check_angles.py
+  EXPECT: ANGLES_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=c4304b113acbc26e325c135655b0184908307ca9ba318614d23eb04868f532bd; exit=0; EXPECT=matched; output-sha256=55cd423b4962dfa250c7c29edda80c4766ffb3632b9a694d67265b4b3ced28c8; output-bytes=10; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G20: Unified vibration table generated from the engine (all correction levels, bend, obstacle, caution, stop, back on path) matches the committed doc; the confirm lesson is removed
+  CHECK: python3 BasirRun_Research/tools/gates/check_haptic_table.py
+  EXPECT: HAPTIC_TABLE_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=f7bd2c2e6fa62cd1122b52ccfdfecf053ecf88c1a82b59b2479dcb871f65c017; exit=0; EXPECT=matched; output-sha256=d96b790168dc90900ccf8a70e83bd3da1a24bf755928f1aa27a78cf59abdaca2; output-bytes=16; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G21: 16-scenario before/after suite: fewer felt stops and stop frames than 0.10.0, no opposite cue within 1 s, bench still handled, right turn cued correctly, no scenario with more stops
+  CHECK: python3 BasirRun_Research/tools/gates/check_scenarios.py
+  EXPECT: SCENARIOS_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=5131c2672582b1fbfc583ff5fc2919e04e8d2362a26cb090fd32a62bbdd847c5; exit=0; EXPECT=matched; output-sha256=6f7f143ba975d90bcb4c9932cbb07515cde531c55168d62a2d5f31a71eb9679b; output-bytes=175; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries

@@ -77,17 +77,18 @@ class StableGuidanceTest {
     }
 
     @Test
-    fun `a short loss of the path is held quietly without a direction, a longer one stops`() {
+    fun `a short loss of the path gives a caution cue without a direction, a lasting one stops`() {
         val c = StableGuidanceController()
         run(c, follow(path(offset = 0.7)), 20)
-        val held = run(c, stop(StopReason.LOW_CONFIDENCE), 5) // 0.33 s
-        assertTrue(held.all { it.command.kind == CommandKind.ON_PATH && it.command.side == null }, "no direction from an unsure frame")
+        val held = run(c, stop(StopReason.LOW_CONFIDENCE), 15) // 1.0 s
+        assertTrue(held.all { it.command.kind == CommandKind.CAUTION && it.command.side == null }, "caution, no direction from unsure frames")
         assertTrue(held.all { it.state == GuidanceState.VISION_UNCERTAIN })
+        assertEquals("caution", HapticLanguage().forCommand(held.first().command)!!.name)
         val longer = run(c, stop(StopReason.LOW_CONFIDENCE), 5)
         assertEquals(CommandKind.STOP, longer.last().command.kind, "after the hold time the runner is stopped")
         val lost = StableGuidanceController()
         run(lost, follow(path()), 10)
-        assertEquals(GuidanceState.TRACK_LOST, run(lost, stop(StopReason.NO_PATH), 10).last().state)
+        assertEquals(GuidanceState.TRACK_LOST, run(lost, stop(StopReason.NO_PATH), 25).last().state) // after the 1.2 s hold
     }
 
     @Test
@@ -210,6 +211,24 @@ class StableGuidanceTest {
         assertTrue(!DetectionFilter.keep("person", 0.0, 0.1, 1.0, 1.0))                // a box as wide as the frame
         assertTrue(DetectionFilter.keep("person", 0.35, 0.0, 0.7, 1.0))                // a person close ahead (35 % wide) stays
         assertTrue(DetectionFilter.keep("bench", 0.2, 0.4, 0.8, 0.8))                  // a bench across the way stays
+    }
+
+    @Test
+    fun `someone walking ahead at the runner's pace does not block the way, someone standing or coming does`() {
+        val route = FreeRoute((0..24).map { GroundPoint(it * 0.25, 0.0) }, 6.0, 6.0, 0.0, 1.0)
+        fun decide(vf: Double, at: Double): PathDecision {
+            val p = IntelligentPathPlanner(); var d: PathDecision? = null
+            val o = TrackedObstacle(1, GroundPoint(at, 0.0), 0.3, 0.9, "person", vf, 0.0, 8, 0)
+            repeat(5) { d = p.update(FrameInput(emptyList(), route, null, listOf(o), 1.0, runnerSpeedMps = 1.4)) }
+            return d!!
+        }
+        assertNull(decide(vf = 1.4, at = 2.4).obstacleAheadM, "walking ahead at the same pace: no warning, no stop")
+        assertTrue(decide(vf = 0.0, at = 2.4).let { it.mode == PathMode.STOP || it.obstacleAheadM != null }, "standing: warned or stopped")
+        assertTrue(decide(vf = -1.0, at = 4.5).obstacleAheadM != null, "coming toward the runner: warned")
+        assertTrue(decide(vf = 1.4, at = 1.0).let { it.mode == PathMode.STOP || it.obstacleAheadM != null }, "but within 1.2 m always counts")
+        // a bench never recedes, even if its gap stops shrinking because the runner slowed down
+        val bench = TrackedObstacle(2, GroundPoint(2.4, 0.0), 0.5, 0.9, "bench", 1.4, 0.0, 8, 0)
+        assertTrue(!Receding.isReceding(bench, 1.4))
     }
 
     @Test

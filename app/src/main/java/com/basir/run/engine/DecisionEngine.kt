@@ -52,7 +52,6 @@ enum class Cue {
     EdgeNearStop,
     LostStop,
     CameraStop,
-    AngleStop,
     VisibilityStop,
     LatencySlow,
     LatencyStop,
@@ -100,13 +99,9 @@ data class EngineConfig(
     val lostStopMs: Long = 1500,
     val latencyWarnMs: Float = 180f,
     val latencyStopMs: Float = 350f,
-    // Only angles where the ground ahead cannot be seen stop guidance. The tilt is not compared
-    // with its value at the start: a chest-mounted phone swings more than that at every stride,
-    // and the line and free-space engines project with the current tilt of every frame.
-    // A chest camera looking ahead sits around 10° (SANPO chest recordings: median 9.8°).
-    val pitchMinDeg: Float = 5f,
-    val pitchMaxDeg: Float = 75f,
-    val angleGraceMs: Long = 1000,
+    // No angle check stops guidance (owner's request): the line and free-space engines project with
+    // the current tilt of every frame, and a camera that cannot see the ground finds no path, which
+    // the path engine already handles (held quietly, then stopped only if it lasts).
     val slight: Float = 0.2f,
     val nearEdge: Float = 0.45f,
     val atEdge: Float = 0.75f,
@@ -124,11 +119,9 @@ data class EngineConfig(
 class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
 
     private var unclearSince = -1L
-    private var angleBadSince = -1L
 
     fun reset() {
         unclearSince = -1L
-        angleBadSince = -1L
     }
 
     fun decide(i: EngineInput): Decision {
@@ -140,16 +133,6 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         val q = i.quality
         if (q != null && q.blocked) return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.CameraStop)
 
-        val pitch = i.cameraPitchDeg
-        val angleBad = pitch != null && (pitch < cfg.pitchMinDeg || pitch > cfg.pitchMaxDeg)
-        if (angleBad) {
-            if (angleBadSince < 0) angleBadSince = i.nowMs
-            if (i.nowMs - angleBadSince >= cfg.angleGraceMs) {
-                return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.AngleStop)
-            }
-        } else {
-            angleBadSince = -1L
-        }
 
         if (i.processingP90Ms > cfg.latencyStopMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
         // An object on the ground close ahead, but the path engine has seen a way around it for
@@ -270,6 +253,8 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
                 Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, side, level, bend, conf)
             }
             CommandKind.CURVE -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, level = level, curve = side, confidence = conf)
+            // Path briefly unclear: slow down, no direction (level 3 of the owner's four levels).
+            CommandKind.CAUTION -> Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear, confidence = conf)
             else -> if (cmd.confirm) Decision(SystemState.PathTracked, Severity.Info, Cue.BackOnPath, curve = bend, confidence = conf)
             else Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, curve = bend, confidence = conf)
         }

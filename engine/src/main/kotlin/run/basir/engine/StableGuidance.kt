@@ -120,8 +120,9 @@ data class StableGuidanceConfig(
     val curveConfirmFrames: Int = 3,       // a bend (low priority, announced early) may wait longer
     val minDwellS: Double = 0.6,           // and the current one must have lasted this long
     val sideFlipFrames: Int = 6,           // left <-> right needs more evidence
-    val uncertainHoldWalkingS: Double = 0.5,  // a short loss of the path is held quietly ...
-    val uncertainHoldRunningS: Double = 0.3,  // ... shorter when running: stop sooner when in doubt
+    val sideFlipDwellS: Double = 1.0,      // and the current side must have lasted this long (not urgent)
+    val uncertainHoldWalkingS: Double = 1.2,  // a short loss of the path gives a caution cue (no direction) ...
+    val uncertainHoldRunningS: Double = 0.8,  // ... shorter when running: stop sooner when in doubt
     val detourConfirmFrames: Int = 4,      // a way around must be seen this many frames before it is given
     val turnSideConfirmFrames: Int = 4,    // the same for the side named after a stop
     val runningMps: Double = 2.0,
@@ -311,7 +312,7 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
     }
 
     private fun quiet(st: GuidanceState, d: PathDecision): GuidanceEvent =
-        GuidanceEvent(st, GuidanceCommand(CommandKind.ON_PATH, confidence = d.confidence, mode = d.mode), 1, 0.0, 0.0, 0.0, 0.0, false)
+        GuidanceEvent(st, GuidanceCommand(CommandKind.CAUTION, confidence = d.confidence, mode = d.mode, state = st), 1, 0.0, 0.0, 0.0, 0.0, false)
 
     /** Applies persistence and dwell rules; returns the event for the state actually held. */
     private fun emit(wanted: GuidanceState, cmd: GuidanceCommand, severity: Int, force: Boolean,
@@ -327,7 +328,7 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
             val bend = wanted == GuidanceState.CURVE_LEFT || wanted == GuidanceState.CURVE_RIGHT
             val need = maxOf(if (flip) config.sideFlipFrames else config.confirmFrames, if (bend) config.curveConfirmFrames else 0)
             // Leaving a critical state needs only persistence (the planner already has its own resume rule).
-            val dwellOk = critical || stateTimeS >= config.minDwellS
+            val dwellOk = critical || stateTimeS >= (if (flip) config.sideFlipDwellS else config.minDwellS)
             if (candidateFrames < need || !dwellOk) {
                 // Hold the current state; while held, a held correction or bend keeps its own cue.
                 val held = when (state) {

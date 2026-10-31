@@ -53,9 +53,11 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         const val P_OBSTACLE = 4
         const val P_CORRECT = 3
         const val P_CURVE = 2
+        const val P_CAUTION = 3
         const val P_ON_PATH = 1
         private val AMP = mapOf(Level.LOW to 90, Level.MEDIUM to 170, Level.HIGH to 255)
         private val CURVE_AMP = mapOf(Level.LOW to 70, Level.MEDIUM to 110, Level.HIGH to 160)
+        private val CORRECT_LEN = mapOf(Level.LOW to 120L, Level.MEDIUM to 170L, Level.HIGH to 240L)
         private val LEN_SCALE = mapOf(Level.LOW to 0.6, Level.MEDIUM to 1.0, Level.HIGH to 1.6) // no amplitude control
         // Long pulse then two short: 1.1 s of vibration (was 1.6 s; with the pulse-length setting at
         // its longest it ran 3.2 s and, repeated, never stopped).
@@ -70,6 +72,7 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
             CommandKind.CORRECT -> correct(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
             CommandKind.CURVE -> curve(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
             CommandKind.ON_PATH -> if (cmd.confirm) backOnPath() else onPath()
+            CommandKind.CAUTION -> caution()
         }
     }
 
@@ -101,7 +104,9 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 
     fun correct(side: Side, level: Level, confidence: Double = 1.0): HapticPattern {
         val amp = scaled(AMP.getValue(level), confidence)
-        val len = if (amplitudeControl) 150L else (160 * LEN_SCALE.getValue(level)).toLong()
+        // Strength, length and (for strong) a faster repeat all grow with the drift, so the level is
+        // felt even on phones without amplitude control (there the length carries it alone).
+        val len = if (amplitudeControl) CORRECT_LEN.getValue(level) else (160 * LEN_SCALE.getValue(level)).toLong()
         val pulses = if (side == Side.LEFT) 1 else 2
         return pattern("correct_${side.name.lowercase()}_${level.name.lowercase()}", P_CORRECT, pulses(pulses, len, 150L, amp))
     }
@@ -115,6 +120,12 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 
     fun onPath() = pattern("on_path", P_ON_PATH, listOf(60L to 50))
 
+    /**
+     * The path is briefly unclear (shadow, glare, a gap in the line): slow down, pay attention. Two
+     * slow, soft, long pulses with no side, unlike every direction cue and unlike the obstacle rhythm.
+     */
+    fun caution() = pattern("caution", P_CAUTION, listOf(300L to scaled(80, 1.0), 300L to 0, 300L to scaled(80, 1.0)))
+
     /** Back on the path after a correction: three quick soft taps (unlike any direction cue), then silence. */
     fun backOnPath() = pattern("back_on_path", P_ON_PATH, pulses(3, 40L, 60L, 80))
 
@@ -123,6 +134,8 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         add(Triple(correct(Side.LEFT, Level.LOW), "تصحيح بسيط إلى اليسار", "Small correction left"))
         add(Triple(correct(Side.RIGHT, Level.LOW), "تصحيح بسيط إلى اليمين", "Small correction right"))
         add(Triple(correct(Side.LEFT, Level.MEDIUM), "تصحيح متوسط إلى اليسار", "Medium correction left"))
+        add(Triple(correct(Side.RIGHT, Level.MEDIUM), "تصحيح متوسط إلى اليمين", "Medium correction right"))
+        add(Triple(correct(Side.LEFT, Level.HIGH), "تصحيح قوي إلى اليسار", "Strong correction left"))
         add(Triple(correct(Side.RIGHT, Level.HIGH), "تصحيح قوي إلى اليمين", "Strong correction right"))
         add(Triple(curve(Side.LEFT, Level.LOW), "انحناء تدريجي إلى اليسار قادم", "Gentle bend left ahead"))
         add(Triple(curve(Side.RIGHT, Level.HIGH), "منعطف حاد إلى اليمين قادم", "Sharp bend right ahead"))
@@ -130,6 +143,7 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         add(Triple(obstacleDetour(Side.LEFT), "عائق أمامك، تجاوزه من اليسار", "Obstacle ahead, pass on the left"))
         add(Triple(obstacleDetour(Side.RIGHT), "عائق أمامك، تجاوزه من اليمين", "Obstacle ahead, pass on the right"))
         add(Triple(backOnPath(), "عدت إلى المسار", "Back on the path"))
+        add(Triple(caution(), "الطريق غير واضح لحظيًا: خفّف السرعة وانتبه", "Path briefly unclear: slow down"))
         add(Triple(stop(), "توقّف فوراً", "Stop now"))
         add(Triple(stopTurn(Side.LEFT), "توقّف ثم انعطف يساراً", "Stop, then turn left"))
         add(Triple(stopTurn(Side.RIGHT), "توقّف ثم انعطف يميناً", "Stop, then turn right"))
@@ -164,11 +178,12 @@ data class SchedulerConfig(
     val curveRepeatMs: Long = 1600,
     val onPathRepeatMs: Long = 3500,
     val enableOnPathTick: Boolean = true,
-    val oppositeSideGuardMs: Long = 500,  // no left right after right (and back) unless HIGH
+    val oppositeSideGuardMs: Long = 1000, // no left within 1 s of right (and back) unless HIGH (scenario suite: one 0.8 s flip on a forest trail)
     val changeGapMs: Long = 800,          // a different cue that is not more serious waits this long
     /** Quiet while on the path: the on-path cue plays only as the one-off "back on the path". */
     val onPathOnlyOnConfirm: Boolean = false,
     val confirmRepeatMs: Long = 1500,
+    val cautionRepeatMs: Long = 2500,
 )
 
 /**
@@ -229,6 +244,7 @@ class HapticScheduler(
             CommandKind.OBSTACLE -> config.obstacleRepeatMs
             CommandKind.CORRECT -> config.correctRepeatMs.getValue(cmd.level ?: Level.LOW)
             CommandKind.CURVE -> config.curveRepeatMs
+            CommandKind.CAUTION -> config.cautionRepeatMs
             CommandKind.ON_PATH -> when {
                 cmd.confirm -> config.confirmRepeatMs
                 config.enableOnPathTick && !config.onPathOnlyOnConfirm -> config.onPathRepeatMs

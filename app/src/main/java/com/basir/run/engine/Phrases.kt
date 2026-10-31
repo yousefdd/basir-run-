@@ -27,7 +27,6 @@ enum class Phrase(val id: String, val ar: String) {
     EdgeOnly("edge_only", "أرى حداً واحداً فقط للمسار. خفف سرعتك"),
     EdgeNearStop("edge_near_stop", "اقتربت من حد المسار ولا أرى الجهة الأخرى. توقف وتحقق"),
     CannotVerifyStop("cannot_verify_stop", "توقف، لم أتمكن من التحقق من المسار"),
-    AngleStop("angle_stop", "تغيرت زاوية الهاتف. توقف وأعد المعايرة"),
     LatencySlow("latency_slow", "النظام بطيء الآن. خفف سرعتك"),
     LatencyStop("latency_stop", "النظام بطيء جداً. توقف في مكانك"),
 
@@ -62,6 +61,7 @@ enum class Phrase(val id: String, val ar: String) {
     PatternOnPath("pattern_on_path", "نقرة خفيفة جداً كل بضع ثوانٍ: أنت على المسار"),
     PatternPassLeft("pattern_pass_left", "ثلاث نبضات سريعة ثم نبضة قصيرة: عائق أمامك، تجاوزه من اليسار"),
     PatternPassRight("pattern_pass_right", "ثلاث نبضات سريعة ثم نبضتان قصيرتان: عائق أمامك، تجاوزه من اليمين"),
+    PatternCaution("pattern_caution", "نبضتان طويلتان خفيفتان وبطيئتان: الطريق غير واضح لحظيًا، خفّف السرعة وانتبه، دون اتجاه"),
     PatternBackOnPath("pattern_back_on_path", "ثلاث نقرات خفيفة سريعة: عدت إلى المسار بعد التصحيح، ثم لا اهتزاز ما دمت عليه"),
     QuizIntro("quiz_intro", "اختبار قصير: سأشغّل نمطاً، ثم اختر معناه بالضغط المطوّل"),
     QuizCorrect("quiz_correct", "صحيح"),
@@ -120,6 +120,7 @@ enum class Phrase(val id: String, val ar: String) {
     AnswerStop("answer_stop", "توقف فوراً"),
     AnswerPassLeft("answer_pass_left", "تجاوز العائق من اليسار"),
     AnswerPassRight("answer_pass_right", "تجاوز العائق من اليمين"),
+    AnswerCaution("answer_caution", "الطريق غير واضح، خفّف السرعة"),
     AnswerBackOnPath("answer_back_on_path", "عدت إلى المسار"),
     SwitchVibration("switch_vibration", "الاهتزاز"),
     SwitchVoice("switch_voice", "توجيه صوتي إضافي"),
@@ -168,7 +169,6 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.EdgeNearStop -> EdgeNearStop
             // The same plain sentence whenever the path cannot be verified, whatever the cause.
             Cue.LostStop, Cue.CameraStop, Cue.VisibilityStop -> CannotVerifyStop
-            Cue.AngleStop -> AngleStop
             Cue.LatencySlow -> LatencySlow
             Cue.LatencyStop -> LatencyStop
             Cue.None, Cue.Paused -> null

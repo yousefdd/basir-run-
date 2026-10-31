@@ -13,7 +13,7 @@ class HapticBridgeTest {
 
     @Test
     fun everyCriticalDecisionIsAStop() {
-        for (cue in listOf(Cue.LostStop, Cue.CameraStop, Cue.AngleStop, Cue.Obstacle, Cue.HeadLevelStop, Cue.DropStop, Cue.AtEdgeStop)) {
+        for (cue in listOf(Cue.LostStop, Cue.CameraStop, Cue.Obstacle, Cue.HeadLevelStop, Cue.DropStop, Cue.AtEdgeStop)) {
             assertEquals(cue.name, CommandKind.STOP, cmd(Decision(SystemState.StopAndCheck, Severity.Critical, cue, Side.Left, 3))?.kind)
         }
     }
@@ -21,7 +21,8 @@ class HapticBridgeTest {
     @Test
     fun warningsAreThreeQuickPulsesExceptAtTheEdge() {
         assertEquals(CommandKind.OBSTACLE, cmd(Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear))?.kind)
-        assertEquals(CommandKind.OBSTACLE, cmd(Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear))?.kind)
+        // An unclear path is a caution (slow down, no side), not an obstacle: a different meaning, a different pattern
+        assertEquals(CommandKind.CAUTION, cmd(Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear))?.kind)
         val edge = cmd(Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, Side.Left, 2))!!
         assertEquals(CommandKind.CORRECT, edge.kind)
         assertEquals(run.basir.engine.Side.LEFT, edge.side)

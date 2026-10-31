@@ -176,6 +176,7 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         var nearest: Pair<TrackedObstacle, Double>? = null
         for (o in input.obstacles) {
             if (!o.confirmed && o.position.forward > 1.5) continue // single-frame blips far away
+            if (Receding.isReceding(o, input.runnerSpeedMps)) continue // walking ahead at the runner's pace: the gap is not closing
             val (dNow, alongNow) = distanceToPath(o.position, path)
             val tReach = alongNow / max(input.runnerSpeedMps, 0.5)
             val (dLater, alongLater) = distanceToPath(o.predict(tReach), path)

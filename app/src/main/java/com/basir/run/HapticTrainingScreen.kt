@@ -44,9 +44,9 @@ private val LESSONS = listOf(
     Lesson("نبضتان طويلتان هادئتان: منعطف يمين", Phrase.AnswerBendRight.ar, Phrase.PatternBendRight) { listOf(it.curve(Side.RIGHT, Level.MEDIUM)) },
     Lesson("ثلاث نبضات سريعة: عائق أو انتباه", Phrase.AnswerAttention.ar, Phrase.PatternAttention) { listOf(it.obstacle()) },
     Lesson("طويلة ثم نبضتان: توقف فوراً", Phrase.AnswerStop.ar, Phrase.PatternStop) { listOf(it.stop()) },
-    Lesson("نبضة التأكيد", "", Phrase.PatternConfirm) { listOf(HapticEngine.CONFIRM) },
     Lesson("ثلاث سريعة ثم نبضة: تجاوز العائق من اليسار", Phrase.AnswerPassLeft.ar, Phrase.PatternPassLeft) { listOf(it.obstacleDetour(Side.LEFT)) },
     Lesson("ثلاث سريعة ثم نبضتان: تجاوز العائق من اليمين", Phrase.AnswerPassRight.ar, Phrase.PatternPassRight) { listOf(it.obstacleDetour(Side.RIGHT)) },
+    Lesson("نبضتان طويلتان خفيفتان بطيئتان: الطريق غير واضح، خفّف السرعة", Phrase.AnswerCaution.ar, Phrase.PatternCaution) { listOf(it.caution()) },
     Lesson("ثلاث نقرات خفيفة: عدت إلى المسار", Phrase.AnswerBackOnPath.ar, Phrase.PatternBackOnPath) { listOf(it.backOnPath()) },
 )
 

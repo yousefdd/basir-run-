@@ -9,7 +9,6 @@ enum class Check(val label: String) {
     Camera("الكاميرا تعمل"),
     Speed("سرعة التحليل كافية"),
     Light("الإضاءة ووضوح الصورة"),
-    Angle("زاوية الكاميرا"),
     Steady("ثبات الهاتف"),
     Path("المسار ظاهر بثقة"),
     Obstacles("كاشف العوائق"),
@@ -57,8 +56,6 @@ object Readiness {
 
     const val MIN_FPS = 10f
     const val MAX_P90_MS = 150f
-    const val MIN_PITCH = 5f
-    const val MAX_PITCH = 75f
     const val MAX_SHAKE = 0.6f
     const val MIN_CONFIDENCE = 0.5f
     const val MAX_DEPTH_AGE_MS = 1500L
@@ -84,12 +81,6 @@ object Readiness {
                     q.blurry -> "الصورة ضبابية"
                     else -> "جيدة"
                 },
-            ),
-            CheckResult(
-                Check.Angle,
-                i.cameraPitchDeg != null && i.cameraPitchDeg in MIN_PITCH..MAX_PITCH,
-                i.cameraPitchDeg?.let { String.format(Locale.US, "%.0f° تحت الأفق (المطلوب %.0f° إلى %.0f°)", it, MIN_PITCH, MAX_PITCH) }
-                    ?: "حساس الاتجاه غير متاح",
             ),
             CheckResult(
                 Check.Steady,

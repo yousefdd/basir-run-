@@ -111,7 +111,8 @@ class LineEngine {
         // Walkable ground → grid (objects block their cells) → best route through it
         // A short memory of the ground, so one dark frame does not look like a wall
         val walkable = surface?.walkable?.let { walkableMemory.update(it) }
-        val grid = walkable?.let { GroundGrid.build(it, cam, footprints(tracked), freeConfig) }
+        // People walking ahead at the runner's pace are not carved out of the way (the gap is not closing)
+        val grid = walkable?.let { GroundGrid.build(it, cam, footprints(tracked.filterNot { o -> run.basir.engine.Receding.isReceding(o, speedMps) }), freeConfig) }
         val route = grid?.let { freePlanner.plan(it, lastFreeSteerDeg.coerceIn(-MAX_GOAL_DEG, MAX_GOAL_DEG)) }
         lastFreeSteerDeg = route?.let { 0.7 * it.steerDeg } ?: 0.0
         // When the way ahead ends soon, look left and right: where does the ground go on?

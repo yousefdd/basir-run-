@@ -26,7 +26,7 @@ class ReadinessTest {
         fun failed(i: ReadinessInput) = Readiness.evaluate(i).filter { !it.passed }.map { it.check }
         assertEquals(listOf(Check.Speed), failed(allGood.copy(framesPerSecond = 6f)))
         assertEquals(listOf(Check.Speed), failed(allGood.copy(processingP90Ms = 300f)))
-        assertEquals(listOf(Check.Angle), failed(allGood.copy(cameraPitchDeg = 2f)))
+        assertEquals(emptyList<Check>(), failed(allGood.copy(cameraPitchDeg = 2f))) // no angle check (owner's request)
         assertEquals(listOf(Check.Steady), failed(allGood.copy(shakeRadPerS = 2f)))
         assertEquals(listOf(Check.Obstacles), failed(allGood.copy(obstacleDetectorReady = false)))
         assertEquals(listOf(Check.Path), failed(allGood.copy(path = path.copy(stable = false))))
@@ -60,7 +60,7 @@ class ReadinessTest {
     fun readyOnlyAfterHoldingForThreeSeconds() {
         val timer = ReadinessTimer()
         val ok = Readiness.evaluate(allGood)
-        val bad = Readiness.evaluate(allGood.copy(cameraPitchDeg = 2f))
+        val bad = Readiness.evaluate(allGood.copy(shakeRadPerS = 2f))
         assertFalse(timer.update(ok, 0))
         assertFalse(timer.update(ok, 2000))
         assertFalse(timer.update(bad, 2500))

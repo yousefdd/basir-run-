@@ -51,8 +51,10 @@ class MotionMonitor(context: Context) : SensorEventListener {
                 val g = sqrt(x * x + y * y + z * z)
                 // The rear camera looks along -Z; gravity reads +Z when the phone lies face up.
                 if (g > 1f) {
-                    pitchBelowHorizonDeg = Math.toDegrees(asin((z / g).coerceIn(-1f, 1f).toDouble())).toFloat()
-                    rollDeg = Math.toDegrees(kotlin.math.atan2(-x.toDouble(), y.toDouble())).toFloat()
+                    // One formula for the app and its tests (engine GravityTilt; signs checked against
+                    // an independent 3-D camera projection in GeometryRollTest).
+                    pitchBelowHorizonDeg = run.basir.engine.GravityTilt.pitchBelowHorizonDeg(x.toDouble(), y.toDouble(), z.toDouble())?.toFloat()
+                    rollDeg = run.basir.engine.GravityTilt.rollDeg(x.toDouble(), y.toDouble(), z.toDouble())?.toFloat()
                 }
             }
             Sensor.TYPE_GYROSCOPE -> {

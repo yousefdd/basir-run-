@@ -89,3 +89,25 @@ data class CameraModel(
     /** Ground meters covered by one pixel horizontally at row [v]. */
     fun lateralMetersPerPixel(v: Double): Double? = groundDepth(v)?.let { it / focalPx }
 }
+
+/**
+ * Camera tilt from the phone's gravity sensor (device axes: x to the right of the screen, y up the
+ * screen, z out of the screen; the reading points up, +z when the phone lies face up). Valid for the
+ * phone held upright (portrait), which the app enforces.
+ *  - pitch: degrees the rear camera looks below the horizon (0 = straight ahead, 90 = straight down)
+ *  - roll: degrees the phone is turned clockwise as the runner sees its screen; the image then shows
+ *    the world turned counter-clockwise, which [CameraModel.rollDeg] undoes (same sign).
+ */
+object GravityTilt {
+    fun pitchBelowHorizonDeg(x: Double, y: Double, z: Double): Double? {
+        val g = kotlin.math.sqrt(x * x + y * y + z * z)
+        if (g < 1.0) return null
+        return Math.toDegrees(kotlin.math.asin((z / g).coerceIn(-1.0, 1.0)))
+    }
+
+    fun rollDeg(x: Double, y: Double, z: Double): Double? {
+        val g = kotlin.math.sqrt(x * x + y * y + z * z)
+        if (g < 1.0) return null
+        return Math.toDegrees(kotlin.math.atan2(-x, y))
+    }
+}

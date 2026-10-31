@@ -108,6 +108,27 @@ internal fun distanceToPath(p: GroundPoint, path: List<GroundPoint>): Pair<Doubl
 }
 
 /**
+ * Someone walking ahead the same way at the runner's pace does not block the way: the gap is not
+ * closing. Measured on a SANPO walk behind a group (scenario suite, 01): they were carved out of the
+ * walkable ground and stopped the walker for a third of the clip. An object counts as receding when its
+ * ground speed along the way is within [CLOSING_MPS] of the runner's (velocities are only trusted after
+ * [MIN_HITS] matched frames) and it is not already within [ALWAYS_M]; anything coming toward the runner
+ * closes faster and is kept.
+ */
+object Receding {
+    const val CLOSING_MPS = 0.3
+    const val MIN_HITS = 4
+    const val ALWAYS_M = 1.2
+    /** Only things that can walk or roll away recede; a bench whose gap stops shrinking (the runner
+     *  slowed down) is still a bench. Found on the owner's night video: without this the bench at the
+     *  end was dropped once the owner stood still in front of it. */
+    val MOBILE = setOf("person", "bicycle", "motorcycle", "dog", "cat", "horse", "car", "bus", "truck")
+
+    fun isReceding(o: TrackedObstacle, runnerSpeedMps: Double): Boolean =
+        o.label in MOBILE && o.hits >= MIN_HITS && o.position.forward > ALWAYS_M && runnerSpeedMps - o.velocityForward <= CLOSING_MPS
+}
+
+/**
  * Which object detections may become obstacles on the runner's way. Measured on a SANPO park path
  * (sanpo_curve4): D-FINE-N saw a "train" whose box covered most of the frame, its foot point fell
  * on the path 3 m ahead and the runner was stopped for 4 s. Boxes the size of the scene are not one
