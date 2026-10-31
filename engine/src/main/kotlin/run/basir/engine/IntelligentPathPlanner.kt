@@ -38,6 +38,9 @@ data class PathDecision(
 data class PlannerConfig(
     val runnerRadiusM: Double = 0.4,
     val obstacleMarginM: Double = 0.2,
+    val walkableEndToleranceM: Double = 0.3, // a still object this close to (or past) the walkable end is what ends it: left to the path-end rule
+    /** Only this close does a blocked way stop the runner when a side is open; further, the runner is turned toward it. */
+    val emergencyStopM: Double = 1.2,   // still obstacles further than this past the walkable end are left to the path-end rule
     val reactionTimeS: Double = 1.5,     // feel the cue, understand it, slow down
     val minStopDistanceM: Double = 2.0,
     val warnDistanceM: Double = 6.0,
@@ -132,6 +135,11 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             decision = (input.freeCenterline?.curve ?: free.toCurve())?.let { PathDecision(PathMode.FREE_PATH, it, 0.7 * input.visibility, stripHalfWidthM = input.freeCenterline?.halfWidthM) }
         }
         if (decision == null) {
+            // The ground ahead is too short to follow, but a side clearly goes on: turn, don't stop.
+            if (free != null) {
+                val stopAtShort = max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5)
+                turnAway(input, stopAtShort, free.progressM)?.let { return commit(it) }
+            }
             val reason = if (tracked != null || free != null) StopReason.LOW_CONFIDENCE else StopReason.NO_PATH
             return commit(PathDecision(PathMode.STOP, null, 0.0, reason))
         }
@@ -149,6 +157,9 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             freeEndStopped = progress < stopLimit
             if (freeEndStopped) {
                 freeEndWarned = true
+                // The owner wants stops only in extreme cases: where the ground clearly goes on to
+                // one side, follow that side instead of stopping, unless the end is right there.
+                turnAway(input, stopAt, progress)?.let { return commit(it) }
                 return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = progress, turnSide = turnSide(input, stopAt)))
             }
             val warnLimit = stopAt + config.freeEndWarnMarginM + if (freeEndWarned) config.freeEndHysteresisM else 0.0
@@ -174,6 +185,13 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
                 o.speed > 0.3 && dLater < clearance -> alongLater // moving into the path
                 else -> null
             }
+            // Where the walkable ground ends the path-end rule already warns, turns or stops; a still
+            // object standing at that end or past it (a bench the ground runs up to, something behind
+            // the grass edge) is the reason the ground ends, not a second warning. If segmentation
+            // missed the object and calls the ground under it walkable, the object lies inside the
+            // walkable part and is still warned. Something moving is always kept.
+            val walkableEnd = if (decision.mode == PathMode.FREE_PATH) free?.progressM else null
+            if (hit != null && walkableEnd != null && o.speed <= 0.3 && hit >= walkableEnd - config.walkableEndToleranceM) continue
             if (hit != null && (nearest == null || hit < nearest.second)) nearest = o to hit
         }
         if (nearest == null) return commit(decision)
@@ -196,7 +214,22 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         ) {
             return commit(decision.copy(obstacleAheadM = along, blocking = obstacle)) // free route already goes around
         }
+        turnAway(input, stopAt, along, obstacle)?.let { return commit(it) }
         return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.OBSTACLE_NO_ALTERNATIVE, along, obstacle, turnSide(input, stopAt)))
+    }
+
+    /**
+     * Instead of a stop: the way ahead is blocked or ends at [aheadM], but the ground clearly goes on
+     * to one side ([turnSide]); the runner is guided along that side's route (a detour with the
+     * obstacle warning, so the cue is "obstacle, pass on the left/right"). Null when no side is
+     * clearly open or the block is closer than [PlannerConfig.emergencyStopM] (then it is a stop).
+     */
+    private fun turnAway(input: FrameInput, stopAt: Double, aheadM: Double, obstacle: TrackedObstacle? = null): PathDecision? {
+        if (aheadM < config.emergencyStopM) return null
+        val side = turnSide(input, stopAt) ?: return null
+        val route = input.sideRoutes.filter { (it.steerDeg < 0) == (side == Side.LEFT) }.maxByOrNull { it.progressM } ?: return null
+        val curve = route.toCurve() ?: return null
+        return PathDecision(PathMode.DETOUR, curve, 0.6 * input.visibility, obstacleAheadM = aheadM, blocking = obstacle, turnSide = side)
     }
 
     /**

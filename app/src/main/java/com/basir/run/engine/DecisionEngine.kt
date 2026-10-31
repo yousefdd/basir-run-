@@ -152,6 +152,14 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         }
 
         if (i.processingP90Ms > cfg.latencyStopMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
+        // An object on the ground close ahead, but the path engine has seen a way around it for
+        // several frames (a detour side): guide the turn instead of stopping. The owner wants a
+        // stop only in extreme cases; head-level obstacles and drops stay stops.
+        val detourSide = i.line?.takeIf { it.kind == CommandKind.OBSTACLE }?.side
+        if (i.obstacle == ObstacleLevel.Hazard && i.obstacleKind == HazardKind.Object && detourSide != null) {
+            val to = if (detourSide == run.basir.engine.Side.LEFT) Side.Left else Side.Right
+            return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = to)
+        }
         // No way around an obstacle is offered: the space beside it has not been assessed.
         if (i.obstacle == ObstacleLevel.Hazard) {
             val cue = when (i.obstacleKind) {

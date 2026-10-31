@@ -106,3 +106,23 @@ internal fun distanceToPath(p: GroundPoint, path: List<GroundPoint>): Pair<Doubl
     }
     return best to along
 }
+
+/**
+ * Which object detections may become obstacles on the runner's way. Measured on a SANPO park path
+ * (sanpo_curve4): D-FINE-N saw a "train" whose box covered most of the frame, its foot point fell
+ * on the path 3 m ahead and the runner was stopped for 4 s. Boxes the size of the scene are not one
+ * object, and trains, aircraft and boats are not on a footpath; both are dropped. Everything else is
+ * kept (an unknown thing is not a clear way).
+ */
+object DetectionFilter {
+    private val NOT_ON_A_FOOTPATH = setOf("train", "airplane", "boat")
+    const val MAX_AREA = 0.45
+    const val MAX_WIDTH = 0.85
+
+    /** Box corners as fractions of the frame (0..1). */
+    fun keep(label: String, left: Double, top: Double, right: Double, bottom: Double): Boolean {
+        if (label in NOT_ON_A_FOOTPATH) return false
+        val w = (right - left).coerceIn(0.0, 1.0); val h = (bottom - top).coerceIn(0.0, 1.0)
+        return w * h <= MAX_AREA && w <= MAX_WIDTH
+    }
+}

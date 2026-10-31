@@ -24,8 +24,17 @@ def detect(img):
     for k in np.nonzero(sc >= 0.4)[0]:
         cx, cy, bw, bh = bx[0][k] * 640
         x1, y1, x2, y2 = [(v - o) / r for v, o in ((cx - bw / 2, L), (cy - bh / 2, T), (cx + bw / 2, L), (cy + bh / 2, T))]
-        out.append((int(cls[k]), float(sc[k]), max(0, x1), max(0, y1), min(w0, x2), min(h0, y2)))
+        b = (int(cls[k]), float(sc[k]), max(0, x1), max(0, y1), min(w0, x2), min(h0, y2))
+        if FILTER and not keep(b, w0, h0): continue
+        out.append(b)
     return out, ms
+FILTER = os.environ.get("FILTER") == "1"
+import json as _j
+NAMES = _j.load(open("/home/user/basir-run-/app/src/main/assets/coco80_names.json"))
+def keep(b, w0, h0):  # same rule as engine DetectionFilter
+    c, s_, x1, y1, x2, y2 = b; w = (x2 - x1) / w0; h = (y2 - y1) / h0
+    if NAMES[str(c)] in ("train", "airplane", "boat"): return False
+    return w * h <= 0.45 and w <= 0.85
 frames = [l.strip() for l in open(R + "/benchmarks/sanpo_list.txt") if l.strip()]
 cat = {r["session"]: r["category"] for r in csv.DictReader(open(R + "/datasets/sanpo/selected_sessions.csv"))}
 st = collections.defaultdict(collections.Counter); fp = 0; nboxes = 0; times = []; per_cat = collections.defaultdict(collections.Counter)
@@ -63,4 +72,4 @@ for g in ["all"] + list(GROUPS):
     s = st[g]; lines.append(f"{g} | {s['gt']} | {s['hit']} | {s['hit']/max(1,s['gt']):.2f} | {s['silent_miss']} | {s['silent_and']}")
 lines.append(f"boxes in corridor {nboxes}, of which on nothing that blocks (false positives) {fp} ({fp/max(1,nboxes):.2f})")
 lines.append("recall by scene category: " + "; ".join(f"{c} {s['hit']}/{s['gt']}" for c, s in sorted(per_cat.items())))
-open(R + "/benchmarks/results/obstacles_dfine_sanpo.txt", "w").write("\n".join(lines) + "\n"); print("\n".join(lines))
+open(R + ("/benchmarks/results/obstacles_dfine_sanpo_filtered.txt" if FILTER else "/benchmarks/results/obstacles_dfine_sanpo.txt"), "w").write("\n".join(lines) + "\n"); print("\n".join(lines))

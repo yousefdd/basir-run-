@@ -116,6 +116,19 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun aCloseGroundObjectWithAVerifiedWayAroundIsATurnNotAStop() {
+        val detour = GuidanceCommand(CommandKind.OBSTACLE, run.basir.engine.Side.RIGHT, Level.HIGH, confidence = 0.6)
+        val d = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(line = detour))
+        assertEquals(Severity.Warning, d.severity)
+        assertEquals(Cue.ObstacleNear, d.cue)
+        assertEquals(Side.Right, d.moveTo)
+        assertEquals("obstacle_right", run.basir.engine.HapticLanguage().forCommand(HapticBridge.command(d)!!)!!.name)
+        // a head-level obstacle is still a stop, way around or not
+        val head = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel, line = detour))
+        assertEquals(Severity.Critical, head.severity)
+    }
+
+    @Test
     fun headLevelAndDropHazardsHaveTheirOwnStop() {
         val head = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel))
         assertEquals(Cue.HeadLevelStop, head.cue)

@@ -1,0 +1,48 @@
+Round-2 metrics (desktop CPU; no phone measurements).
+
+1. Walkable ground in the corridor ahead, 280 SANPO frames
+Note: segformer_b0_sanpo_walkable (blind-assist/Segf0rmer_SANPO) was trained on SANPO, so its score here is not a fair test (off-road RUGD IoU 0.01 in round 1); it is listed, not compared.
+method | Dice = F1 | precision | recall | IoU
+current_engine | 0.405 | 0.853 | 0.266 | 0.254
+segformer_b0_ade20k | 0.777 | 0.934 | 0.665 | 0.635
+segformer_b0_sidewalk | 0.385 | 0.894 | 0.245 | 0.238
+segformer_b5_ade20k_ref | 0.784 | 0.937 | 0.675 | 0.645
+segformer_b0_sanpo_walkable | 0.911 | 0.952 | 0.873 | 0.836
+segformer_b0_sanpo_walkable_224 | 0.899 | 0.942 | 0.860 | 0.817
+yolop_320_drivable | 0.693 | 0.949 | 0.545 | 0.530
+yolop_320_drivable_or_lane | 0.694 | 0.948 | 0.547 | 0.531
+yolop_640_drivable | 0.679 | 0.955 | 0.527 | 0.515
+yolop_640_drivable_or_lane | 0.680 | 0.955 | 0.528 | 0.515
+segformer_underfoot (shipped) | 0.850 | 0.930 | 0.782 | 0.739
+segformer_underfoot + D-FINE boxes | 0.826 | 0.933 | 0.741 | 0.703
+
+2. Mean absolute centreline error vs the planner on the human mask (metres; frames where both have a path)
+mask | frames | 1 m | 2 m | 3 m | 4 m
+segformer_underfoot (shipped) | 272 | 0.00 (n=271) | 0.09 (n=246) | 0.12 (n=230) | 0.14 (n=222)
+shipped + D-FINE boxes | 272 | 0.00 (n=271) | 0.09 (n=243) | 0.13 (n=226) | 0.16 (n=217)
+yolop320 | 272 | 0.01 (n=271) | 0.17 (n=229) | 0.24 (n=190) | 0.30 (n=172)
+segformer AND yolop | 272 | 0.01 (n=271) | 0.17 (n=219) | 0.24 (n=174) | 0.32 (n=149)
+segformer fixed classes | 272 | 0.01 (n=271) | 0.15 (n=232) | 0.22 (n=210) | 0.27 (n=201)
+
+3. Path continuity and tracking failure per clip (new controller, One Euro)
+clip | frames | with a path | tracking failure (lost / uncertain / stopped) | of which a STOP_REQUIRED
+sanpo_gravel_5n1pzdkv | 90 | 100% | 0% | 0
+sanpo_terrain_park_-F9N8JhM | 90 | 74% | 30% | 14
+sanpo_jogging_0X2rC_H2 | 90 | 100% | 0% | 0
+sanpo_running_1uta1HvN | 90 | 100% | 0% | 0
+20261030_225434 | 198 | 94% | 6% | 11
+sanpo_curve4_L_pP-G4Xoz | 120 | 100% | 0% | 0
+sanpo_curve5_R_hnVXDPEU | 120 | 100% | 0% | 0
+sanpo_curve3_R_-F9N8JhM | 120 | 88% | 16% | 7
+
+4. Time per stage (median ms, desktop CPU, visual test on the owner's night video) and model memory
+ms_walkable: 52.80
+ms_line: 35.50
+ms_detector: 103.85
+ms_grid: 1.19
+ms_plan: 2.30
+ms_guide: 0.04
+SegFormer-B0 256: file 15.2 MB, resident memory growth after load + one run 92 MB
+Project Guideline 513: file 0.6 MB, resident memory growth after load + one run 34 MB
+D-FINE-N 640: file 15.5 MB, resident memory growth after load + one run 93 MB
+YOLOP 320: file 31.8 MB, resident memory growth after load + one run 118 MB

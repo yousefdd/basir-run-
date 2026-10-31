@@ -251,6 +251,21 @@ class EngineLogicTest {
     }
 
     @Test
+    fun `a still object at or past the end of the walkable ground is no second warning, a moving one is`() {
+        // Owner's night video: a covered object behind the grass edge, ~5 m, kept "obstacle ahead" on.
+        val route = FreeRoute((0..28).map { GroundPoint(it * 0.25, 0.0) }, 7.0, 5.5, 0.0, 1.0)
+        fun run(o: TrackedObstacle): PathDecision {
+            val p = IntelligentPathPlanner(); var d: PathDecision? = null
+            repeat(5) { d = p.update(FrameInput(emptyList(), route, null, listOf(o), 1.0, runnerSpeedMps = 1.4)) }
+            return d!!
+        }
+        assertNull(run(obstacle(6.6, 0.0)).obstacleAheadM, "still, 1.1 m past the walkable end")
+        assertNull(run(obstacle(5.35, 0.0)).obstacleAheadM, "still, where the walkable ground ends")
+        assertNotNull(run(obstacle(4.5, 0.0)).obstacleAheadM, "still, on the walkable part: warned")
+        assertNotNull(run(obstacle(6.6, 0.0, vl = 0.6)).obstacleAheadM, "moving: always warned")
+    }
+
+    @Test
     fun `stretched pulses are never cut by their own repeat`() {
         // The user doubled the pulse length: a strong right correction now lasts 2 x 300 + 150 ms.
         val doubled = object : HapticOutput {
@@ -271,20 +286,28 @@ class EngineLogicTest {
     }
 
     @Test
-    fun `an obstacle straight ahead gives stop and the side where the ground goes on`() {
+    fun `a blocked way turns the runner toward the open side and stops only in extreme cases`() {
         fun route(progress: Double, steer: Double = 0.0) =
             FreeRoute((0..12).map { GroundPoint(it * progress / 12, it * progress / 12 * kotlin.math.tan(Math.toRadians(steer))) }, progress, progress, steer, 1.0)
-        fun decide(left: Double, right: Double): PathDecision {
+        fun decide(left: Double, right: Double, ahead: Double = 2.0): PathDecision {
             val p = IntelligentPathPlanner()
             var d: PathDecision? = null
-            repeat(3) { d = p.update(FrameInput(emptyList(), route(2.0), null, emptyList(), 1.0, sideRoutes = listOf(route(left, -40.0), route(right, 40.0)))) }
+            repeat(3) { d = p.update(FrameInput(emptyList(), route(ahead), null, emptyList(), 1.0, sideRoutes = listOf(route(left, -40.0), route(right, 40.0)))) }
             return d!!
         }
-        assertEquals(Side.LEFT, decide(left = 6.0, right = 1.5).turnSide)    // only the left goes on
+        // The owner: no stop except in extreme cases, guide the turn instead.
+        val left = decide(left = 6.0, right = 1.5)                           // only the left goes on
+        assertEquals(PathMode.DETOUR, left.mode)
+        assertEquals(Side.LEFT, left.turnSide)
+        assertTrue(left.path!!.lateralAt(2.0) < -0.5, "the path to follow heads left")
+        assertNotNull(left.obstacleAheadM)
         assertEquals(Side.RIGHT, decide(left = 1.0, right = 6.0).turnSide)
-        assertNull(decide(left = 6.0, right = 5.5).turnSide)                 // both open about the same: just stop
-        assertNull(decide(left = 2.0, right = 2.0).turnSide)                 // closed all round: just stop
-        assertEquals(PathMode.STOP, decide(6.0, 1.5).mode)
+        assertEquals(PathMode.STOP, decide(left = 6.0, right = 5.5).mode)    // both open about the same: no side to give
+        assertEquals(PathMode.STOP, decide(left = 2.0, right = 2.0).mode)    // closed all round: dead end
+        val short = decide(left = 6.0, right = 1.5, ahead = 1.6)            // ground ahead too short to follow: still a turn
+        assertEquals(PathMode.DETOUR, short.mode)
+        assertEquals(Side.LEFT, short.turnSide)
+        assertEquals(PathMode.STOP, decide(left = 6.0, right = 1.5, ahead = 1.0).mode) // right in front of it: stop
         // the vibration: stop, a pause, then the bend rhythm of that side
         val lang = HapticLanguage(true)
         val turn = lang.forCommand(GuidanceCommand(CommandKind.STOP, Side.RIGHT))!!

@@ -6,6 +6,6 @@ sanpo_curve4_L_pP-G4Xoz | RIGHT 92 | new + centreline | 33/90 | 0 | 0 | 33 | 3 /
 sanpo_curve5_R_hnVXDPEU | LEFT 50 | old (pure pursuit) | 0/90 | 9 | 0 | 0 | 0 / 1 | 0 | -0.000
 sanpo_curve5_R_hnVXDPEU | LEFT 50 | new (stable) | 0/90 | 8 | 0 | 0 | 0 / 1 | 0 | -0.000
 sanpo_curve5_R_hnVXDPEU | LEFT 50 | new + centreline | 0/90 | 8 | 0 | 0 | 0 / 1 | 0 | -0.000
-sanpo_curve3_R_-F9N8JhM | RIGHT 29 | old (pure pursuit) | 1/90 | 0 | 0 | 1 | 0 / 0 | 10 | -0.000
+sanpo_curve3_R_-F9N8JhM | RIGHT 29 | old (pure pursuit) | 1/90 | 0 | 0 | 1 | 1 / 0 | 10 | -0.000
 sanpo_curve3_R_-F9N8JhM | RIGHT 29 | new (stable) | 0/90 | 0 | 0 | 0 | 0 / 0 | 10 | -0.000
 sanpo_curve3_R_-F9N8JhM | RIGHT 29 | new + centreline | 0/90 | 0 | 0 | 0 | 0 / 0 | 10 | -0.000

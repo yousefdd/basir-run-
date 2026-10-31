@@ -158,6 +158,61 @@ class StableGuidanceTest {
     }
 
     @Test
+    fun `a long stop vibrates once and twice more as a reminder, then stays quiet`() {
+        // Owner: "the stop vibration does not stop". With pulses at double length it used to repeat
+        // with 150 ms gaps for as long as the stop lasted.
+        val starts = ArrayList<Long>(); var on = 0L; var now = 0L
+        val doubled = object : HapticOutput {
+            override val hasAmplitudeControl = true
+            override fun play(pattern: HapticPattern) { starts += now; on += pattern.amplitudes.indices.filter { pattern.amplitudes[it] > 0 }.sumOf { pattern.timingsMs[it] * 2 } }
+            override fun cancel() {}
+            override fun playedDurationMs(pattern: HapticPattern) = pattern.amplitudes.indices.sumOf { if (pattern.amplitudes[it] > 0) pattern.timingsMs[it] * 2 else pattern.timingsMs[it] }
+        }
+        val s = HapticScheduler(doubled)
+        for (k in 0 until 300) { now = k * 67L; s.onCommand(GuidanceCommand(CommandKind.STOP), now) } // 20 s stopped
+        assertEquals(3, starts.size, "$starts")
+        assertTrue(on <= 3 * 2200, "vibrating ${on} ms in 20 s")
+        assertTrue(starts.zipWithNext().all { (a, b) -> b - a >= 5000 })
+        // the side becoming known during the stop is played once more
+        s.onCommand(GuidanceCommand(CommandKind.STOP, side = Side.LEFT), 20_100)
+        assertEquals(4, starts.size)
+        s.onCommand(GuidanceCommand(CommandKind.STOP, side = Side.LEFT), 20_200)
+        assertEquals(4, starts.size, "but only once")
+    }
+
+    @Test
+    fun `a lasting obstacle warning is felt three times at most, a new side at once`() {
+        val felt = ArrayList<Pair<Long, String>>(); var now = 0L
+        val s = HapticScheduler(object : HapticOutput {
+            override val hasAmplitudeControl = true
+            override fun play(pattern: HapticPattern) { felt += now to pattern.name }
+            override fun cancel() {}
+        })
+        for (k in 0 until 150) { now = k * 67L; s.onCommand(GuidanceCommand(CommandKind.OBSTACLE, level = Level.HIGH), now) } // 10 s
+        assertEquals(3, felt.size, "$felt")
+        now = 10_100; s.onCommand(GuidanceCommand(CommandKind.OBSTACLE, side = Side.LEFT, level = Level.HIGH), now)
+        assertEquals("obstacle_left", felt.last().second)
+    }
+
+    @Test
+    fun `a still object stays still when the runner walks toward it`() {
+        val t = ObstacleTracker(); var last: List<TrackedObstacle> = emptyList()
+        for (k in 0 until 15) last = t.update(listOf(ObstacleDetection(GroundPoint(6.0 - k * 1.4 / 15, 0.0), 0.4, 0.9, "bench")), 1.0 / 15, runnerAdvanceM = 1.4 / 15)
+        assertTrue(last.single().speed < 0.1, "speed ${last.single().speed}")
+        val noAdvance = ObstacleTracker()
+        for (k in 0 until 15) last = noAdvance.update(listOf(ObstacleDetection(GroundPoint(6.0 - k * 1.4 / 15, 0.0), 0.4, 0.9, "bench")), 1.0 / 15)
+        assertTrue(last.single().speed > 1.0, "without the runner's advance it looks like it is coming at 1.4 m/s (the old app)")
+    }
+
+    @Test
+    fun `scene-sized boxes and things that are never on a footpath do not become obstacles`() {
+        assertTrue(!DetectionFilter.keep("train", 0.3, 0.3, 0.5, 0.6))                 // sanpo_curve4: a "train" on a park path
+        assertTrue(!DetectionFilter.keep("person", 0.0, 0.1, 1.0, 1.0))                // a box as wide as the frame
+        assertTrue(DetectionFilter.keep("person", 0.35, 0.0, 0.7, 1.0))                // a person close ahead (35 % wide) stays
+        assertTrue(DetectionFilter.keep("bench", 0.2, 0.4, 0.8, 0.8))                  // a bench across the way stays
+    }
+
+    @Test
     fun `the bend cue goes quiet after a while inside a gentle bend`() {
         val c = StableGuidanceController()
         val evs = run(c, follow(path(kappa = 0.07)), 60) // 4 s

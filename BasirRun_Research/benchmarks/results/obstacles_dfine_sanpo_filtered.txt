@@ -1,0 +1,9 @@
+D-FINE-N on 280 SANPO frames, CPU onnxruntime median 55 ms/frame (desktop CPU, not a phone)
+group | GT objects in corridor | detected | recall | silent misses with shipped mask | silent misses with SegFormer AND YOLOP
+all | 324 | 161 | 0.50 | 63 | 0
+people | 98 | 94 | 0.96 | 2 | 0
+vehicle | 23 | 21 | 0.91 | 0 | 0
+animal | 1 | 1 | 1.00 | 0 | 0
+static | 202 | 45 | 0.22 | 61 | 0
+boxes in corridor 448, of which on nothing that blocks (false positives) 33 (0.07)
+recall by scene category: crowded_obstacles 56/100; dark_gray(train) 32/62; park 21/31; pavers_colored 10/25; rain_snow_lowvis 7/31; running(train) 11/17; terrain_gravel 1/15; terrain_gravel(train) 5/8; urban_lightgray 18/35

@@ -1,0 +1,6 @@
+<View>
+  <Image name="img" value="$image"/>
+  <PolygonLabels name="ground" toName="img"><Label value="walkable"/><Label value="not_walkable"/><Label value="unknown"/></PolygonLabels>
+  <PolygonLabels name="lines" toName="img"><Label value="guide_line"/><Label value="lane_line"/></PolygonLabels>
+  <RectangleLabels name="obj" toName="img"><Label value="person"/><Label value="runner"/><Label value="bicycle"/><Label value="static_obstacle"/></RectangleLabels>
+</View>

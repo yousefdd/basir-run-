@@ -1,4 +1,4 @@
-D-FINE-N on 280 SANPO frames, CPU onnxruntime median 56 ms/frame (desktop CPU, not a phone)
+D-FINE-N on 280 SANPO frames, CPU onnxruntime median 51 ms/frame (desktop CPU, not a phone)
 group | GT objects in corridor | detected | recall | silent misses with shipped mask | silent misses with SegFormer AND YOLOP
 all | 324 | 164 | 0.51 | 63 | 0
 people | 98 | 94 | 0.96 | 2 | 0

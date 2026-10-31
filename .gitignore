@@ -17,3 +17,8 @@ app/src/main/assets/dfine_n_coco.onnx
 .unlazy/
 .unlazy-hook-state.json
 .claude/settings.local.json
+
+# visual test tool: keep videos and records, not the per-frame images
+BasirRun_Research/visual_reports/visual_test/*/f/
+BasirRun_Research/visual_reports/visual_test/*/o/
+BasirRun_Research/visual_reports/visual_test/*/m/

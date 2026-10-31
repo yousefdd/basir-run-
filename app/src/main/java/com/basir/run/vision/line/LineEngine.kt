@@ -103,7 +103,11 @@ class LineEngine {
         // covers every other kind of line and phones without the model.
         val modelLines = surface?.line?.let { extractor.extract(it, cam) }.orEmpty()
         val lines = modelLines.ifEmpty { extractor.extract(detector.detect(image, cam), cam) }
-        val tracked = obstacles.update(freshDetections.orEmpty().mapNotNull { toGround(it, cam) }, dt)
+        // The runner's own advance is removed, so a still bench is still (it used to look as if it
+        // came toward the runner at running speed, and was then predicted to step into the path).
+        val tracked = obstacles.update(freshDetections.orEmpty()
+            .filter { run.basir.engine.DetectionFilter.keep(it.label, it.left.toDouble(), it.top.toDouble(), it.right.toDouble(), it.bottom.toDouble()) }
+            .mapNotNull { toGround(it, cam) }, dt, runnerAdvanceM = speedMps * dt)
         // Walkable ground → grid (objects block their cells) → best route through it
         // A short memory of the ground, so one dark frame does not look like a wall
         val walkable = surface?.walkable?.let { walkableMemory.update(it) }

@@ -57,7 +57,9 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         private val AMP = mapOf(Level.LOW to 90, Level.MEDIUM to 170, Level.HIGH to 255)
         private val CURVE_AMP = mapOf(Level.LOW to 70, Level.MEDIUM to 110, Level.HIGH to 160)
         private val LEN_SCALE = mapOf(Level.LOW to 0.6, Level.MEDIUM to 1.0, Level.HIGH to 1.6) // no amplitude control
-        private val STOP_SEGMENTS = listOf(1200L to 255, 250L to 0, 200L to 255, 150L to 0, 200L to 255)
+        // Long pulse then two short: 1.1 s of vibration (was 1.6 s; with the pulse-length setting at
+        // its longest it ran 3.2 s and, repeated, never stopped).
+        private val STOP_SEGMENTS = listOf(700L to 255, 200L to 0, 200L to 255, 150L to 0, 200L to 255)
         private const val STOP_TURN_PAUSE_MS = 600L
     }
 
@@ -153,9 +155,11 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 }
 
 data class SchedulerConfig(
-    val stopRepeatMs: Long = 2400,
-    val stopReleaseFrames: Int = 8,       // STOP holds until the danger is gone for this many frames
-    val obstacleRepeatMs: Long = 1200,
+    val stopRepeatMs: Long = 5000,        // a stop plays once, then at most [stopMaxReminders] reminders this far apart
+    val stopMaxReminders: Int = 2,
+    val stopReleaseFrames: Int = 15,      // STOP holds until the danger is gone this many frames (1 s): a brief clear flicker is not "go"
+    val obstacleRepeatMs: Long = 2500,    // the same warning: once, then at most [obstacleMaxReminders] reminders
+    val obstacleMaxReminders: Int = 2,
     val correctRepeatMs: Map<Level, Long> = mapOf(Level.LOW to 1100, Level.MEDIUM to 800, Level.HIGH to 650),
     val curveRepeatMs: Long = 1600,
     val onPathRepeatMs: Long = 3500,
@@ -182,6 +186,9 @@ class HapticScheduler(
     private var playingPriority = 0
     private val lastPlayed = HashMap<String, Long>()
     private var stopLatched = false
+    private var stopReminders = 0
+    private var obstacleReminders = 0
+    private var stopSide: Side? = null
     private var clearFrames = 0
     private var lastSide: Side? = null
     private var lastSideAt = Long.MIN_VALUE / 2
@@ -193,7 +200,14 @@ class HapticScheduler(
     fun onCommand(cmd: GuidanceCommand, nowMs: Long): HapticPattern? {
         if (cmd.kind == CommandKind.STOP) {
             clearFrames = 0
-            if (!stopLatched || since("stop", nowMs) >= max(config.stopRepeatMs, output.playedDurationMs(language.stop()) + REPEAT_GAP_MS)) {
+            // Once on entering the stop, then a few reminders, then silence while stopped. The side
+            // to turn, when it becomes known during the stop, is played once more.
+            val newSide = cmd.side != null && cmd.side != stopSide
+            val reminder = stopLatched && stopReminders < config.stopMaxReminders &&
+                since("stop", nowMs) >= max(config.stopRepeatMs, output.playedDurationMs(language.stop()) + REPEAT_GAP_MS)
+            if (!stopLatched || reminder || newSide) {
+                if (!stopLatched) stopReminders = 0 else if (reminder) stopReminders++
+                stopSide = cmd.side ?: stopSide
                 stopLatched = true
                 lastKey = "STOP"; lastKeyAt = nowMs; lastKeyPriority = HapticLanguage.P_STOP
                 return start(language.forCommand(cmd) ?: language.stop(), nowMs, preempt = true)
@@ -202,7 +216,7 @@ class HapticScheduler(
         }
         if (stopLatched) {
             if (++clearFrames < config.stopReleaseFrames) return null
-            stopLatched = false
+            stopLatched = false; stopSide = null
         }
         val pattern = language.forCommand(cmd) ?: return null
         val busy = nowMs < playingUntil
@@ -224,6 +238,7 @@ class HapticScheduler(
         }
         // A cue never repeats before its previous play has finished, however long the pulses are set.
         if (since(key, nowMs) < max(repeat, output.playedDurationMs(pattern) + REPEAT_GAP_MS)) return null
+        if (cmd.kind == CommandKind.OBSTACLE && key == lastKey && obstacleReminders >= config.obstacleMaxReminders) return null
         if (cmd.side != null && cmd.side != lastSide && nowMs - lastSideAt < config.oppositeSideGuardMs && cmd.level != Level.HIGH) {
             return null
         }
@@ -232,6 +247,7 @@ class HapticScheduler(
         // corrections (about to leave the path) go at once.
         if (key != lastKey && nowMs - lastKeyAt < config.changeGapMs && pattern.priority <= lastKeyPriority && cmd.level != Level.HIGH) return null
         if (cmd.side != null) { lastSide = cmd.side; lastSideAt = nowMs }
+        obstacleReminders = if (cmd.kind == CommandKind.OBSTACLE && key == lastKey) obstacleReminders + 1 else 0
         lastKey = key; lastKeyAt = nowMs; lastKeyPriority = pattern.priority
         lastPlayed[key] = nowMs
         return start(pattern, nowMs, preempt = busy)
