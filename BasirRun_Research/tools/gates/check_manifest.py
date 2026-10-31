@@ -7,7 +7,8 @@ assert not missing, f"missing columns {missing}"
 ath = [r for r in rows if r.get("category") == "athletics_track" or "athletics" in r["environment"]]
 assert len(ath) >= 3, "athletics rows missing"
 for r in ath:
-    ok = r["download_status"].startswith("downloaded") and os.path.exists(r["download_status"].split()[-1]) or r["download_status"].startswith("unavailable: ") and len(r["download_status"]) > 40
+    last = r["download_status"].split()[-1]
+    ok = r["download_status"].startswith("downloaded") and (os.path.exists(last) or os.path.exists(R + "/" + last)) or r["download_status"].startswith("unavailable: ") and len(r["download_status"]) > 40
     assert ok, f"athletics row {r['video_id']} has neither a file nor a reason"
 dl = [r for r in rows if r["download_status"].startswith("downloaded")]
 curves = [r for r in rows if r.get("category") == "curve"]

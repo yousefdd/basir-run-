@@ -12,7 +12,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G2: Manifest keeps all required columns and has athletics-track rows (or an explicit unavailable reason per row)
   CHECK: python3 BasirRun_Research/tools/gates/check_manifest.py
   EXPECT: MANIFEST_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=47bf2f246fced49a89384799f79fae638769dabd390c5ec88ccbc7b271af9503; exit=0; EXPECT=matched; output-sha256=44b83a8c67ee9545f218038bd7ddd031de0efd9f0dd56df9b7ccebea33146cb1; output-bytes=105; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=47bf2f246fced49a89384799f79fae638769dabd390c5ec88ccbc7b271af9503; exit=0; EXPECT=matched; output-sha256=4a93f1cc1cf90a38a1ed23f8d553bac206f8b0bf300d3c1cc693e2e205927602; output-bytes=105; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G3: Smoothing filters (EMA, One Euro, Kalman, median) compared on real sequences with jitter, lag and flip metrics
   CHECK: python3 BasirRun_Research/tools/gates/check_smoothing.py
@@ -27,7 +27,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G5: Engine has the nine guidance states and the unit tests for curve-vs-offset, hysteresis, dwell, low-confidence-no-direction, stop priority, side persistence and vibration distinctness pass
   CHECK: bash BasirRun_Research/tools/gates/run_engine_tests.sh
   EXPECT: ENGINE_TESTS_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=25f0b939ffeced1d7a13e1494d2b30c89aa50350e5214a62617299352dc9f8fc; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=849cd9eaf680e27920ee4d628c82479970e533a21a80102db952cbaa1914d5de; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G6: On real clips (4 SANPO sequences + owner's night video) the new controller gives fewer command changes than the current one, no left/right flips, and no more stops
   CHECK: python3 BasirRun_Research/tools/gates/check_e2e.py
@@ -37,12 +37,12 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G7: Obstacle/person detection recall and false-clear rate measured on human-labelled SANPO frames for the detector the app ships
   CHECK: python3 BasirRun_Research/tools/gates/check_obstacles.py
   EXPECT: OBSTACLES_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=9a69b90493b76e2063c7fd51868d5353d5b38f7e66d0a89668515572bd259512; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=71a709d82444dea4131c5d0bcb32e30f8f7df7fe55cc653d2bd4ffa69dcc92cb; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G8: Published only after the owner's permission (given 2026-10-31: "upload to the site and the app"); GitHub main contains version 0.12.0
   CHECK: python3 BasirRun_Research/tools/gates/check_published.py
   EXPECT: PUBLISHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=9ff4b52dc11b28c512d51570e7b5a9ba35c7251d9df961b9450cf49d62d10f4b; exit=0; EXPECT=matched; output-sha256=4c89f2b929748a65df43252cb0d62796c9ed4d8e1ae5310fca64ca64c275b36f; output-bytes=49; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9ff4b52dc11b28c512d51570e7b5a9ba35c7251d9df961b9450cf49d62d10f4b; exit=0; EXPECT=matched; output-sha256=c122302c356ec9e51e59421f749a93e5c15a4eecfbc6d7a48d9c17ac2db59d2b; output-bytes=49; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
@@ -102,4 +102,4 @@ ABANDON: G14 needs measurements on the owner's phone (frame time, battery drain,
 - [x] G21: 16-scenario before/after suite: fewer felt stops and stop frames than 0.10.0, no opposite cue within 1 s, bench still handled, right turn cued correctly, no scenario with more stops
   CHECK: python3 BasirRun_Research/tools/gates/check_scenarios.py
   EXPECT: SCENARIOS_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=5131c2672582b1fbfc583ff5fc2919e04e8d2362a26cb090fd32a62bbdd847c5; exit=0; EXPECT=matched; output-sha256=6f7f143ba975d90bcb4c9932cbb07515cde531c55168d62a2d5f31a71eb9679b; output-bytes=175; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=5131c2672582b1fbfc583ff5fc2919e04e8d2362a26cb090fd32a62bbdd847c5; exit=0; EXPECT=matched; output-sha256=0a00b5cb7511d2d6ec2569058725b40e534a0be01fbd0ce753a0f37e4ab4575d; output-bytes=175; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries

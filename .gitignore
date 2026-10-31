@@ -25,3 +25,7 @@ BasirRun_Research/visual_reports/visual_test/*/m/
 BasirRun_Research/experiment_results/sanpo/depth/*.f32
 BasirRun_Research/experiment_results/sanpo/ade_labels/
 BasirRun_Research/experiment_results/scenarios/*/m/
+BasirRun_Research/athletics_tracks/owner_dev_clip/raw/
+BasirRun_Research/athletics_tracks/owner_dev_clip/clean/
+BasirRun_Research/athletics_tracks/owner_dev_clip/mask/
+BasirRun_Research/experiment_results/sanpo/masks_continuity_dfine/

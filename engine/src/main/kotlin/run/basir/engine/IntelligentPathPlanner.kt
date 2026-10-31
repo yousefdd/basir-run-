@@ -108,6 +108,16 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
                 parallelOffset = offset
                 shifted(line.curve, -offset) to PathMode.LINE_PARALLEL
             }
+            // Lines lost for a moment while a lane/line was being tracked, and the free route is short:
+            // keep coasting the tracked lane (the tracker drops it after its coast frames) rather
+            // than trust a worse source. Owner's athletics clip: one frame without lines switched to
+            // free space, the segmentation (which calls tartan "wall") ended the way at 3 m and the
+            // runner was stopped on an empty track. A free route shorter than emergencyStopM is never
+            // overridden (that may be a real block), and obstacles are still checked on the coasted path.
+            trackedMode in LINE_MODES && (tracker.state == TrackState.TRACKING || tracker.state == TrackState.COASTING) &&
+                input.freeRoute != null && input.freeRoute.progressM >= config.emergencyStopM &&
+                input.freeRoute.progressM < max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5) + config.freeEndWarnMarginM ->
+                null to null
             // No line: the route through walkable ground is smoothed by the same tracker, so the
             // runner does not feel it jump between frames (raw routes jump 15–35° at p90 on
             // SANPO clips because the planner's goal cell changes from frame to frame).
@@ -329,6 +339,10 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
      * goes on there (well past the stopping distance, at a real angle) and not on the other side
      * as well; otherwise none, and the runner only stops.
      */
+    private companion object {
+        val LINE_MODES = setOf(PathMode.LANE_CENTER, PathMode.LINE, PathMode.LINE_PARALLEL)
+    }
+
     private fun turnSide(input: FrameInput, stopAt: Double): Side? {
         val open = input.sideRoutes.filter { it.progressM >= stopAt + config.freeEndWarnMarginM && abs(it.steerDeg) >= config.turnMinDeg }
         val left = open.filter { it.steerDeg < 0 }.maxOfOrNull { it.progressM }

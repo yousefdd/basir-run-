@@ -232,6 +232,41 @@ class StableGuidanceTest {
     }
 
     @Test
+    fun `a ground class the model renames for a frame stays runnable for a moment`() {
+        val u = UnderfootClasses()
+        fun foot(vararg pairs: Pair<Int, Int>) = mapOf(*pairs)
+        assertTrue(9 in u.update(foot(9 to 100), 100, 0), "grass under the feet: runnable")
+        // the athletics clip: the same tartan is called "earth" for a frame
+        assertTrue(9 in u.update(foot(13 to 100), 100, 250), "grass still runnable 0.25 s later")
+        assertTrue(13 in u.update(foot(13 to 100), 100, 300), "and earth now too")
+        assertTrue(9 !in u.update(foot(13 to 100), 100, 2600), "grass gone for 2.3 s: dropped")
+        assertTrue(9 !in UnderfootClasses().update(foot(9 to 5, 11 to 95), 100, 0), "a little grass beside a sidewalk never enters")
+    }
+
+    @Test
+    fun `small sports items need a sure detection`() {
+        assertTrue(!DetectionFilter.keep("tennis racket", 0.4, 0.6, 0.45, 0.65, 0.45), "painted lane number seen as a racket")
+        assertTrue(DetectionFilter.keep("sports ball", 0.4, 0.6, 0.45, 0.65, 0.8), "a sure ball stays")
+        assertTrue(DetectionFilter.keep("person", 0.4, 0.3, 0.5, 0.9, 0.45), "people keep the normal threshold")
+    }
+
+    @Test
+    fun `a lane lost for a moment is coasted instead of trusting a short free route`() {
+        val p = IntelligentPathPlanner()
+        fun lineAt(lat: Double): LineCandidate {
+            val c = PathCurve(doubleArrayOf(lat, 0.0, 0.0), 0.8, 8.0)
+            return LineCandidate(c.sample(0.5).map { LineSegment(0.0, 0.0, 4.0, 0.9, it, 0.1) }, c, 7.2, 1.0, 0.9, 3.0)
+        }
+        val lanes = listOf(lineAt(-0.61), lineAt(0.61))
+        val shortRoute = FreeRoute((0..12).map { GroundPoint(it * 0.25, 0.0) }, 3.0, 3.0, 0.0, 1.0)
+        repeat(12) { p.update(FrameInput(lanes, shortRoute, null, emptyList(), 1.0, runnerSpeedMps = 2.5)) }
+        val gap = (1..4).map { p.update(FrameInput(emptyList(), shortRoute, null, emptyList(), 1.0, runnerSpeedMps = 2.5)) }
+        assertTrue(gap.all { it.mode == PathMode.LANE_CENTER }, "a 4-frame gap in the lines keeps the lane: ${gap.map { it.mode }}")
+        val long = (1..30).map { p.update(FrameInput(emptyList(), shortRoute, null, emptyList(), 1.0, runnerSpeedMps = 2.5)) }
+        assertTrue(long.last().mode != PathMode.LANE_CENTER, "and the lane is dropped once the tracker gives it up")
+    }
+
+    @Test
     fun `the bend cue goes quiet after a while inside a gentle bend`() {
         val c = StableGuidanceController()
         val evs = run(c, follow(path(kappa = 0.07)), 60) // 4 s

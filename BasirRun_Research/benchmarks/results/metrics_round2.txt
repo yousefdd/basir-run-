@@ -43,6 +43,6 @@ ms_grid: 1.19
 ms_plan: 2.30
 ms_guide: 0.04
 SegFormer-B0 256: file 15.2 MB, resident memory growth after load + one run 92 MB
-Project Guideline 513: file 0.6 MB, resident memory growth after load + one run 34 MB
+Project Guideline 513: file 0.6 MB, resident memory growth after load + one run 35 MB
 D-FINE-N 640: file 15.5 MB, resident memory growth after load + one run 93 MB
-YOLOP 320: file 31.8 MB, resident memory growth after load + one run 119 MB
+YOLOP 320: file 31.8 MB, resident memory growth after load + one run 118 MB

@@ -17,7 +17,7 @@ Usage:
 import argparse, csv, glob, json, os, subprocess, sys, time
 import numpy as np, onnxruntime as ort
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-sys.path.insert(0, os.path.dirname(__file__)); from underfoot import underfoot_mask
+sys.path.insert(0, os.path.dirname(__file__)); from underfoot import underfoot_mask, UnderfootMemory
 R = "/home/user/basir-run-/BasirRun_Research"; S = "/tmp/claude-0/-home-user-basir-run-/db717bb8-cb66-5ecd-9762-13ebad485a32/scratchpad"
 P = R + "/pretrained_models"
 ap = argparse.ArgumentParser()
@@ -49,7 +49,8 @@ def walkable(img):
         t0 = time.perf_counter()
         x = ((np.asarray(img.resize((256, 256)), np.float32) / 255 - MEAN) / STD).transpose(2, 0, 1)[None].astype(np.float32)
         lab = seg.run(None, {"pixel_values": x})[0][0].argmax(0)
-        m = np.asarray(Image.fromarray((underfoot_mask(lab) * 255).astype(np.uint8)).resize(img.size, Image.NEAREST)) > 0
+        # same under-the-feet rule with memory as the app (engine UnderfootClasses)
+        m = np.asarray(Image.fromarray((MEMORY.mask(lab, NOW[0]) * 255).astype(np.uint8)).resize(img.size, Image.NEAREST)) > 0
         t["seg"] = (time.perf_counter() - t0) * 1000
     if yop is not None:
         t0 = time.perf_counter()
@@ -75,14 +76,16 @@ def boxes(img):
         x1, y1, x2, y2 = ((cx - bw / 2 - L) / r) / W0, ((cy - bh / 2 - T) / r) / H0, ((cx + bw / 2 - L) / r) / W0, ((cy + bh / 2 - T) / r) / H0
         out_.append((max(0, x1), max(0, y1), min(1, x2), min(1, y2), float(p[k].max()), COCO.get(str(int(p[k].argmax())), str(int(p[k].argmax())))))
     return out_, (time.perf_counter() - t0) * 1000
+MEMORY = UnderfootMemory(); NOW = [0]
 per = []; jobs = []
 for i, f in enumerate(frames):
+    NOW[0] = int(i * 1000 / A.fps)
     img = Image.open(f).convert("RGB")
     m, tm = walkable(img); ln, tl = line(img); bxs, td = boxes(img)
     mp = f"{out}/m/{i:05d}.png"; Image.fromarray(m.astype(np.uint8) * 255).save(mp)
     np.save(f"{out}/m/{i:05d}_line.npy", np.packbits(ln))
     per.append(dict(tm, line=tl, det=td, boxes=bxs))
-    jobs.append(f"{mp},{A.hfov},{A.height},{A.pitch}," + ";".join(f"{a:.4f}:{b:.4f}:{c:.4f}:{d:.4f}:{s:.2f}:{l.replace(':', ' ').replace(',', ' ').replace(';', ' ')}" for a, b, c, d, s, l in bxs))
+    jobs.append(f"{mp},{A.hfov},{A.height},{A.pitch}," + ";".join(f"{a:.4f}:{b:.4f}:{c:.4f}:{d:.4f}:{s:.2f}:{l.replace(':', ' ').replace(',', ' ').replace(';', ' ')}" for a, b, c, d, s, l in bxs) + f",{f}")
 open(out + "/jobs.csv", "w").write("\n".join(jobs) + "\n")
 subprocess.run(["java", "-cp", f"{R}/tools/kt/visual.jar:{S}/kc/kotlinc/lib/kotlin-stdlib.jar", "VisualHarnessKt", out + "/jobs.csv", out + "/engine.csv", str(A.speed), A.smoothing, A.centreline], check=True, capture_output=True)
 eng = list(csv.DictReader(open(out + "/engine.csv")))

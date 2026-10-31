@@ -106,7 +106,7 @@ class LineEngine {
         // The runner's own advance is removed, so a still bench is still (it used to look as if it
         // came toward the runner at running speed, and was then predicted to step into the path).
         val tracked = obstacles.update(freshDetections.orEmpty()
-            .filter { run.basir.engine.DetectionFilter.keep(it.label, it.left.toDouble(), it.top.toDouble(), it.right.toDouble(), it.bottom.toDouble()) }
+            .filter { run.basir.engine.DetectionFilter.keep(it.label, it.left.toDouble(), it.top.toDouble(), it.right.toDouble(), it.bottom.toDouble(), it.score.toDouble()) }
             .mapNotNull { toGround(it, cam) }, dt, runnerAdvanceM = speedMps * dt)
         // Walkable ground → grid (objects block their cells) → best route through it
         // A short memory of the ground, so one dark frame does not look like a wall

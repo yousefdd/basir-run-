@@ -140,9 +140,15 @@ object DetectionFilter {
     const val MAX_AREA = 0.45
     const val MAX_WIDTH = 0.85
 
+    /** Small sports items and birds: on an empty athletics track (owner's clip) painted lane numbers came
+     *  out as "tennis racket", "sports ball" and "bird" at 0.40-0.60; they need a surer detection. */
+    val SMALL_ITEMS = setOf("sports ball", "tennis racket", "baseball bat", "baseball glove", "frisbee", "kite", "bird", "skis", "snowboard", "skateboard")
+    const val SMALL_ITEM_MIN_SCORE = 0.6
+
     /** Box corners as fractions of the frame (0..1). */
-    fun keep(label: String, left: Double, top: Double, right: Double, bottom: Double): Boolean {
+    fun keep(label: String, left: Double, top: Double, right: Double, bottom: Double, score: Double = 1.0): Boolean {
         if (label in NOT_ON_A_FOOTPATH) return false
+        if (label in SMALL_ITEMS && score < SMALL_ITEM_MIN_SCORE) return false
         val w = (right - left).coerceIn(0.0, 1.0); val h = (bottom - top).coerceIn(0.0, 1.0)
         return w * h <= MAX_AREA && w <= MAX_WIDTH
     }

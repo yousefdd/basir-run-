@@ -10,6 +10,7 @@ import javax.imageio.ImageIO
 fun main(a: Array<String>) {
     val speed = a[2].toDouble(); val smoothing = Smoothing.valueOf(a[3]); val useCl = a[4] == "1"
     val cfg = FreeSpaceConfig(); val free = FreeSpacePlanner(cfg); val planner = IntelligentPathPlanner(); val memory = WalkableMemory()
+    val lineDetector = ContrastLineDetector(); val extractor = LineExtractor()
     val tracker = ObstacleTracker(); val guide = StableGuidanceController(StableGuidanceConfig(smoothing = smoothing))
     var goal = 0.0
     val feltNow = ArrayList<String>()
@@ -25,13 +26,22 @@ fun main(a: Array<String>) {
         val cam = CameraModel(w, h, f[1].toDouble(), f[2].toDouble(), f[3].toDouble())
         val dets = f.getOrElse(4) { "" }.split(";").filter { it.isNotBlank() }.mapNotNull { b ->
             val (x1, y1, x2, y2, sc) = b.split(":").take(5).map { it.toDouble() }; val label = b.split(":")[5]
-            if (!DetectionFilter.keep(label, x1, y1, x2, y2)) return@mapNotNull null
+            if (!DetectionFilter.keep(label, x1, y1, x2, y2, sc)) return@mapNotNull null
             val v = (y2 * h).coerceAtMost(h - 1.0); val u = (x1 + x2) / 2 * w
             val p = cam.imageToGround(u, v) ?: return@mapNotNull null
             val mpp = cam.lateralMetersPerPixel(v) ?: return@mapNotNull null
             ObstacleDetection(p, ((x2 - x1) * w * mpp / 2).coerceIn(0.15, 1.5), sc, label)
         }
         val tracked = tracker.update(dets, 1.0 / 15, runnerAdvanceM = speed / 15)
+        // Lines as the app finds them (LineEngine): contrast detector on the frame at 240 px wide
+        val lines = f.getOrNull(5)?.takeIf { it.isNotBlank() }?.let { fp ->
+            val im = ImageIO.read(File(fp)); val lw = 240; val lh = im.height * lw / im.width
+            val r = IntArray(lw * lh); val g = IntArray(lw * lh); val b = IntArray(lw * lh)
+            for (y in 0 until lh) for (x in 0 until lw) { val p = im.getRGB(((x + 0.5) * im.width / lw).toInt(), ((y + 0.5) * im.height / lh).toInt())
+                r[y * lw + x] = (p shr 16) and 0xff; g[y * lw + x] = (p shr 8) and 0xff; b[y * lw + x] = p and 0xff }
+            val lc = CameraModel(lw, lh, f[1].toDouble(), f[2].toDouble(), f[3].toDouble())
+            extractor.extract(lineDetector.detect(RgbImage(lw, lh, r, g, b), lc), lc)
+        }.orEmpty()
         val foot = ArrayList<GroundPoint>()
         for (o in tracked.filterNot { Receding.isReceding(it, speed) }) { var df = -o.radiusM; while (df <= o.radiusM) { var dl = -o.radiusM; while (dl <= o.radiusM) {
             if (df * df + dl * dl <= o.radiusM * o.radiusM) { val p = GroundPoint(o.position.forward + df, o.position.lateral + dl); foot += p; foot += p }
@@ -42,7 +52,7 @@ fun main(a: Array<String>) {
         val route = free.plan(grid, goal.coerceIn(-30.0, 30.0)); goal = route?.let { 0.7 * it.steerDeg } ?: 0.0
         val sides = if (route == null || route.progressM < 6.0) listOfNotNull(free.plan(grid, -60.0), free.plan(grid, 60.0)) else emptyList()
         val cl = if (useCl) route?.let { CorridorCenterline.extract(grid, it, fovTanHalf = Math.tan(Math.toRadians(f[1].toDouble() / 2))) } else null
-        val d = planner.update(FrameInput(emptyList(), route, grid, tracked, 1.0, speed, 1.0 / 15, sides, freeCenterline = cl))
+        val d = planner.update(FrameInput(lines, route, grid, tracked, 1.0, speed, 1.0 / 15, sides, freeCenterline = cl))
         val t2 = System.nanoTime()
         val e = guide.update(d, speed, 1.0 / 15)
         feltNow.clear(); hap.onCommand(e.command, i * 1000L / 15)

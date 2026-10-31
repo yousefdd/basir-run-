@@ -33,6 +33,10 @@ class WalkableSegmenter(context: Context) {
 
     private val pixels = IntArray(SIZE * SIZE)
     private val input = FloatBuffer.allocate(3 * SIZE * SIZE)
+    /** Which ground classes count, remembered across frames (the model renames surfaces now and then). */
+    private val underfoot = run.basir.engine.UnderfootClasses()
+
+    fun resetMemory() = underfoot.reset()
 
     /** Walkable probability (0 or 1 per cell) resampled to [outW]×[outH] of the upright frame, or null. */
     fun walkable(upright: Bitmap, outW: Int, outH: Int): ProbabilityMask? {
@@ -66,7 +70,7 @@ class WalkableSegmenter(context: Context) {
                         }
                         label[k] = best
                     }
-                    val runnable = runnableClasses(label, w, h)
+                    val runnable = runnableClasses(label, w, h, underfoot, android.os.SystemClock.elapsedRealtime())
                     nearest(FloatArray(w * h) { if (label[it] in runnable) 1f else 0f }, w, h, outW, outH)
                 }
             }
@@ -83,22 +87,17 @@ class WalkableSegmenter(context: Context) {
         private const val SIZE = 256
         private val MEAN = floatArrayOf(0.485f, 0.456f, 0.406f)
         private val STD = floatArrayOf(0.229f, 0.224f, 0.225f)
-        /** ADE20K ids: floor 3, sidewalk 11, path 52, dirt track 91. */
-        private val ALWAYS = setOf(3, 11, 52, 91)
-        /** ADE20K ids: road 6, grass 9, earth 13, field 29, sand 46. */
-        private val UNDERFOOT_ONLY = listOf(6, 9, 13, 29, 46)
-        /** Share of the foot area (bottom 20 %, central 30 % of the frame) a class needs to count. */
-        private const val UNDERFOOT_SHARE = 0.15f
+        // Ground classes and the under-the-feet rule (with memory): run.basir.engine.UnderfootClasses
 
-        /** The runnable classes for this frame: the path-like ones plus what the runner stands on. */
-        fun runnableClasses(label: IntArray, w: Int, h: Int): Set<Int> {
+        /** The runnable classes for this frame: the path-like ones plus what the runner stands on (with memory). */
+        fun runnableClasses(label: IntArray, w: Int, h: Int, memory: run.basir.engine.UnderfootClasses, nowMs: Long): Set<Int> {
             val counts = HashMap<Int, Int>()
             var n = 0
             for (y in (h * 0.8).toInt() until h) for (x in (w * 0.35).toInt() until (w * 0.65).toInt()) {
                 counts.merge(label[y * w + x], 1, Int::plus)
                 n++
             }
-            return ALWAYS + UNDERFOOT_ONLY.filter { n > 0 && counts.getOrDefault(it, 0) >= UNDERFOOT_SHARE * n }
+            return memory.update(counts, n, nowMs)
         }
     }
 }

@@ -60,6 +60,7 @@ methods = {"current_engine": current_engine_paths(),
            "planner_on_veto_0.01_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.01", "veto_0.01"),
            "planner_on_veto_0.02_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.02", "veto_0.02"),
            "planner_on_veto_0.04_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.04", "veto_0.04"),
+           "planner_on_continuity_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_continuity_dfine", "continuity"),
            "planner_on_human_mask (upper bound)": run_planner(gtdir, "gt")}
 summary = []
 for name, rows in methods.items():
