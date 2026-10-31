@@ -1,0 +1,11 @@
+Real curved walks (SANPO chest camera; turn side measured by optical flow, not by the engine). Frames 30-119 = the turn.
+clip | turn | chain | frames cueing the turn side | frames cueing the opposite side | as bend cue | as correction | felt toward / opposite | stop frames | median path curvature (1/m)
+sanpo_curve4_L_pP-G4Xoz | RIGHT 92 | old (pure pursuit) | 30/90 | 0 | 0 | 30 | 2 / 0 | 0 | +0.000
+sanpo_curve4_L_pP-G4Xoz | RIGHT 92 | new (stable) | 33/90 | 0 | 0 | 33 | 3 / 0 | 0 | +0.000
+sanpo_curve4_L_pP-G4Xoz | RIGHT 92 | new + centreline | 33/90 | 0 | 0 | 33 | 3 / 0 | 0 | +0.084
+sanpo_curve5_R_hnVXDPEU | LEFT 50 | old (pure pursuit) | 0/90 | 9 | 0 | 0 | 0 / 1 | 0 | -0.000
+sanpo_curve5_R_hnVXDPEU | LEFT 50 | new (stable) | 0/90 | 8 | 0 | 0 | 0 / 1 | 0 | -0.000
+sanpo_curve5_R_hnVXDPEU | LEFT 50 | new + centreline | 0/90 | 8 | 0 | 0 | 0 / 1 | 0 | -0.000
+sanpo_curve3_R_-F9N8JhM | RIGHT 29 | old (pure pursuit) | 1/90 | 0 | 0 | 1 | 0 / 0 | 10 | -0.000
+sanpo_curve3_R_-F9N8JhM | RIGHT 29 | new (stable) | 0/90 | 0 | 0 | 0 | 0 / 0 | 10 | -0.000
+sanpo_curve3_R_-F9N8JhM | RIGHT 29 | new + centreline | 0/90 | 0 | 0 | 0 | 0 / 0 | 10 | -0.000

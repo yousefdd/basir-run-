@@ -1,0 +1,5 @@
+method | corridor IoU | corridor precision | corridor recall | corridor false-walkable | frames with false clear (>20% of blocked corridor called walkable)
+segformer_underfoot (shipped) | 0.739 | 0.930 | 0.782 | 0.366 | 82/162
+yolop320_drivable | 0.530 | 0.949 | 0.545 | 0.185 | 30/162
+AND (both agree) | 0.462 | 0.958 | 0.472 | 0.130 | 21/162
+OR (either) | 0.802 | 0.927 | 0.856 | 0.421 | 92/162

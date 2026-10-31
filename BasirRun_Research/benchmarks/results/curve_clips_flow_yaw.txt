@@ -1,0 +1,7 @@
+sanpo_curve0_R_WCzpj9Vi.mp4 total_yaw_deg +0.4 per_2s -1 +0 +1
+sanpo_curve1_L_suk4nIJe.mp4 total_yaw_deg +14.3 per_2s -4 -3 -0
+sanpo_curve2_L_80ZDaRCS.mp4 total_yaw_deg -6.2 per_2s +3 +3 -2
+sanpo_curve3_R_-F9N8JhM.mp4 total_yaw_deg +28.9 per_2s +6 +19 +27
+sanpo_curve4_L_pP-G4Xoz.mp4 total_yaw_deg +91.9 per_2s +19 +48 +72
+sanpo_curve5_R_hnVXDPEU.mp4 total_yaw_deg -50.3 per_2s -10 -26 -44
+sanpo_curve6_R_YnCjnEzv.mp4 total_yaw_deg -44.8 per_2s +3 +5 -7

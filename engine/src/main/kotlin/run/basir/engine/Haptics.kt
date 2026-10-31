@@ -64,10 +64,10 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
     fun forCommand(cmd: GuidanceCommand): HapticPattern? {
         return when (cmd.kind) {
             CommandKind.STOP -> cmd.side?.let { stopTurn(it) } ?: stop()
-            CommandKind.OBSTACLE -> obstacle()
+            CommandKind.OBSTACLE -> cmd.side?.let { obstacleDetour(it) } ?: obstacle()
             CommandKind.CORRECT -> correct(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
             CommandKind.CURVE -> curve(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
-            CommandKind.ON_PATH -> onPath()
+            CommandKind.ON_PATH -> if (cmd.confirm) backOnPath() else onPath()
         }
     }
 
@@ -86,6 +86,17 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 
     fun obstacle() = pattern("obstacle", P_OBSTACLE, listOf(120L to 255, 80L to 0, 120L to 255, 80L to 0, 120L to 255))
 
+    /**
+     * Obstacle ahead with a way around that has been seen for several frames: the obstacle
+     * rhythm, a pause, then the correction pulses of the side to pass on (1 left, 2 right).
+     */
+    fun obstacleDetour(side: Side): HapticPattern {
+        val amp = scaled(AMP.getValue(Level.MEDIUM), 1.0)
+        val turn = pulses(if (side == Side.LEFT) 1 else 2, if (amplitudeControl) 150L else 160L, 150L, amp)
+        return pattern("obstacle_${side.name.lowercase()}", P_OBSTACLE,
+            listOf(120L to 255, 80L to 0, 120L to 255, 80L to 0, 120L to 255, 400L to 0) + turn)
+    }
+
     fun correct(side: Side, level: Level, confidence: Double = 1.0): HapticPattern {
         val amp = scaled(AMP.getValue(level), confidence)
         val len = if (amplitudeControl) 150L else (160 * LEN_SCALE.getValue(level)).toLong()
@@ -102,6 +113,9 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
 
     fun onPath() = pattern("on_path", P_ON_PATH, listOf(60L to 50))
 
+    /** Back on the path after a correction: three quick soft taps (unlike any direction cue), then silence. */
+    fun backOnPath() = pattern("back_on_path", P_ON_PATH, pulses(3, 40L, 60L, 80))
+
     /** Every cue with its meaning, for the learning screen and the recognition quiz. */
     fun catalog(): List<Triple<HapticPattern, String, String>> = buildList {
         add(Triple(correct(Side.LEFT, Level.LOW), "تصحيح بسيط إلى اليسار", "Small correction left"))
@@ -111,6 +125,9 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         add(Triple(curve(Side.LEFT, Level.LOW), "انحناء تدريجي إلى اليسار قادم", "Gentle bend left ahead"))
         add(Triple(curve(Side.RIGHT, Level.HIGH), "منعطف حاد إلى اليمين قادم", "Sharp bend right ahead"))
         add(Triple(obstacle(), "عائق محتمل أمامك", "Possible obstacle ahead"))
+        add(Triple(obstacleDetour(Side.LEFT), "عائق أمامك، تجاوزه من اليسار", "Obstacle ahead, pass on the left"))
+        add(Triple(obstacleDetour(Side.RIGHT), "عائق أمامك، تجاوزه من اليمين", "Obstacle ahead, pass on the right"))
+        add(Triple(backOnPath(), "عدت إلى المسار", "Back on the path"))
         add(Triple(stop(), "توقّف فوراً", "Stop now"))
         add(Triple(stopTurn(Side.LEFT), "توقّف ثم انعطف يساراً", "Stop, then turn left"))
         add(Triple(stopTurn(Side.RIGHT), "توقّف ثم انعطف يميناً", "Stop, then turn right"))
@@ -145,6 +162,9 @@ data class SchedulerConfig(
     val enableOnPathTick: Boolean = true,
     val oppositeSideGuardMs: Long = 500,  // no left right after right (and back) unless HIGH
     val changeGapMs: Long = 800,          // a different cue that is not more serious waits this long
+    /** Quiet while on the path: the on-path cue plays only as the one-off "back on the path". */
+    val onPathOnlyOnConfirm: Boolean = false,
+    val confirmRepeatMs: Long = 1500,
 )
 
 /**
@@ -188,14 +208,18 @@ class HapticScheduler(
         val busy = nowMs < playingUntil
         if (busy && pattern.priority <= playingPriority) return null
         val key = when (cmd.kind) {
-            CommandKind.CORRECT, CommandKind.CURVE -> "${cmd.kind}_${cmd.side}"
+            CommandKind.CORRECT, CommandKind.CURVE, CommandKind.OBSTACLE -> "${cmd.kind}_${cmd.side}"
             else -> cmd.kind.name
         }
         val repeat = when (cmd.kind) {
             CommandKind.OBSTACLE -> config.obstacleRepeatMs
             CommandKind.CORRECT -> config.correctRepeatMs.getValue(cmd.level ?: Level.LOW)
             CommandKind.CURVE -> config.curveRepeatMs
-            CommandKind.ON_PATH -> if (config.enableOnPathTick) config.onPathRepeatMs else return null
+            CommandKind.ON_PATH -> when {
+                cmd.confirm -> config.confirmRepeatMs
+                config.enableOnPathTick && !config.onPathOnlyOnConfirm -> config.onPathRepeatMs
+                else -> return null
+            }
             CommandKind.STOP -> config.stopRepeatMs
         }
         // A cue never repeats before its previous play has finished, however long the pulses are set.

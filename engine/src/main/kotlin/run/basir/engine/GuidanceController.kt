@@ -27,6 +27,10 @@ data class GuidanceCommand(
     val confidence: Double = 0.0,
     val stopReason: StopReason = StopReason.NONE,
     val mode: PathMode = PathMode.STOP,
+    /** The guidance state behind this command (set by [StableGuidanceController]). */
+    val state: GuidanceState? = null,
+    /** Back on the path after a correction: one quiet confirmation pulse. */
+    val confirm: Boolean = false,
 )
 
 data class GuidanceConfig(
@@ -103,7 +107,8 @@ class GuidanceController(private val config: GuidanceConfig = GuidanceConfig()) 
             curveCurvature = kappa, curveInM = curveAt)
         if (decision.obstacleAheadM != null) {
             calm = config.calmFrames
-            return base.copy(kind = CommandKind.OBSTACLE, side = side, level = Level.HIGH)
+            // no side: a side with an obstacle now means "pass on this side", which this controller never verified
+            return base.copy(kind = CommandKind.OBSTACLE, side = null, level = Level.HIGH)
         }
         // Right after a stop or a warning the runner is slowing down and listening: only a
         // strong correction gets through, no small nudges and no bend cues.

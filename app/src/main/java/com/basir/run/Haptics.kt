@@ -10,6 +10,7 @@ import com.basir.run.engine.Decision
 import com.basir.run.engine.HapticBridge
 import run.basir.engine.HapticLanguage
 import run.basir.engine.HapticOutput
+import run.basir.engine.SchedulerConfig
 import run.basir.engine.HapticPattern
 import run.basir.engine.HapticScheduler
 import kotlin.math.roundToInt
@@ -79,7 +80,9 @@ class VibratorOutput(context: Context, private val prefs: Prefs) : HapticOutput 
 class HapticEngine(context: Context, prefs: Prefs) {
     private val output = VibratorOutput(context, prefs)
     val language = HapticLanguage(output.hasAmplitudeControl)
-    private var scheduler = HapticScheduler(output, language)
+    // Quiet while on the path: only the one-off "back on the path" plays (no periodic tick).
+    private val schedulerConfig = SchedulerConfig(onPathOnlyOnConfirm = true)
+    private var scheduler = HapticScheduler(output, language, schedulerConfig)
 
     /** False on phones without a vibration motor; the app then relies on voice. */
     val available: Boolean get() = output.available
@@ -116,7 +119,7 @@ class HapticEngine(context: Context, prefs: Prefs) {
     /** A fresh scheduler for each run, so no latch or repeat timer carries over. */
     fun resetGuidance() {
         output.cancel()
-        scheduler = HapticScheduler(output, language)
+        scheduler = HapticScheduler(output, language, schedulerConfig)
         lastGuidance = null
     }
 

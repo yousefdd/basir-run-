@@ -15,7 +15,8 @@ import run.basir.engine.Level
  * - other warnings (obstacle near, path unclear, slow processing) → three quick pulses;
  * - a correction → one pulse left / two pulses right, stronger with the drift;
  * - a bend ahead → the same rhythm, long and soft;
- * - on the path → a faint tick now and then.
+ * - obstacle with a verified way around → three quick pulses, then the side to pass on;
+ * - back on the path after a correction → three quick soft taps, then silence while on the path.
  * Silence (a short dropout, pause) sends nothing, so no direction is given without a path.
  */
 object HapticBridge {
@@ -27,9 +28,11 @@ object HapticBridge {
             d.cue == Cue.TurnStop -> GuidanceCommand(CommandKind.STOP, side = engineSide(d.moveTo), confidence = conf)
             d.severity == Severity.Critical -> GuidanceCommand(CommandKind.STOP, confidence = conf)
             d.cue == Cue.NearEdge -> steer(CommandKind.CORRECT, d.moveTo, Level.HIGH, conf)
+            d.cue == Cue.ObstacleNear && d.moveTo != null -> GuidanceCommand(CommandKind.OBSTACLE, side = engineSide(d.moveTo), level = Level.HIGH, confidence = conf)
             d.severity == Severity.Warning -> GuidanceCommand(CommandKind.OBSTACLE, confidence = conf)
             d.cue == Cue.Correct -> steer(CommandKind.CORRECT, d.moveTo, level(d.level), conf)
             d.cue == Cue.CurveAhead -> steer(CommandKind.CURVE, d.curve, level(d.level), conf)
+            d.cue == Cue.BackOnPath -> GuidanceCommand(CommandKind.ON_PATH, confidence = conf, confirm = true)
             d.cue == Cue.Centered -> GuidanceCommand(CommandKind.ON_PATH, confidence = conf)
             else -> null
         }

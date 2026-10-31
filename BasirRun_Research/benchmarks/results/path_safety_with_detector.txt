@@ -1,0 +1,11 @@
+{'method': 'planner_on_ade_b0_256 (fixed classes)', 'category': 'all', 'frames': 280, 'no_path': 60, 'safe_path': 167, 'through_obstacle': 30, 'mean_on_walkable': np.float64(0.899)}
+{'method': 'planner_on_ade_b0_256 (surface underfoot)', 'category': 'all', 'frames': 280, 'no_path': 38, 'safe_path': 190, 'through_obstacle': 25, 'mean_on_walkable': np.float64(0.916)}
+{'method': 'planner_on_yolop320_drivable', 'category': 'all', 'frames': 280, 'no_path': 95, 'safe_path': 164, 'through_obstacle': 7, 'mean_on_walkable': np.float64(0.946)}
+{'method': 'planner_on_segformer_AND_yolop', 'category': 'all', 'frames': 280, 'no_path': 110, 'safe_path': 154, 'through_obstacle': 5, 'mean_on_walkable': np.float64(0.961)}
+{'method': 'planner_on_underfoot_plus_dfine (shipped chain)', 'category': 'all', 'frames': 280, 'no_path': 43, 'safe_path': 195, 'through_obstacle': 16, 'mean_on_walkable': np.float64(0.922)}
+{'method': 'planner_on_AND_plus_dfine', 'category': 'all', 'frames': 280, 'no_path': 113, 'safe_path': 152, 'through_obstacle': 4, 'mean_on_walkable': np.float64(0.961)}
+{'method': 'planner_on_veto_0.005_plus_dfine', 'category': 'all', 'frames': 280, 'no_path': 43, 'safe_path': 195, 'through_obstacle': 17, 'mean_on_walkable': np.float64(0.923)}
+{'method': 'planner_on_veto_0.01_plus_dfine', 'category': 'all', 'frames': 280, 'no_path': 43, 'safe_path': 195, 'through_obstacle': 17, 'mean_on_walkable': np.float64(0.923)}
+{'method': 'planner_on_veto_0.02_plus_dfine', 'category': 'all', 'frames': 280, 'no_path': 44, 'safe_path': 194, 'through_obstacle': 17, 'mean_on_walkable': np.float64(0.922)}
+{'method': 'planner_on_veto_0.04_plus_dfine', 'category': 'all', 'frames': 280, 'no_path': 47, 'safe_path': 190, 'through_obstacle': 17, 'mean_on_walkable': np.float64(0.92)}
+{'method': 'planner_on_human_mask (upper bound)', 'category': 'all', 'frames': 280, 'no_path': 18, 'safe_path': 220, 'through_obstacle': 30, 'mean_on_walkable': np.float64(0.972)}

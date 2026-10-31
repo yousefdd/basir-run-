@@ -147,6 +147,7 @@ enum class Phrase(val id: String, val ar: String) {
 
         fun forCue(d: Decision): Phrase? = when (d.cue) {
             Cue.Centered -> Centered
+            Cue.BackOnPath -> Centered
             Cue.Correct -> if (d.moveTo == com.basir.run.vision.Side.Right) CorrectRight else CorrectLeft
             Cue.NearEdge -> if (d.moveTo == com.basir.run.vision.Side.Right) NearEdgeRight else NearEdgeLeft
             Cue.AtEdgeStop -> AtEdgeStop

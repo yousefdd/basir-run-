@@ -12,7 +12,7 @@ import run.basir.engine.FreeSpacePlanner
 import run.basir.engine.FrameInput
 import run.basir.engine.GroundGrid
 import run.basir.engine.GuidanceCommand
-import run.basir.engine.GuidanceController
+import run.basir.engine.StableGuidanceController
 import run.basir.engine.IntelligentPathPlanner
 import run.basir.engine.LineCandidate
 import run.basir.engine.LineExtractor
@@ -62,7 +62,7 @@ class LineEngine {
     private var lastFreeSteerDeg = 0.0
     private val walkableMemory = WalkableMemory()
     private var planner = IntelligentPathPlanner()
-    private var guidance = GuidanceController()
+    private var guidance = StableGuidanceController()
     private var obstacles = run.basir.engine.ObstacleTracker()
     private var lastMs = -1L
 
@@ -74,7 +74,7 @@ class LineEngine {
 
     fun reset() {
         planner = IntelligentPathPlanner()
-        guidance = GuidanceController()
+        guidance = StableGuidanceController()
         obstacles = run.basir.engine.ObstacleTracker()
         lastMs = -1L
         lastFreeSteerDeg = 0.0
@@ -120,7 +120,8 @@ class LineEngine {
             else -> 1.0
         }
         val decision = planner.update(FrameInput(lines, route, grid, tracked, visibility, speedMps, dt, sideRoutes))
-        val command = guidance.update(decision, speedMps)
+        // States with hysteresis, dwell and curve-vs-offset separation (engine/StableGuidance.kt)
+        val command = guidance.update(decision, speedMps, dt).command
         return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start, route, modelLines.isNotEmpty())
     }
 

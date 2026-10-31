@@ -35,6 +35,8 @@ enum class Severity { Silent, Info, Correction, Warning, Critical }
 enum class Cue {
     None,
     Centered,
+    /** Back on the path after a correction: one quiet confirmation, then silence. */
+    BackOnPath,
     Correct,
     NearEdge,
     AtEdgeStop,
@@ -252,14 +254,16 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         }
         return when (cmd.kind) {
             // Something on the path, not yet at stopping distance: slow down, no way around offered.
-            CommandKind.OBSTACLE -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, confidence = conf)
+            // With a way around that the engine has seen for several frames, the side to pass on.
+            CommandKind.OBSTACLE -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = side, confidence = conf)
             CommandKind.CORRECT -> if (level == 3) {
                 Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, side, 3, bend, conf)
             } else {
                 Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, side, level, bend, conf)
             }
             CommandKind.CURVE -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, level = level, curve = side, confidence = conf)
-            else -> Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, curve = bend, confidence = conf)
+            else -> if (cmd.confirm) Decision(SystemState.PathTracked, Severity.Info, Cue.BackOnPath, curve = bend, confidence = conf)
+            else Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, curve = bend, confidence = conf)
         }
     }
 }

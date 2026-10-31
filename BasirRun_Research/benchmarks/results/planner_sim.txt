@@ -1,0 +1,108 @@
+SIMULATION (model of a runner who only gets discrete cues; not a field measurement). 8 seeds per cell.
+scenario | speed | algorithm | RMS cross-track m | time past edge | collisions | did not finish | cues/min | opposite cue within 1 s
+straight_offset | 1.4 | pure_pursuit | 0.31 | 2% | 0/8 | 0/8 | 76 | 21.2
+straight_offset | 1.4 | stanley | 0.16 | 0% | 0/8 | 0/8 | 66 | 19.1
+straight_offset | 1.4 | mpc_sampled | 0.26 | 0% | 0/8 | 0/8 | 88 | 31.1
+straight_offset | 1.4 | dwa | 0.21 | 0% | 0/8 | 0/8 | 76 | 27.5
+straight_offset | 1.4 | potential_fields | 0.29 | 1% | 0/8 | 0/8 | 76 | 21.9
+straight_offset | 1.4 | astar_local | 0.21 | 0% | 0/8 | 0/8 | 21 | 2.9
+straight_offset | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.33 | 0% | 0/8 | 0/8 | 38 | 0.0
+straight_offset | 1.4 | risk_aware_astar | 0.21 | 0% | 0/8 | 0/8 | 21 | 2.9
+straight_offset | 2.8 | pure_pursuit | 0.65 | 33% | 0/8 | 0/8 | 78 | 8.5
+straight_offset | 2.8 | stanley | 0.25 | 0% | 0/8 | 0/8 | 62 | 8.0
+straight_offset | 2.8 | mpc_sampled | 0.34 | 3% | 0/8 | 0/8 | 82 | 16.0
+straight_offset | 2.8 | dwa | 0.29 | 3% | 0/8 | 0/8 | 71 | 14.1
+straight_offset | 2.8 | potential_fields | 1.19 | 61% | 0/8 | 8/8 | 86 | 4.5
+straight_offset | 2.8 | astar_local | 0.30 | 0% | 0/8 | 0/8 | 20 | 0.1
+straight_offset | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.41 | 6% | 0/8 | 0/8 | 55 | 1.9
+straight_offset | 2.8 | risk_aware_astar | 0.30 | 0% | 0/8 | 0/8 | 20 | 0.1
+athletics_bend_R36.5 | 1.4 | pure_pursuit | 0.26 | 23% | 0/8 | 0/8 | 73 | 23.8
+athletics_bend_R36.5 | 1.4 | stanley | 0.15 | 6% | 0/8 | 0/8 | 66 | 19.8
+athletics_bend_R36.5 | 1.4 | mpc_sampled | 0.25 | 24% | 0/8 | 0/8 | 88 | 33.8
+athletics_bend_R36.5 | 1.4 | dwa | 0.32 | 35% | 0/8 | 0/8 | 83 | 28.8
+athletics_bend_R36.5 | 1.4 | potential_fields | 0.27 | 26% | 0/8 | 0/8 | 75 | 23.5
+athletics_bend_R36.5 | 1.4 | astar_local | 0.20 | 13% | 0/8 | 0/8 | 67 | 20.6
+athletics_bend_R36.5 | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.28 | 28% | 0/8 | 0/8 | 52 | 4.6
+athletics_bend_R36.5 | 1.4 | risk_aware_astar | 0.20 | 14% | 0/8 | 0/8 | 67 | 21.0
+athletics_bend_R36.5 | 2.8 | pure_pursuit | 0.68 | 62% | 0/8 | 0/8 | 76 | 9.1
+athletics_bend_R36.5 | 2.8 | stanley | 0.27 | 26% | 0/8 | 0/8 | 61 | 7.5
+athletics_bend_R36.5 | 2.8 | mpc_sampled | 0.34 | 39% | 0/8 | 0/8 | 81 | 16.5
+athletics_bend_R36.5 | 2.8 | dwa | 0.42 | 40% | 0/8 | 0/8 | 76 | 14.0
+athletics_bend_R36.5 | 2.8 | potential_fields | 0.81 | 63% | 0/8 | 8/8 | 74 | 5.2
+athletics_bend_R36.5 | 2.8 | astar_local | 0.58 | 34% | 0/8 | 7/8 | 57 | 4.4
+athletics_bend_R36.5 | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.62 | 56% | 0/8 | 0/8 | 71 | 7.6
+athletics_bend_R36.5 | 2.8 | risk_aware_astar | 0.58 | 34% | 0/8 | 7/8 | 57 | 4.4
+park_S_curve_R10 | 1.4 | pure_pursuit | 0.20 | 0% | 0/8 | 0/8 | 70 | 11.1
+park_S_curve_R10 | 1.4 | stanley | 0.27 | 1% | 0/8 | 0/8 | 67 | 8.2
+park_S_curve_R10 | 1.4 | mpc_sampled | 0.25 | 0% | 0/8 | 0/8 | 87 | 17.8
+park_S_curve_R10 | 1.4 | dwa | 0.20 | 0% | 0/8 | 0/8 | 75 | 16.1
+park_S_curve_R10 | 1.4 | potential_fields | 0.23 | 0% | 0/8 | 0/8 | 72 | 12.6
+park_S_curve_R10 | 1.4 | astar_local | 0.38 | 5% | 0/8 | 0/8 | 55 | 8.2
+park_S_curve_R10 | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.37 | 5% | 0/8 | 0/8 | 45 | 2.9
+park_S_curve_R10 | 1.4 | risk_aware_astar | 0.39 | 6% | 0/8 | 0/8 | 55 | 8.2
+park_S_curve_R10 | 2.8 | pure_pursuit | 1.07 | 40% | 0/8 | 7/8 | 75 | 2.5
+park_S_curve_R10 | 2.8 | stanley | 1.20 | 46% | 0/8 | 8/8 | 74 | 2.4
+park_S_curve_R10 | 2.8 | mpc_sampled | 0.52 | 17% | 0/8 | 0/8 | 86 | 6.2
+park_S_curve_R10 | 2.8 | dwa | 0.53 | 21% | 0/8 | 1/8 | 80 | 4.6
+park_S_curve_R10 | 2.8 | potential_fields | 0.96 | 40% | 0/8 | 4/8 | 79 | 4.1
+park_S_curve_R10 | 2.8 | astar_local | 0.79 | 28% | 0/8 | 8/8 | 52 | 0.8
+park_S_curve_R10 | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.95 | 33% | 0/8 | 8/8 | 49 | 1.1
+park_S_curve_R10 | 2.8 | risk_aware_astar | 0.79 | 28% | 0/8 | 8/8 | 52 | 0.8
+tight_bend_R6 | 1.4 | pure_pursuit | 0.18 | 1% | 0/8 | 0/8 | 69 | 6.6
+tight_bend_R6 | 1.4 | stanley | 0.44 | 15% | 0/8 | 0/8 | 67 | 5.9
+tight_bend_R6 | 1.4 | mpc_sampled | 0.26 | 0% | 0/8 | 0/8 | 85 | 10.8
+tight_bend_R6 | 1.4 | dwa | 0.19 | 1% | 0/8 | 0/8 | 74 | 9.4
+tight_bend_R6 | 1.4 | potential_fields | 0.21 | 0% | 0/8 | 0/8 | 70 | 8.1
+tight_bend_R6 | 1.4 | astar_local | 0.32 | 2% | 0/8 | 0/8 | 54 | 4.0
+tight_bend_R6 | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.66 | 21% | 0/8 | 2/8 | 34 | 0.2
+tight_bend_R6 | 1.4 | risk_aware_astar | 0.32 | 2% | 0/8 | 0/8 | 54 | 4.0
+tight_bend_R6 | 2.8 | pure_pursuit | 0.93 | 29% | 0/8 | 8/8 | 66 | 0.8
+tight_bend_R6 | 2.8 | stanley | 0.83 | 22% | 0/8 | 8/8 | 68 | 2.2
+tight_bend_R6 | 2.8 | mpc_sampled | 0.95 | 32% | 0/8 | 4/8 | 89 | 3.9
+tight_bend_R6 | 2.8 | dwa | 0.98 | 37% | 0/8 | 1/8 | 85 | 3.4
+tight_bend_R6 | 2.8 | potential_fields | 0.83 | 22% | 0/8 | 8/8 | 67 | 2.5
+tight_bend_R6 | 2.8 | astar_local | 0.85 | 25% | 0/8 | 7/8 | 47 | 0.0
+tight_bend_R6 | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.78 | 19% | 0/8 | 8/8 | 43 | 1.0
+tight_bend_R6 | 2.8 | risk_aware_astar | 0.85 | 25% | 0/8 | 7/8 | 49 | 0.0
+obstacle_on_3m_path | 1.4 | pure_pursuit | 0.19 | 0% | 8/8 | 0/8 | 70 | 10.0
+obstacle_on_3m_path | 1.4 | stanley | 0.14 | 0% | 8/8 | 0/8 | 64 | 8.6
+obstacle_on_3m_path | 1.4 | mpc_sampled | 0.28 | 0% | 7/8 | 0/8 | 88 | 16.1
+obstacle_on_3m_path | 1.4 | dwa | 0.24 | 0% | 8/8 | 0/8 | 76 | 13.8
+obstacle_on_3m_path | 1.4 | potential_fields | 0.39 | 2% | 3/8 | 0/8 | 77 | 11.4
+obstacle_on_3m_path | 1.4 | astar_local | 0.42 | 1% | 4/8 | 0/8 | 24 | 3.8
+obstacle_on_3m_path | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.63 | 2% | 0/8 | 0/8 | 31 | 1.8
+obstacle_on_3m_path | 1.4 | risk_aware_astar | 0.44 | 1% | 3/8 | 0/8 | 24 | 3.6
+obstacle_on_3m_path | 2.8 | pure_pursuit | 0.40 | 0% | 8/8 | 0/8 | 72 | 4.2
+obstacle_on_3m_path | 2.8 | stanley | 0.22 | 0% | 8/8 | 0/8 | 61 | 4.0
+obstacle_on_3m_path | 2.8 | mpc_sampled | 0.36 | 0% | 8/8 | 0/8 | 88 | 9.2
+obstacle_on_3m_path | 2.8 | dwa | 0.26 | 0% | 7/8 | 0/8 | 77 | 8.9
+obstacle_on_3m_path | 2.8 | potential_fields | 1.21 | 38% | 3/8 | 1/8 | 85 | 4.4
+obstacle_on_3m_path | 2.8 | astar_local | 0.64 | 10% | 2/8 | 0/8 | 28 | 0.9
+obstacle_on_3m_path | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.59 | 3% | 3/8 | 0/8 | 43 | 0.5
+obstacle_on_3m_path | 2.8 | risk_aware_astar | 0.68 | 12% | 2/8 | 0/8 | 31 | 0.9
+narrow_1.2m | 1.4 | pure_pursuit | 0.21 | 17% | 0/8 | 0/8 | 70 | 10.2
+narrow_1.2m | 1.4 | stanley | 0.15 | 6% | 0/8 | 0/8 | 62 | 7.9
+narrow_1.2m | 1.4 | mpc_sampled | 0.23 | 21% | 0/8 | 0/8 | 85 | 15.5
+narrow_1.2m | 1.4 | dwa | 0.26 | 25% | 0/8 | 0/8 | 78 | 13.6
+narrow_1.2m | 1.4 | potential_fields | 0.20 | 16% | 0/8 | 0/8 | 69 | 9.6
+narrow_1.2m | 1.4 | astar_local | 0.21 | 16% | 0/8 | 0/8 | 66 | 9.2
+narrow_1.2m | 1.4 | curvature_ff_hysteresis (StableGuidance) | 0.30 | 34% | 0/8 | 0/8 | 53 | 3.4
+narrow_1.2m | 1.4 | risk_aware_astar | 0.21 | 16% | 0/8 | 0/8 | 66 | 9.2
+narrow_1.2m | 2.8 | pure_pursuit | 0.43 | 41% | 0/8 | 0/8 | 71 | 3.9
+narrow_1.2m | 2.8 | stanley | 0.46 | 48% | 0/8 | 0/8 | 70 | 3.5
+narrow_1.2m | 2.8 | mpc_sampled | 0.36 | 44% | 0/8 | 0/8 | 84 | 6.5
+narrow_1.2m | 2.8 | dwa | 0.40 | 32% | 0/8 | 0/8 | 77 | 6.2
+narrow_1.2m | 2.8 | potential_fields | 0.78 | 55% | 0/8 | 6/8 | 71 | 3.6
+narrow_1.2m | 2.8 | astar_local | 0.57 | 35% | 0/8 | 5/8 | 55 | 2.1
+narrow_1.2m | 2.8 | curvature_ff_hysteresis (StableGuidance) | 0.57 | 40% | 0/8 | 1/8 | 59 | 2.2
+narrow_1.2m | 2.8 | risk_aware_astar | 0.57 | 35% | 0/8 | 5/8 | 55 | 2.1
+
+OVERALL (mean over scenarios and speeds)
+pure_pursuit | RMS 0.46 m | past edge 21% | collisions 16 | did not finish 15 | cues/min 72 | fast opposite cues 9.33
+stanley | RMS 0.38 m | past edge 14% | collisions 16 | did not finish 16 | cues/min 66 | fast opposite cues 8.09
+mpc_sampled | RMS 0.37 m | past edge 15% | collisions 15 | did not finish 4 | cues/min 86 | fast opposite cues 15.28
+dwa | RMS 0.36 m | past edge 16% | collisions 15 | did not finish 2 | cues/min 77 | fast opposite cues 13.36
+potential_fields | RMS 0.61 m | past edge 27% | collisions 6 | did not finish 35 | cues/min 75 | fast opposite cues 9.29
+astar_local | RMS 0.45 m | past edge 14% | collisions 6 | did not finish 27 | cues/min 46 | fast opposite cues 4.75
+curvature_ff_hysteresis (StableGuidance) | RMS 0.54 m | past edge 20% | collisions 3 | did not finish 19 | cues/min 48 | fast opposite cues 2.27
+risk_aware_astar | RMS 0.46 m | past edge 14% | collisions 5 | did not finish 27 | cues/min 46 | fast opposite cues 4.77

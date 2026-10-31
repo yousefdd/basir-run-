@@ -18,6 +18,8 @@ data class FrameInput(
     val dt: Double = 1.0 / 15,
     /** Routes through the walkable ground aimed to the left and right, to say which way to turn after a stop. */
     val sideRoutes: List<FreeRoute> = emptyList(),
+    /** Middle of the walkable strip along the route ([CorridorCenterline]); followed instead of the route when present. */
+    val freeCenterline: Centerline? = null,
 )
 
 data class PathDecision(
@@ -29,6 +31,8 @@ data class PathDecision(
     val blocking: TrackedObstacle? = null,
     /** With a STOP for something ahead: the side where walkable ground goes on, if one clearly does. */
     val turnSide: Side? = null,
+    /** Half the width of the walkable strip around the path, when the strip's edges were seen. */
+    val stripHalfWidthM: Double? = null,
 )
 
 data class PlannerConfig(
@@ -104,8 +108,9 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             // No line: the route through walkable ground is smoothed by the same tracker, so the
             // runner does not feel it jump between frames (raw routes jump 15–35° at p90 on
             // SANPO clips because the planner's goal cell changes from frame to frame).
+            // The strip's centreline keeps a bend as curvature; the route (a shortest path) cuts it.
             input.freeRoute != null && input.freeRoute.progressM >= config.minFreeProgressM ->
-                input.freeRoute.toCurve() to PathMode.FREE_PATH
+                (input.freeCenterline?.curve ?: input.freeRoute.toCurve()) to PathMode.FREE_PATH
             else -> null to null
         }
         if (kind != null && kind != trackedMode && tracker.state == TrackState.TRACKING) tracker.reset()
@@ -118,12 +123,13 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         if (tracked != null && tracker.confidence >= config.minPathConfidence && trackedMode != null) {
             if (input.freeGrid == null || staysWalkable(tracked, input.freeGrid)) {
                 val conf = if (trackedMode == PathMode.FREE_PATH) 0.7 * input.visibility * tracker.confidence else tracker.confidence
-                decision = PathDecision(trackedMode!!, tracked, conf)
+                decision = PathDecision(trackedMode!!, tracked, conf,
+                    stripHalfWidthM = if (trackedMode == PathMode.FREE_PATH) input.freeCenterline?.halfWidthM else null)
             }
         }
         val free = input.freeRoute
         if (decision == null && free != null && free.progressM >= config.minFreeProgressM) {
-            decision = free.toCurve()?.let { PathDecision(PathMode.FREE_PATH, it, 0.7 * input.visibility) }
+            decision = (input.freeCenterline?.curve ?: free.toCurve())?.let { PathDecision(PathMode.FREE_PATH, it, 0.7 * input.visibility, stripHalfWidthM = input.freeCenterline?.halfWidthM) }
         }
         if (decision == null) {
             val reason = if (tracked != null || free != null) StopReason.LOW_CONFIDENCE else StopReason.NO_PATH

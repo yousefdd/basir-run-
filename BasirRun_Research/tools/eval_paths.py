@@ -52,6 +52,14 @@ def current_engine_paths():
 methods = {"current_engine": current_engine_paths(),
            "planner_on_ade_b0_256 (fixed classes)": run_planner(R + "/experiment_results/sanpo/masks_ade_b0_256", "ade"),
            "planner_on_ade_b0_256 (surface underfoot)": run_planner(R + "/experiment_results/sanpo/masks_ade_b0_256_underfoot", "ade_uf"),
+           "planner_on_yolop320_drivable": run_planner(R + "/experiment_results/sanpo/masks_yolop320", "yolop"),
+           "planner_on_segformer_AND_yolop": run_planner(R + "/experiment_results/sanpo/masks_seg_and_yolop", "and"),
+           "planner_on_underfoot_plus_dfine (shipped chain)": run_planner(R + "/experiment_results/sanpo/masks_underfoot_dfine", "uf_dfine"),
+           "planner_on_AND_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_and_dfine", "and_dfine"),
+           "planner_on_veto_0.005_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.005", "veto_0.005"),
+           "planner_on_veto_0.01_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.01", "veto_0.01"),
+           "planner_on_veto_0.02_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.02", "veto_0.02"),
+           "planner_on_veto_0.04_plus_dfine": run_planner(R + "/experiment_results/sanpo/masks_veto_0.04", "veto_0.04"),
            "planner_on_human_mask (upper bound)": run_planner(gtdir, "gt")}
 summary = []
 for name, rows in methods.items():
