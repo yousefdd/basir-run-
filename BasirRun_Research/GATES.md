@@ -27,7 +27,7 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G5: Engine has the nine guidance states and the unit tests for curve-vs-offset, hysteresis, dwell, low-confidence-no-direction, stop priority, side persistence and vibration distinctness pass
   CHECK: bash BasirRun_Research/tools/gates/run_engine_tests.sh
   EXPECT: ENGINE_TESTS_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=0496b1eaef0ee2f1adc4fbdb26a4c34ec602d83139ac6883e6942a169a1c29f6; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=39bf61a50f23dbaee67bed161a490203bafbb071fb81f04d3848d2e9fc1f3fc5; exit=0; EXPECT=matched; output-sha256=0a59e4e1c7fc8327703b8518547ad62bd5b70d94c196065c0a57c9f41bace641; output-bytes=1617; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G6: On real clips (4 SANPO sequences + owner's night video) the new controller gives fewer command changes than the current one, no left/right flips, and no more stops
   CHECK: python3 BasirRun_Research/tools/gates/check_e2e.py
@@ -37,12 +37,12 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G7: Obstacle/person detection recall and false-clear rate measured on human-labelled SANPO frames for the detector the app ships
   CHECK: python3 BasirRun_Research/tools/gates/check_obstacles.py
   EXPECT: OBSTACLES_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=71a709d82444dea4131c5d0bcb32e30f8f7df7fe55cc653d2bd4ffa69dcc92cb; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=9a69b90493b76e2063c7fd51868d5353d5b38f7e66d0a89668515572bd259512; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
   CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
   EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=bb007567d6669a7da423f795d76f0415db79c7ee8de7c6b6fe4faccaa2b36877; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=5631c1431379e0cdd5d0d8f212abb173abe249f62c1c0f2c67d09538ee4e0676; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
