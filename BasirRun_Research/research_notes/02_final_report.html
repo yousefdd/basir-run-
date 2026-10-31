@@ -1,0 +1,201 @@
+<title>محرك رؤية بصير ران 0.10</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column in the app's navy; numbers in tables with a coloured verdict per row. */
+:root {
+  color-scheme: dark;
+  --bg: #081226; --card: #0f1d38; --raised: #172a4d; --line: #2c4166;
+  --ink: #f3f6fb; --muted: #a9b6cc; --teal: #19c3b4; --yellow: #ffd54a; --good: #22c55e; --bad: #ef4444; --amber: #f59e0b;
+  --body: "Tajawal", "Segoe UI", Tahoma, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; direction: rtl; background: var(--bg); color: var(--ink); font: 16px/1.8 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 36px; }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.2; margin: 0; font-weight: 800; text-wrap: balance; }
+h2 { font-size: 24px; margin: 0 0 12px; color: var(--yellow); font-weight: 800; }
+h3 { font-size: 18px; margin: 18px 0 8px; }
+p { margin: 0 0 10px; max-width: 70ch; }
+.muted { color: var(--muted); }
+a { color: var(--teal); }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; min-width: 0; }
+.kpi b { display: block; font: 800 26px/1.2 var(--body); color: var(--teal); }
+.kpi span { color: var(--muted); font-size: 14px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); vertical-align: top; }
+th { background: var(--raised); font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-family: var(--mono); font-size: 14px; white-space: nowrap; direction: ltr; text-align: left; }
+.ok { color: var(--good); font-weight: 700; } .no { color: var(--bad); font-weight: 700; } .mid { color: var(--amber); font-weight: 700; }
+.pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--raised); }
+.fig { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 18px; }
+.fig img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.fig figcaption { color: var(--muted); font-size: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); }
+code, pre { font-family: var(--mono); font-size: 13px; }
+pre { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow-x: auto; direction: ltr; text-align: left; margin: 6px 0 0; }
+ul { margin: 0; padding-inline-start: 22px; } li { margin-bottom: 4px; }
+.warn { border: 1px solid color-mix(in srgb, var(--amber) 50%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--card)); border-radius: 16px; padding: 14px 18px; }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="muted">بصير ران · تقرير بحث وتطوير محرك الرؤية · 31 أكتوبر 2026</p>
+  <h1>من «يتوقف وينتظر» إلى مسار افتراضي على أي أرض</h1>
+  <p class="muted">كل الأرقام هنا من تشغيل فعلي على صور وفيديوهات موسومة بشريًا. لم تُختلق أي نتيجة. التغييرات محفوظة محليًا (commit a12993e) ولم تُرفع إلى GitHub.</p>
+</header>
+
+<section>
+  <h2>الخلاصة</h2>
+  <div class="kpis">
+    <div class="kpi"><b>30% ← 68%</b><span>إطارات بمسار آمن كاملًا (280 إطارًا موسومًا)</span></div>
+    <div class="kpi"><b>172 ← 38</b><span>إطارات «لا مسار» التي كان يتوقف فيها</span></div>
+    <div class="kpi"><b>0.31 ← 0.84</b><span>دقة الأرض الصالحة في الأرض الوعرة (IoU)</span></div>
+    <div class="kpi"><b>0.71 ← 0.94</b><span>دقة اكتشاف الخط البنفسجي (IoU)</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>١. أخطاء المحرك قبل التحديث وأسبابها</h2>
+  <div class="tbl"><table>
+    <tr><th>ما رأيته في الميدان</th><th>السبب في الكود</th><th>الحالة</th></tr>
+    <tr><td>ميلان بسيط للهاتف أوقف التوجيه ولم يعد</td><td>DecisionEngine يوقف إذا ابتعدت زاوية الهاتف 15° عن زاويتها عند البدء، والهاتف على الصدر يتأرجح أكثر من ذلك. والحد الأدنى للزاوية 15° بينما كاميرا الصدر تقف عند 10–17°.</td><td class="ok">أُصلح</td></tr>
+    <tr><td>الخط يقفز يمينًا ويسارًا مع الخطوات</td><td>ميلان الهاتف الجانبي (roll) لم يكن محسوبًا عند إسقاط الصورة على الأرض. وكاشف الخط نفسه تتغير دقته مع الزاوية (0.27 إلى 0.71).</td><td class="ok">أُصلح</td></tr>
+    <tr><td>الأرض الحجرية: انتظار ثم توقف</td><td>مخطِّط المسار في المساحة الحرة موجود في المحرك لكنه لم يُغذَّ أبدًا: <code>freeRoute = null</code>. فبلا خط لا يملك إلا «توقف». وفحص العمق يحتاج أرضًا مستوية.</td><td class="ok">أُصلح</td></tr>
+    <tr><td>جدار بعيد على اليمين أوقفني</td><td>العوائق تُقاس في ممر مستقيم أمام الهاتف لا على المسار المتبع، فإذا انحنى المسار بجانب جدار دخل الجدار الممر المستقيم.</td><td class="ok">أُصلح</td></tr>
+    <tr><td>ظلال تُحسب خطوطًا، خط بلون قريب من الأرض</td><td>الكاشف القديم يعتمد على فرق اللون فقط (ΔE ≥ 12).</td><td class="mid">تحسّن (نموذج للخط البنفسجي فقط)</td></tr>
+    <tr><td>الليل</td><td>لا توجد بيانات ليلية بعد لتشخيصه.</td><td class="no">لم يُختبر</td></tr>
+  </table></div>
+  <p class="muted">التفاصيل مع أسماء الملفات: <code>BasirRun_Research/research_notes/01_diagnosis.md</code></p>
+</section>
+
+<section>
+  <h2>٢. المستودعات والنماذج التي نُزّلت وجُرّبت</h2>
+  <div class="tbl"><table>
+    <tr><th>المصدر</th><th>الرخصة</th><th>النتيجة الفعلية</th><th>القرار</th></tr>
+    <tr><td><a href="https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512">SegFormer-B0 · ADE20K</a></td><td>NVIDIA: بحث وتقييم فقط</td><td>أرصفة 0.74 · أرض وعرة 0.84 · 19 ملّي ث على حاسوبي</td><td class="ok">دُمج (الأرض الصالحة)</td></tr>
+    <tr><td><a href="https://github.com/google-research/project-guideline">Project Guideline (Google)</a></td><td>Apache 2.0</td><td>خط بنفسجي 0.94 مقابل 0.27–0.71 للقديم · تطابق ONNX 99.97%</td><td class="ok">دُمج (الخط)</td></tr>
+    <tr><td><a href="https://huggingface.co/nvidia/segformer-b5-finetuned-ade-640-640">SegFormer-B5 · ADE20K</a></td><td>NVIDIA</td><td>0.65 أرصفة · 2.6 ثانية للإطار</td><td class="no">مرجع فقط (بطيء)</td></tr>
+    <tr><td><a href="https://huggingface.co/blind-assist/Segf0rmer_SANPO">Segf0rmer_SANPO</a></td><td>Apache 2.0</td><td>0.82 على الأرصفة لكن <b>0.01</b> على الأرض الوعرة · وسومه مقلوبة في ملف الإعداد</td><td class="no">مرفوض: لا يعمم</td></tr>
+    <tr><td><a href="https://huggingface.co/malra/segformer-b0-finetuned-segments-sidewalk-4">SegFormer sidewalk</a></td><td>Apache 2.0</td><td>0.24 أرصفة</td><td class="no">مرفوض</td></tr>
+    <tr><td>المحرك الحالي (LaneDetector + PathRegionDetector)</td><td>—</td><td>0.25 أرصفة · 0.31 وعرة · «غير واضح» في 121 من 280</td><td class="mid">احتياطي</td></tr>
+    <tr><td><a href="https://github.com/Intellindust-AI-Lab/DEIMv2">DEIMv2</a> / <a href="https://github.com/ShihuaHuang95/DEIM">DEIM</a></td><td>مقيِّدة / Apache</td><td>DEIM-N يساوي D-FINE-N الحالي (43.0 AP)</td><td class="mid">لا تغيير لكاشف العوائق</td></tr>
+    <tr><td><a href="https://github.com/leggedrobotics/wild_visual_navigation">WVN</a>، <a href="https://github.com/RPL-CS-UCL/STEPP">STEPP</a>، <a href="https://github.com/rayguan97/GANav-offroad">GANav</a>، <a href="https://huggingface.co/roboticslaburjc-org/cross-dataset-visual-offroad-segmentation">off-road cross-dataset</a></td><td>MIT / ؟ / Apache / Apache</td><td>مصممة لروبوتات بكرت رسوم أو MMSegmentation · لم تُشغَّل</td><td class="muted">لم تُختبر</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>٣. البيانات والفيديوهات المستخدمة</h2>
+  <ul>
+    <li><b><a href="https://github.com/google-research-datasets/sanpo_dataset">SANPO</a> من Google</b> (CC BY 4.0): 701 جلسة مشي وجري بكاميرا صدر ورأس. نُزّل منها <b>280 إطارًا موسومًا يدويًا من 28 جلسة</b>: حدائق، تراب وحصى، بلاط ملوّن، مطر وثلج، زحام، جري. حُسب من عمقها ارتفاع الكاميرا وزاويتها لكل إطار (الوسيط 1.38 م و17.5°).</li>
+    <li><b>4 مقاطع فيديو متصلة</b> من SANPO، 90 إطارًا لكل منها: جري، هرولة، طريق حصى، أرض حديقة.</li>
+    <li><b>RUGD</b> (CC BY-NC-SA 3.0): 184 إطارًا موسومًا من حديقة وطريق غابة.</li>
+    <li><b>إطار Google الموسوم</b> للخط البنفسجي.</li>
+    <li><b>غير متاح:</b>
+      <ul>
+        <li><b>فيديوك:</b> صفحة الإصدار محجوبة عن الجلسة.</li>
+        <li><b>ليل:</b> لا توجد جلسة ليلية في SANPO.</li>
+        <li><b>مضمار ألعاب قوى:</b> لم أجد فيديو مفتوح الرخصة.</li>
+        <li><b>ويكيميديا:</b> رفضت الطلبات مؤقتًا لكثرتها.</li>
+      </ul>
+      الفهرس كاملًا في <code>video_dataset_manifest.csv</code> (38 سطرًا).</li>
+  </ul>
+</section>
+
+<section>
+  <h2>٤. النتائج الرقمية</h2>
+  <h3>المسار الافتراضي حسب البيئة (إطارات بمسار آمن / عدد الإطارات)</h3>
+  <div class="tbl"><table>
+    <tr><th>البيئة</th><th>المحرك الحالي</th><th>المحرك الجديد</th><th>الحد الأعلى بالوسم البشري</th></tr>
+    <tr><td>حدائق</td><td class="n">3/20</td><td class="n ok">15/20</td><td class="n">14/20</td></tr>
+    <tr><td>تراب وحصى</td><td class="n">9/30</td><td class="n ok">22/30</td><td class="n">26/30</td></tr>
+    <tr><td>بلاط ملوّن</td><td class="n">11/40</td><td class="n ok">36/40</td><td class="n">39/40</td></tr>
+    <tr><td>مطر وثلج</td><td class="n">11/40</td><td class="n ok">29/40</td><td class="n">33/40</td></tr>
+    <tr><td>زحام وعوائق</td><td class="n">13/40</td><td class="n ok">29/40</td><td class="n">32/40</td></tr>
+    <tr><td>رصيف رمادي فاتح</td><td class="n">11/40</td><td class="n ok">30/40</td><td class="n">33/40</td></tr>
+    <tr><td>أرض رمادية داكنة</td><td class="n">23/50</td><td class="n mid">24/50</td><td class="n">35/50</td></tr>
+    <tr><td>جري</td><td class="n">3/20</td><td class="n no">5/20</td><td class="n">8/20</td></tr>
+  </table></div>
+  <p class="muted">«آمن» يعني أن 90% أو أكثر من نقاط المسار تقع على أرض صالحة، ولا تمر أي نقطة على عائق. وحتى الحد الأعلى «يمر على عائق» في 30 إطارًا، لأن الأرض خلف شخص واقف تظهر في الصورة فوق جسمه، فهذا المقياس يبالغ في العدّ.</p>
+  <h3>الثبات بين الإطارات (4 مقاطع، 15 إطارًا في الثانية)</h3>
+  <p>المسار متاح في 100% من الإطارات، مقابل 16–70% للمحرك الحالي. وأكبر تغيّر في اتجاهه بين إطارين متتاليين يبقى بين 2.7° و3.6° في 90% من الحالات، بعد تمريره على مرشح التنعيم. الإشارة تنقلب من يسار إلى يمين مرة واحدة على الأكثر في كل مقطع مدته 6 ثوانٍ.</p>
+  <h3>حجم الصورة الداخلة للنموذج مقابل السرعة</h3>
+  <p class="n" style="direction:rtl;text-align:right">256: دقة 0.64 / 0.82 · 19 ملّي ث &nbsp;|&nbsp; 512: دقة 0.63 / 0.79 · 101 ملّي ث. اخترت 256. السرعة مقيسة على معالج هذا الحاسوب، والهاتف قد يكون أبطأ من مرتين إلى خمس.</p>
+</section>
+
+<section>
+  <h2>٥. أمثلة قبل وبعد</h2>
+  <div class="legend"><span>يسار الصورة: الوسم البشري (أزرق)</span><span>الوسط: المحرك الحالي (أحمر)</span><span>يمين الصورة: المحرك الجديد، الأرض الصالحة بالأخضر والمسار بالأصفر</span></div>
+  <figure class="fig"><img src="img/05_park.jpg" alt="حديقة مع مشاة أمام الكاميرا: المسار الجديد يلتف حولهم"><figcaption>حديقة: المسار الجديد يمر بجانب المشاة، والمحرك الحالي يغطي جزءًا من الأرض ويخلطه بالعشب.</figcaption></figure>
+  <figure class="fig"><img src="img/03_rain_snow_lowvis.jpg" alt="رصيف أحمر بجانب ثلج"><figcaption>رصيف بجانب ثلج: المسار الجديد يبقى على الرصيف، والمحرك الحالي يرى ظل العدّاء فقط.</figcaption></figure>
+  <figure class="fig"><img src="img/02_crowded_obstacles.jpg" alt="رصيف بأعمدة"><figcaption>رصيف بأعمدة وشخص واقف: المحرك الحالي يتوقف، والجديد يجد الرصيف.</figcaption></figure>
+  <figure class="fig"><img src="img/01_terrain_gravel_train.jpg" alt="ممر ترابي بجانب ثلج"><figcaption>ضعف ظاهر: النموذج يحسب جزءًا من الثلج أرضًا صالحة.</figcaption></figure>
+  <figure class="fig"><img src="img/06_running_train.jpg" alt="إطار جري ضبابي"><figcaption>إطار جري ضبابي ومظلم: لا مسار، فيتوقف المحرك. هذا هو السلوك الصحيح عند الشك.</figcaption></figure>
+  <figure class="fig"><img src="img/fail_grass.jpg" alt="مسار يذهب إلى العشب بدل طريق الحصى"><figcaption>خطأ اكتُشف وأُصلح أثناء البحث: مع الأصناف الثابتة ذهب المسار إلى العشب، لأن النموذج يسمي طريق الحصى «طريقًا». الحل كان قاعدة «السطح تحت قدميك».</figcaption></figure>
+</section>
+
+<section>
+  <h2>٦. ما دُمج في التطبيق (0.10.0)</h2>
+  <ul>
+    <li><b>نموذج الأرض الصالحة:</b> قناة جديدة تعمل في الخلفية بجانب قناة العمق، تطبّق قاعدة «السطح تحت قدميك»، ثم تبني خريطة أرضية للمخطِّط الموجود في المحرك. المسار الحر يمر على مرشح Kalman نفسه المستخدم للخطوط.</li>
+    <li><b>نموذج الخط من Google:</b> هو الكاشف الأساسي، والكاشف القديم احتياطي له، لأنه يرى خطوطًا بكل الألوان.</li>
+    <li><b>الميلان:</b>
+      <ul>
+        <li>لا توقف عند تغيّر زاوية الهاتف عن زاوية البدء.</li>
+        <li>الحد الأدنى للزاوية 5°.</li>
+        <li>الميلان الجانبي محسوب عند إسقاط الصورة على الأرض.</li>
+      </ul></li>
+    <li><b>العمق:</b> العوائق تُقاس على اتجاه المسار المتبع.</li>
+    <li><b>فحص الجاهزية:</b> الأرض غير المستوية تمر إذا رأى نموذج الأرض أرضًا صالحة.</li>
+    <li><b>إذا لم يجد مسارًا مؤكدًا يتوقف:</b> لا يعطي أي اتجاه تخمينًا. حالات التوجيه الحالية تؤدي ما طلبته في المرحلة 11، ولم تُغيَّر لغة الاهتزاز.
+      <ul>
+        <li><b>STOP:</b> توقف، وتشمل فقدان المسار وعدم التأكد.</li>
+        <li><b>OBSTACLE:</b> عائق.</li>
+        <li><b>CORRECT يسار/يمين:</b> تصحيح بثلاثة مستويات.</li>
+        <li><b>CURVE:</b> منعطف قادم.</li>
+        <li><b>ON_PATH:</b> على المسار.</li>
+      </ul></li>
+    <li><b>الاختبارات:</b> 34 اختبارًا للمحرك و100 اختبار لمنطق التطبيق نجحت محليًا (اختبار واحد تُخطّي لأن المقاطع المسجّلة غير موجودة على هذا الجهاز)، بينها اختبارات جديدة للميلان الجانبي، والجدار بجانب المنعطف، والأرض غير المستوية، وتأرجح الزاوية أثناء الجري.</li>
+  </ul>
+</section>
+
+<section class="warn">
+  <h2>٧. ما لم يُحسم بعد</h2>
+  <ul>
+    <li><b>كود أندرويد لم يُبنَ بعد:</b> لم أرفع إلى GitHub التزامًا بطلبك، فلم يُبنَ التطبيق ولم يُجرَّب على هاتف. البناء يحتاج إذنك بالرفع.</li>
+    <li><b>رخصة SegFormer:</b> تسمح بالبحث والتقييم فقط. البديل النظيف تدريب نموذج خاص على SANPO (CC BY 4.0) بشبكة برخصة Apache.</li>
+    <li><b>الليل وفيديوك:</b> لم يُختبرا بعد.</li>
+    <li><b>إطارات الجري:</b> ما زالت ضعيفة، لأن الكاميرا تنظر إلى الأرض أو الصورة ضبابية.</li>
+    <li><b>الثلج والرمل:</b> تُحسب أحيانًا أرضًا صالحة.</li>
+    <li><b>وضعا المشي والجري:</b> لم يُفصلا بعد بإعدادات مختلفة. المخطِّط يفترض سرعة 2.5 م/ث.</li>
+    <li><b>اكتشاف الأشخاص المتحركين:</b> لم يتغير، فهو ما زال يعتمد على D-FINE-N في قناة العمق.</li>
+    <li><b>أهم تحفّظ:</b> النجاح على فيديوهات مسجّلة لا يثبت أن الجري الحقيقي آمن.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>٨. إعادة تشغيل التجارب</h2>
+<pre>cd BasirRun_Research
+python tools/sanpo_index.py datasets/sanpo/sanpo_real_sessions.csv   # attributes of 701 sessions
+python tools/sanpo_select.py && python tools/sanpo_fetch.py datasets/sanpo 10
+python tools/sanpo_geometry.py                                          # height / tilt per frame from depth
+python tools/bench_walkable.py && python tools/bench_rugd.py           # walkable-area IoU
+python tools/summarize_walkable.py experiment_results/sanpo/per_frame.csv
+python tools/eval_paths.py                                              # end-to-end virtual path
+python tools/seq_bench.py running_videos/*.mp4                          # stability across frames</pre>
+</section>
+
+<section>
+  <h2>٩. الخطوات التالية المقترحة</h2>
+  <ul>
+    <li><b>إذنك بالرفع إلى GitHub:</b> يُبنى التطبيق 0.10.0، فتجرّبه في الميدان نفسه.</li>
+    <li><b>فيديوك:</b> ارفعه داخل مستودع <code>aks</code> كملف عادي، أو في المحادثة. أشغّل عليه المحركين، القديم والجديد، وأريك الفيديو مرسومًا عليه.</li>
+    <li><b>بيانات نحتاجها منك:</b> تسجيلات ليلية، وأرض حجرية، ومضمار بخطوط. ومن شاشة نهاية الجلسة سجل القياسات، لأقيس على أرضك أنت.</li>
+    <li><b>نموذج برخصة مفتوحة تمامًا:</b> تدريب نموذج خاص بنا على SANPO والأرض الوعرة، يحل محل SegFormer مستقبلًا.</li>
+  </ul>
+</section>
+</div>
