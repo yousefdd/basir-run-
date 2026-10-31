@@ -45,10 +45,11 @@ private val LESSONS = listOf(
     Lesson("ثلاث نبضات سريعة: عائق أو انتباه", Phrase.AnswerAttention.ar, Phrase.PatternAttention) { listOf(it.obstacle()) },
     Lesson("طويلة ثم نبضتان: توقف فوراً", Phrase.AnswerStop.ar, Phrase.PatternStop) { listOf(it.stop()) },
     Lesson("نبضة التأكيد", "", Phrase.PatternConfirm) { listOf(HapticEngine.CONFIRM) },
-    Lesson("نقرة خفيفة: أنت على المسار", "", Phrase.PatternOnPath) { listOf(it.onPath()) },
+    Lesson("ثلاث سريعة ثم نبضة: تجاوز العائق من اليسار", Phrase.AnswerPassLeft.ar, Phrase.PatternPassLeft) { listOf(it.obstacleDetour(Side.LEFT)) },
+    Lesson("ثلاث سريعة ثم نبضتان: تجاوز العائق من اليمين", Phrase.AnswerPassRight.ar, Phrase.PatternPassRight) { listOf(it.obstacleDetour(Side.RIGHT)) },
+    Lesson("ثلاث نقرات خفيفة: عدت إلى المسار", Phrase.AnswerBackOnPath.ar, Phrase.PatternBackOnPath) { listOf(it.backOnPath()) },
 )
 
-/** The meanings the quiz asks about: every pattern that guides or stops the runner. */
 /** The pulse length and strength a runner chooses by ear and feel, in steps with spoken names. */
 private class Step(val value: Float, val name: String, val phrase: Phrase)
 
@@ -66,6 +67,7 @@ private val STRENGTHS = listOf(
 
 private fun List<Step>.nearest(value: Float) = indices.minBy { abs(this[it].value - value) }
 
+/** The meanings the quiz asks about: every pattern that guides or stops the runner. */
 private val QUIZ = LESSONS.filter { it.answer.isNotEmpty() }
 private const val QUESTIONS = 6
 private const val PASS = 5
