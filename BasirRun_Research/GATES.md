@@ -39,10 +39,10 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
   EXPECT: OBSTACLES_OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=9a69b90493b76e2063c7fd51868d5353d5b38f7e66d0a89668515572bd259512; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
-- [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
-  CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
-  EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=b175050b12f690948a9955001b76ada472d853c1bbc8f435cc1146cddc63359a; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+- [x] G8: Published only after the owner's permission (given 2026-10-31: "upload to the site and the app"); GitHub main contains version 0.12.0
+  CHECK: python3 BasirRun_Research/tools/gates/check_published.py
+  EXPECT: PUBLISHED_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9ff4b52dc11b28c512d51570e7b5a9ba35c7251d9df961b9450cf49d62d10f4b; exit=0; EXPECT=matched; output-sha256=4c89f2b929748a65df43252cb0d62796c9ed4d8e1ae5310fca64ca64c275b36f; output-bytes=49; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
