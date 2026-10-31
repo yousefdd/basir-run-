@@ -1,0 +1,19 @@
+class set | min px | half | static <= 4 m recall | clear-frame false alarms
+street_furniture | 2 | 0 | 4/23 | 6/77
+street_furniture | 2 | 1 | 4/31 | 3/68
+street_furniture | 4 | 0 | 4/23 | 5/77
+street_furniture | 4 | 1 | 4/31 | 2/68
+street_furniture | 8 | 0 | 4/23 | 3/77
+street_furniture | 8 | 1 | 4/31 | 2/68
++fence_railing | 2 | 0 | 7/23 | 7/77
++fence_railing | 2 | 1 | 8/31 | 4/68
++fence_railing | 4 | 0 | 7/23 | 6/77
++fence_railing | 4 | 1 | 7/31 | 3/68
++fence_railing | 8 | 0 | 7/23 | 4/77
++fence_railing | 8 | 1 | 7/31 | 3/68
++tree | 2 | 0 | 5/23 | 6/77
++tree | 2 | 1 | 5/31 | 7/68
++tree | 4 | 0 | 5/23 | 5/77
++tree | 4 | 1 | 4/31 | 6/68
++tree | 8 | 0 | 5/23 | 4/77
++tree | 8 | 1 | 4/31 | 5/68
