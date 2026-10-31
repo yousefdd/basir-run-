@@ -15,7 +15,7 @@ def m(rows, ck="cl_cmd", sk="cl_side"):
     dirs = [r[sk] for r in rows if r[ck] in ("CORRECT", "CURVE") and r[sk]]; fl = sum(a != b for a, b in zip(dirs, dirs[1:]))
     return ch, fl
 res = []
-for share, mh, cc in itertools.product([0.5, 0.7, 0.85], [99.0, 2.0, 1.5], [3, 8, 12]):
+for share, mh, cc in itertools.product([0.15, 0.25, 0.35, 0.5], [99.0, 2.0], [3, 8]):
     ch = fl = 0; ch_old = 0
     for c, sp in TUNE_STRAIGHT:
         rows = run(c, sp, share, mh, cc); a, b = m(rows); ch += a; fl += b; ch_old += m(rows, "old_cmd", "old_side")[0]
