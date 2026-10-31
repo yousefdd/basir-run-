@@ -37,12 +37,12 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G7: Obstacle/person detection recall and false-clear rate measured on human-labelled SANPO frames for the detector the app ships
   CHECK: python3 BasirRun_Research/tools/gates/check_obstacles.py
   EXPECT: OBSTACLES_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=07e600531abf27351b84e7ab468b10f1231f0069f060b2d9a36290efd2bdba23; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=71a709d82444dea4131c5d0bcb32e30f8f7df7fe55cc653d2bd4ffa69dcc92cb; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
   CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
   EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=f83e36ee5880819bf7cf3c8ba114d9ba28309efa6b525f5c0544302140f6cc9b; output-bytes=88; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=a59888d84acb519351d1ca56c3322ebfaefe53f7a512bf678bea4d633c7de6b3; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
