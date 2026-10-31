@@ -232,6 +232,25 @@ class EngineLogicTest {
     }
 
     @Test
+    fun `without a line, walkable ground that ends before the stopping distance stops the runner`() {
+        // The owner's night video: the ground ran up to a bench 3 m ahead and the path went into it.
+        fun route(progress: Double) = FreeRoute((0..12).map { GroundPoint(it * progress / 12, 0.0) }, progress, progress, 0.0, 1.0)
+        fun run(progress: Double): PathDecision {
+            val p = IntelligentPathPlanner()
+            var d: PathDecision? = null
+            repeat(5) { d = p.update(FrameInput(emptyList(), route(progress), null, emptyList(), 1.0)) }
+            return d!!
+        }
+        assertEquals(PathMode.FREE_PATH, run(6.0).mode)                 // open ground
+        assertNull(run(6.0).obstacleAheadM)
+        assertEquals(PathMode.FREE_PATH, run(4.8).mode)                 // ends a bit past stopping distance: warn
+        assertNotNull(run(4.8).obstacleAheadM)
+        val blocked = run(3.0)                                          // ends inside it: stop
+        assertEquals(PathMode.STOP, blocked.mode)
+        assertEquals(StopReason.PATH_UNSAFE, blocked.stopReason)
+    }
+
+    @Test
     fun `stretched pulses are never cut by their own repeat`() {
         // The user doubled the pulse length: a strong right correction now lasts 2 x 300 + 150 ms.
         val doubled = object : HapticOutput {

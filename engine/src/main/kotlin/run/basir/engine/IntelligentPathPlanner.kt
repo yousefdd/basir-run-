@@ -41,6 +41,7 @@ data class PlannerConfig(
     val minFreeProgressM: Double = 2.0,
     val minPathConfidence: Double = 0.5,
     val modeHoldFrames: Int = 5,         // hysteresis before switching between modes
+    val freeEndWarnMarginM: Double = 1.0, // warn when walkable ground ends within stop distance + this
 )
 
 /**
@@ -113,9 +114,22 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             return commit(PathDecision(PathMode.STOP, null, 0.0, reason))
         }
 
+        val stopAt = max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5)
+
+        // 2b. Without a line, the way ahead is only as long as the walkable ground: when it ends
+        // (a bench, a wall, a hedge across the path) before the runner could stop, stop now; a
+        // little further, warn. Found on the owner's night video: the path ran into a bench.
+        if (decision.mode == PathMode.FREE_PATH && free != null) {
+            if (free.progressM < stopAt) {
+                return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = free.progressM))
+            }
+            if (free.progressM < stopAt + config.freeEndWarnMarginM) {
+                decision = decision.copy(obstacleAheadM = free.progressM)
+            }
+        }
+
         // 3. Obstacles on the chosen path
         val path = decision.path!!.sample(0.2, 0.0, max(decision.path.farM, 3.0))
-        val stopAt = max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5)
         var nearest: Pair<TrackedObstacle, Double>? = null
         for (o in input.obstacles) {
             if (!o.confirmed && o.position.forward > 1.5) continue // single-frame blips far away

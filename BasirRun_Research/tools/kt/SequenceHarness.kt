@@ -12,7 +12,7 @@ fun main(a: Array<String>) {
     val planner = IntelligentPathPlanner()
     val guidance = GuidanceController()
     var goal = 0.0
-    val out = StringBuilder("frame,route_steer,route_bearing3,mode,path_bearing3,cmd,side,level,steer\n")
+    val out = StringBuilder("frame,route_steer,route_bearing3,mode,path_bearing3,cmd,side,level,steer,points\n")
     File(a[0]).readLines().filter { it.isNotBlank() }.forEachIndexed { i, line ->
         val (path, hfov, height, pitch) = line.split(",")
         val src = ImageIO.read(File(path)); val w = 160; val h = src.height * w / src.width
@@ -25,7 +25,8 @@ fun main(a: Array<String>) {
         val d = planner.update(FrameInput(emptyList(), route, grid, emptyList(), 1.0, dt = 1.0 / 15))
         val c = guidance.update(d)
         fun bearing(p: PathCurve?) = p?.let { Math.toDegrees(atan2(it.lateralAt(3.0), 3.0)) }
-        out.append("$i,${route?.steerDeg ?: ""},${bearing(route?.toCurve()) ?: ""},${d.mode},${bearing(d.path) ?: ""},${c.kind},${c.side ?: ""},${c.level ?: ""},${c.steerDeg}\n")
+        val pts = d.path?.sample(0.25, maxOf(d.path.nearM, 0.8), d.path.farM)?.mapNotNull { cam.groundToImage(it) }?.joinToString(" ") { (u, v) -> "%.3f:%.3f".format(u / w, v / h) } ?: ""
+        out.append("$i,${route?.steerDeg ?: ""},${bearing(route?.toCurve()) ?: ""},${d.mode},${bearing(d.path) ?: ""},${c.kind},${c.side ?: ""},${c.level ?: ""},${c.steerDeg},$pts\n")
     }
     File(a[1]).writeText(out.toString())
 }
