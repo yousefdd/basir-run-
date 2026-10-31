@@ -30,7 +30,8 @@ A = ap.parse_args()
 name = f"{os.path.basename(A.video)[:-4]}_{A.model}_{A.smoothing}_cl{A.centreline}"
 out = os.path.join(A.out, name); os.makedirs(out + "/f", exist_ok=True); os.makedirs(out + "/m", exist_ok=True); os.makedirs(out + "/o", exist_ok=True)
 for f in glob.glob(out + "/f/*.jpg") + glob.glob(out + "/o/*.jpg"): os.remove(f)
-H = int(A.width * 9 / 16) // 2 * 2
+vw, vh = map(int, subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", A.video], capture_output=True, text=True, check=True).stdout.split()[0].split(","))
+H = int(A.width * vh / vw) // 2 * 2                                              # keep the clip's aspect (portrait phone clips too)
 subprocess.run(["ffmpeg", "-loglevel", "error", "-i", A.video, "-vf", f"fps={A.fps},scale={A.width}:{H}", out + "/f/%05d.jpg"], check=True)
 frames = sorted(glob.glob(out + "/f/*.jpg"))
 if A.max_frames: frames = frames[:A.max_frames]
