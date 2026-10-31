@@ -13,7 +13,11 @@ data class DepthHazard(val level: ObstacleLevel, val kind: HazardKind, val floor
  * The planner's suggested turn is not used: no way around an obstacle is offered.
  */
 object DepthHazards {
-    val RUNNING = FloorPlanner.Config(safeDistanceM = 4.0, stopDistanceM = 2.5, lookaheadM = 6.0)
+    // Corridor 1.2 m wide (body plus arm swing) and points 10 % nearer than the floor count as
+    // raised: on 280 human-labelled SANPO frames this raised the frames with a fixed obstacle within
+    // 4 m that get a warning from 9 % to 30 %, with false alarms on clear frames 3 -> 4 of 145, the
+    // same gain in both halves of the sessions (BasirRun_Research/benchmarks/results/depth_config_sweep.txt).
+    val RUNNING = FloorPlanner.Config(safeDistanceM = 4.0, stopDistanceM = 2.5, lookaheadM = 6.0, bodyWidthM = 1.2, closerRatio = 0.9)
 
     /**
      * [headingDeg] is the bearing of the path being followed; free distances are then read in the

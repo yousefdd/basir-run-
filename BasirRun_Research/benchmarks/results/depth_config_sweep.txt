@@ -1,0 +1,8 @@
+body 0.75 closer 0.8 minpx 8 ::  <= 4 m: 54 frames, depth warns in 5 (9%)|clear: 145 frames, depth warns in 3 (2%) (false alarms)|silent: 35 frames, depth warns in 1 (3%)|
+body 1.0 closer 0.8 minpx 8 ::  <= 4 m: 54 frames, depth warns in 8 (15%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 4 (11%)|
+body 1.2 closer 0.8 minpx 8 ::  <= 4 m: 54 frames, depth warns in 12 (22%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 6 (17%)|
+body 0.75 closer 0.9 minpx 8 ::  <= 4 m: 54 frames, depth warns in 6 (11%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 1 (3%)|
+body 0.75 closer 0.8 minpx 4 ::  <= 4 m: 54 frames, depth warns in 5 (9%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 1 (3%)|
+body 1.0 closer 0.9 minpx 4 ::  <= 4 m: 54 frames, depth warns in 11 (20%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 5 (14%)|
+body 1.2 closer 0.9 minpx 4 ::  <= 4 m: 54 frames, depth warns in 17 (31%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 10 (29%)|
+body 1.2 closer 0.9 minpx 8 ::  <= 4 m: 54 frames, depth warns in 16 (30%)|clear: 145 frames, depth warns in 4 (3%) (false alarms)|silent: 35 frames, depth warns in 9 (26%)|

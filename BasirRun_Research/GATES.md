@@ -37,12 +37,12 @@ Scope: A verified >=20-candidate survey, measured smoothing and controller compa
 - [x] G7: Obstacle/person detection recall and false-clear rate measured on human-labelled SANPO frames for the detector the app ships
   CHECK: python3 BasirRun_Research/tools/gates/check_obstacles.py
   EXPECT: OBSTACLES_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=4e8d06559a3f831d4612f95da5fa65816abe6c57b1f050c1248e3355ab36df0e; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d0f967792d5bd8a8ca6597e8ea46788f985c5edf120558f005e258588c582016; exit=0; EXPECT=matched; output-sha256=71a709d82444dea4131c5d0bcb32e30f8f7df7fe55cc653d2bd4ffa69dcc92cb; output-bytes=160; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G8: Nothing pushed to GitHub (local commits stay ahead of origin or unpushed)
   CHECK: python3 BasirRun_Research/tools/gates/check_not_pushed.py
   EXPECT: NOT_PUSHED_OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=48dda6897a79974a3d510e75d3ad2b08c0e6b2e8f9118dcc89a761672f0e2861; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3a458835ed8e104e13cd73d60f68c2895e8fd8843b538a6d5fba3d367e981f09; exit=0; EXPECT=matched; output-sha256=bb007567d6669a7da423f795d76f0415db79c7ee8de7c6b6fe4faccaa2b36877; output-bytes=89; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [x] G9: Arabic report published as a private Artifact with measured numbers, failures and remaining problems
   EVIDENCE: https://claude.ai/artifact/E1iUDp12JxmPTrJLC4rVqi (copy: BasirRun_Research/research_notes/03_round2_report.html); numbers re-read from benchmarks/results after the G1-G8 re-run on 2026-10-31
@@ -83,3 +83,8 @@ ABANDON: G14 needs the APK on the owner's phone, which needs a CI build after th
   CHECK: bash BasirRun_Research/tools/gates/compile_android_changes.sh
   EXPECT: ANDROID_CHANGES_COMPILE_OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=e5411ab2ea179d4244297f4b70c21cc7e4fc3665d5cc2fb0a170b5961238c9a4; exit=0; EXPECT=matched; output-sha256=32a3b30c08cddc9a70e56a779b862d193522c73684b4593fd4f688877580e4bd; output-bytes=52; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
+
+- [x] G18: The app's depth chain is measured on fixed obstacles (labelled SANPO), and the shipped depth settings catch more of them in both session halves with at most 2 more false alarms than the old settings
+  CHECK: python3 BasirRun_Research/tools/gates/check_depth.py
+  EXPECT: DEPTH_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=4d017eddc0ffca0e12fa331f8faa4dd0074deb2e77a03d137ea4398ebb9dd246; exit=0; EXPECT=matched; output-sha256=bd58e72bb75ca01e558b571d64f781b864b8afe7af1ec43cf0ca6c14884adb4f; output-bytes=99; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries

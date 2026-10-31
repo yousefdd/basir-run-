@@ -1,0 +1,6 @@
+App depth chain (Depth Anything V2 Small int8 at 252, FloorPlanner + DepthHazards RUNNING) on 280 SANPO frames
+floor plane found: 268/280
+static obstacle in corridor <= 4 m: 30 frames, depth warns in 5 (17%)
+static obstacle in corridor <= 2.5 m: 11 frames, depth stop-level in 1 (9%), any warning 1
+nothing in corridor within 6 m: 176 frames, depth warns in 3 (2%) (false alarms)
+silent for detector + mask (static <= 4 m): 17 frames, depth warns in 1 (6%)

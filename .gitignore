@@ -22,3 +22,4 @@ app/src/main/assets/dfine_n_coco.onnx
 BasirRun_Research/visual_reports/visual_test/*/f/
 BasirRun_Research/visual_reports/visual_test/*/o/
 BasirRun_Research/visual_reports/visual_test/*/m/
+BasirRun_Research/experiment_results/sanpo/depth/*.f32
