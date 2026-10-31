@@ -19,6 +19,7 @@ import run.basir.engine.LineExtractor
 import run.basir.engine.ObstacleDetection
 import run.basir.engine.PathDecision
 import run.basir.engine.RgbImage
+import run.basir.engine.WalkableMemory
 import com.basir.run.vision.seg.SurfaceResult
 import kotlin.math.max
 
@@ -59,6 +60,7 @@ class LineEngine {
     private val freeConfig = FreeSpaceConfig()
     private val freePlanner = FreeSpacePlanner(freeConfig)
     private var lastFreeSteerDeg = 0.0
+    private val walkableMemory = WalkableMemory()
     private var planner = IntelligentPathPlanner()
     private var guidance = GuidanceController()
     private var obstacles = run.basir.engine.ObstacleTracker()
@@ -67,12 +69,16 @@ class LineEngine {
     /** Height of the camera above the ground in metres (chest mount). */
     @Volatile var cameraHeightM = DEFAULT_HEIGHT_M
 
+    /** Expected speed of the runner (walking or running setting); stopping distances follow it. */
+    @Volatile var speedMps = RUNNING_MPS
+
     fun reset() {
         planner = IntelligentPathPlanner()
         guidance = GuidanceController()
         obstacles = run.basir.engine.ObstacleTracker()
         lastMs = -1L
         lastFreeSteerDeg = 0.0
+        walkableMemory.reset()
     }
 
     /**
@@ -99,16 +105,22 @@ class LineEngine {
         val lines = modelLines.ifEmpty { extractor.extract(detector.detect(image, cam), cam) }
         val tracked = obstacles.update(freshDetections.orEmpty().mapNotNull { toGround(it, cam) }, dt)
         // Walkable ground → grid (objects block their cells) → best route through it
-        val grid = surface?.walkable?.let { GroundGrid.build(it, cam, footprints(tracked), freeConfig) }
+        // A short memory of the ground, so one dark frame does not look like a wall
+        val walkable = surface?.walkable?.let { walkableMemory.update(it) }
+        val grid = walkable?.let { GroundGrid.build(it, cam, footprints(tracked), freeConfig) }
         val route = grid?.let { freePlanner.plan(it, lastFreeSteerDeg.coerceIn(-MAX_GOAL_DEG, MAX_GOAL_DEG)) }
         lastFreeSteerDeg = route?.let { 0.7 * it.steerDeg } ?: 0.0
+        // When the way ahead ends soon, look left and right: where does the ground go on?
+        val sideRoutes = if (grid != null && (route == null || route.progressM < SIDE_LOOK_M)) {
+            listOfNotNull(freePlanner.plan(grid, -SIDE_GOAL_DEG), freePlanner.plan(grid, SIDE_GOAL_DEG))
+        } else emptyList()
         val visibility = when {
             quality.blocked || quality.tooDark || quality.glare -> 0.2
             quality.blurry -> 0.3
             else -> 1.0
         }
-        val decision = planner.update(FrameInput(lines, route, grid, tracked, visibility, dt = dt))
-        val command = guidance.update(decision)
+        val decision = planner.update(FrameInput(lines, route, grid, tracked, visibility, speedMps, dt, sideRoutes))
+        val command = guidance.update(decision, speedMps)
         return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start, route, modelLines.isNotEmpty())
     }
 
@@ -153,6 +165,11 @@ class LineEngine {
         const val WIDTH = 240
         /** The free route aims where it went last frame, within this bearing, so it follows bends. */
         private const val MAX_GOAL_DEG = 30.0
+        /** Side routes are looked for when the way ahead is shorter than this. */
+        private const val SIDE_LOOK_M = 6.0
+        private const val SIDE_GOAL_DEG = 60.0
+        const val RUNNING_MPS = 2.5
+        const val WALKING_MPS = 1.4
         const val DEFAULT_HEIGHT_M = 1.3
 
         /** Upright RGB at [width] pixels, sampled from the YUV planes (BT.601). */

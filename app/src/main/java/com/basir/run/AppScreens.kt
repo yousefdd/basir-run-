@@ -319,6 +319,7 @@ fun SettingsScreen(
     var verbose by remember { mutableStateOf(prefs.verboseVoice) }
     var tones by remember { mutableStateOf(prefs.guideTones) }
     var developer by remember { mutableStateOf(prefs.developerMode) }
+    var walking by remember { mutableStateOf(prefs.walkingMode) }
     var localNumber by remember { mutableStateOf(prefs.localEmergencyNumber) }
     var heightText by remember { mutableStateOf(prefs.runnerHeightCm.toString()) }
 
@@ -332,6 +333,7 @@ fun SettingsScreen(
             SectionTitle("الاهتزاز")
             SpeakButton("أنماط الاهتزاز واختبارها", onTraining, spoken = Phrase.ButtonHapticLessons.ar, modifier = Modifier.fillMaxWidth())
             SpeakSwitch(Phrase.SwitchVibration.ar, "قناة التوجيه الأساسية", vibrate) { vibrate = it; prefs.vibrateOn = it }
+            SpeakSwitch(Phrase.SwitchWalking.ar, "للمشي بدل الجري: يتوقف أقرب إلى العائق ويبقى أهدأ", walking) { walking = it; prefs.walkingMode = it }
 
             SectionTitle("الكاميرا")
             OutlinedTextField(

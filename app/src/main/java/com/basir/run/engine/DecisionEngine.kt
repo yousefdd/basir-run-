@@ -40,6 +40,8 @@ enum class Cue {
     AtEdgeStop,
     CurveAhead,
     Obstacle,
+    /** Something straight ahead: stop, then turn to the side where the ground goes on ([Decision.moveTo]). */
+    TurnStop,
     ObstacleNear,
     HeadLevelStop,
     DropStop,
@@ -162,8 +164,18 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         // The Virtual Path Engine steers whenever it follows a line, a lane or runs alongside a
         // line. It finds no line → the image-space path below is the fallback.
         val cmd = i.line
-        if (cmd != null && cmd.kind == CommandKind.STOP && cmd.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE) {
-            return Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
+        // The path engine stops for something on the way (an object, or the walkable ground ends
+        // within stopping distance); with a side where the ground clearly goes on, it says where to turn.
+        if (cmd != null && cmd.kind == CommandKind.STOP &&
+            (cmd.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE || cmd.stopReason == StopReason.PATH_UNSAFE)
+        ) {
+            val turn = when (cmd.side) {
+                run.basir.engine.Side.LEFT -> Side.Left
+                run.basir.engine.Side.RIGHT -> Side.Right
+                null -> null
+            }
+            return if (turn != null) Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.TurnStop, moveTo = turn)
+            else Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
         }
         if (cmd != null && cmd.kind != CommandKind.STOP) {
             unclearSince = -1L

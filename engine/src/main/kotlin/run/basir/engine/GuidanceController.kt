@@ -61,7 +61,7 @@ class GuidanceController(private val config: GuidanceConfig = GuidanceConfig()) 
         if (decision.mode == PathMode.STOP || path == null) {
             reset()
             calm = config.calmFrames
-            return GuidanceCommand(CommandKind.STOP, stopReason = decision.stopReason, mode = decision.mode)
+            return GuidanceCommand(CommandKind.STOP, side = decision.turnSide, stopReason = decision.stopReason, mode = decision.mode)
         }
         val lookahead = (speedMps * 0.8).coerceIn(1.5, 3.0)
         val target = min(lookahead, max(path.farM, 1.0))

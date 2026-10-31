@@ -21,7 +21,7 @@ ms = sorted(glob.glob(cache + "/m/*.png"))
 jobs = cache + "/jobs.csv"; open(jobs, "w").write("".join(f"{m},{hfov},{height},{pitch}\n" for m in ms))
 for jar in jars:
     out = cache + f"/seq_{os.path.basename(jar)[:-4]}.csv"
-    subprocess.run(["java", "-cp", f"{jar}:{S}/kc/kotlinc/lib/kotlin-stdlib.jar", "SequenceHarnessKt", jobs, out], check=True, capture_output=True)
+    subprocess.run(["java", "-cp", f"{jar}:{S}/kc/kotlinc/lib/kotlin-stdlib.jar", "SequenceHarnessKt", jobs, out, os.environ.get("SPEED", "2.5")], check=True, capture_output=True)
     rows = list(csv.DictReader(open(out)))
     cmds = [r["cmd"] + ("-" + r["side"] if r["side"] else "") for r in rows]
     changes = sum(1 for a, b in zip(cmds, cmds[1:]) if a != b)

@@ -207,6 +207,7 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
     DisposableEffect(Unit) {
         pipeline.calibration = Calibration()
         pipeline.cameraHeightM = prefs.cameraHeightM
+        pipeline.speedMps = if (prefs.walkingMode) com.basir.run.vision.line.LineEngine.WALKING_MPS else com.basir.run.vision.line.LineEngine.RUNNING_MPS
         pipeline.reset()
         haptics.resetGuidance()
         motion.start()

@@ -57,11 +57,13 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         private val AMP = mapOf(Level.LOW to 90, Level.MEDIUM to 170, Level.HIGH to 255)
         private val CURVE_AMP = mapOf(Level.LOW to 70, Level.MEDIUM to 110, Level.HIGH to 160)
         private val LEN_SCALE = mapOf(Level.LOW to 0.6, Level.MEDIUM to 1.0, Level.HIGH to 1.6) // no amplitude control
+        private val STOP_SEGMENTS = listOf(1200L to 255, 250L to 0, 200L to 255, 150L to 0, 200L to 255)
+        private const val STOP_TURN_PAUSE_MS = 600L
     }
 
     fun forCommand(cmd: GuidanceCommand): HapticPattern? {
         return when (cmd.kind) {
-            CommandKind.STOP -> stop()
+            CommandKind.STOP -> cmd.side?.let { stopTurn(it) } ?: stop()
             CommandKind.OBSTACLE -> obstacle()
             CommandKind.CORRECT -> correct(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
             CommandKind.CURVE -> curve(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
@@ -69,7 +71,18 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         }
     }
 
-    fun stop() = pattern("stop", P_STOP, listOf(1200L to 255, 250L to 0, 200L to 255, 150L to 0, 200L to 255))
+    fun stop() = pattern("stop", P_STOP, STOP_SEGMENTS)
+
+    /**
+     * Stop, then which way to turn: the stop pattern, a pause, then the bend rhythm of that side
+     * (one long soft pulse left, two right), so it is learned with the patterns already known.
+     */
+    fun stopTurn(side: Side): HapticPattern {
+        val amp = scaled(CURVE_AMP.getValue(Level.HIGH), 1.0)
+        val len = if (amplitudeControl) 400L else 360L
+        val turn = pulses(if (side == Side.LEFT) 1 else 2, len, 220L, amp)
+        return pattern("stop_turn_${side.name.lowercase()}", P_STOP, STOP_SEGMENTS + listOf(STOP_TURN_PAUSE_MS to 0) + turn)
+    }
 
     fun obstacle() = pattern("obstacle", P_OBSTACLE, listOf(120L to 255, 80L to 0, 120L to 255, 80L to 0, 120L to 255))
 
@@ -99,6 +112,8 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         add(Triple(curve(Side.RIGHT, Level.HIGH), "منعطف حاد إلى اليمين قادم", "Sharp bend right ahead"))
         add(Triple(obstacle(), "عائق محتمل أمامك", "Possible obstacle ahead"))
         add(Triple(stop(), "توقّف فوراً", "Stop now"))
+        add(Triple(stopTurn(Side.LEFT), "توقّف ثم انعطف يساراً", "Stop, then turn left"))
+        add(Triple(stopTurn(Side.RIGHT), "توقّف ثم انعطف يميناً", "Stop, then turn right"))
     }
 
     private fun scaled(amp: Int, confidence: Double) =
@@ -161,7 +176,7 @@ class HapticScheduler(
             if (!stopLatched || since("stop", nowMs) >= max(config.stopRepeatMs, output.playedDurationMs(language.stop()) + REPEAT_GAP_MS)) {
                 stopLatched = true
                 lastKey = "STOP"; lastKeyAt = nowMs; lastKeyPriority = HapticLanguage.P_STOP
-                return start(language.stop(), nowMs, preempt = true)
+                return start(language.forCommand(cmd) ?: language.stop(), nowMs, preempt = true)
             }
             return null
         }
@@ -203,7 +218,7 @@ class HapticScheduler(
     private fun start(p: HapticPattern, now: Long, preempt: Boolean): HapticPattern {
         if (preempt) output.cancel()
         output.play(p)
-        if (p.name == "stop") lastPlayed["stop"] = now
+        if (p.name.startsWith("stop")) lastPlayed["stop"] = now
         playingUntil = now + max(1L, output.playedDurationMs(p))
         playingPriority = p.priority
         return p

@@ -90,6 +90,7 @@ fun RunScreen(
         // Every run starts from nothing: no remembered position, width or path.
         pipeline.calibration = Calibration()
         pipeline.cameraHeightM = prefs.cameraHeightM
+        pipeline.speedMps = if (prefs.walkingMode) com.basir.run.vision.line.LineEngine.WALKING_MPS else com.basir.run.vision.line.LineEngine.RUNNING_MPS
         pipeline.reset()
         motion.start()
         voice.say(Phrase.CheckStart, interrupt = true)

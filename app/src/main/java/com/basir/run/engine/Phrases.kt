@@ -18,6 +18,8 @@ enum class Phrase(val id: String, val ar: String) {
 
     // Warnings and stops
     Obstacle("obstacle", "يوجد عائق محتمل أمامك. خفف سرعتك وتوقف للتحقق"),
+    TurnStopLeft("turn_stop_left", "توقف، عائق أمامك. الطريق يستمر إلى اليسار"),
+    TurnStopRight("turn_stop_right", "توقف، عائق أمامك. الطريق يستمر إلى اليمين"),
     ObstacleNear("obstacle_near", "انتبه، يوجد جسم قريب من مسارك. خفف سرعتك"),
     HeadLevel("head_level", "انتبه، عائق على مستوى الرأس أمامك. توقف وتحقق"),
     DropAhead("drop_ahead", "انتبه، قد يوجد درج نازل أو حفرة أمامك. توقف وتحقق"),
@@ -117,6 +119,7 @@ enum class Phrase(val id: String, val ar: String) {
     SwitchVoice("switch_voice", "توجيه صوتي إضافي"),
     SwitchTones("switch_tones", "نغمات الاتجاه"),
     SwitchDeveloper("switch_developer", "وضع المطوّر"),
+    SwitchWalking("switch_walking", "وضع المشي"),
     StateOn("state_on", "مفعّل"),
     StateOff("state_off", "متوقف"),
     HoldToToggle("hold_to_toggle", "اضغط مطولاً للتبديل"),
@@ -149,6 +152,7 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.AtEdgeStop -> AtEdgeStop
             Cue.CurveAhead -> curve(d.curve)
             Cue.Obstacle -> Obstacle
+            Cue.TurnStop -> if (d.moveTo == com.basir.run.vision.Side.Right) TurnStopRight else TurnStopLeft
             Cue.ObstacleNear -> ObstacleNear
             Cue.HeadLevelStop -> HeadLevel
             Cue.DropStop -> DropAhead

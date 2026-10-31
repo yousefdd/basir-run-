@@ -36,6 +36,11 @@ class Prefs(context: Context) {
         set(value) = sp.edit().putFloat("haptic_strength", value).apply()
 
     /** 0.6 to 2.0: multiplies the length of each pulse (lessons offer 0.7, 1, 1.4, 2). */
+    /** Walking instead of running: shorter stopping distances (1.4 m/s instead of 2.5 m/s). */
+    var walkingMode: Boolean
+        get() = sp.getBoolean("walking_mode", false)
+        set(value) = sp.edit().putBoolean("walking_mode", value).apply()
+
     var hapticDuration: Float
         get() = sp.getFloat("haptic_duration", 1f)
         set(value) = sp.edit().putFloat("haptic_duration", value).apply()

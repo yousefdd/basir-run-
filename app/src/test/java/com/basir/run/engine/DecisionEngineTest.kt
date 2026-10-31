@@ -136,6 +136,24 @@ class DecisionEngineTest {
         input(path = path, frameAge = frameAge, p90 = p90).copy(line = cmd)
 
     @Test
+    fun somethingStraightAheadStopsAndSaysWhereTheGroundGoesOn() {
+        // The free path ends at a bench: stop, and the ground goes on to the left
+        val turn = DecisionEngine().decide(withLine(GuidanceCommand(CommandKind.STOP, run.basir.engine.Side.LEFT, stopReason = StopReason.PATH_UNSAFE)))
+        assertEquals(Cue.TurnStop, turn.cue)
+        assertEquals(Severity.Critical, turn.severity)
+        assertEquals(Side.Left, turn.moveTo)
+        assertEquals(Phrase.TurnStopLeft, Phrase.forCue(turn))
+        // No clear side: a plain stop, even when the image-space path looks fine
+        val plain = DecisionEngine().decide(withLine(GuidanceCommand(CommandKind.STOP, stopReason = StopReason.PATH_UNSAFE)))
+        assertEquals(Cue.Obstacle, plain.cue)
+        assertEquals(Severity.Critical, plain.severity)
+        // The vibration carries the side: stop, then the bend rhythm of that side
+        val haptic = HapticBridge.command(turn)!!
+        assertEquals(CommandKind.STOP, haptic.kind)
+        assertEquals(run.basir.engine.Side.LEFT, haptic.side)
+    }
+
+    @Test
     fun theLineEngineSteersEvenWithoutAnImagePath() {
         val d = DecisionEngine().decide(withLine(GuidanceCommand(CommandKind.CORRECT, run.basir.engine.Side.LEFT, Level.MEDIUM, confidence = 0.8)))
         assertEquals(Cue.Correct, d.cue)

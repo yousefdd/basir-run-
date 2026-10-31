@@ -88,6 +88,10 @@ class GuidancePipeline(
             lineEngine.cameraHeightM = value
             deepChannel.cameraHeightM = value
         }
+    /** Expected speed (walking or running); the path engine's stopping distances follow it. */
+    var speedMps: Double
+        get() = lineEngine.speedMps
+        set(value) { lineEngine.speedMps = value }
     private val tracker = PathTracker()
     private val intrusions = IntrusionDetector()
     private val motion = ObstacleMotionTracker()

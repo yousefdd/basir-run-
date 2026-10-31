@@ -16,6 +16,8 @@ data class FrameInput(
     val visibility: Double,             // 0..1 scene quality (lighting, blur, ground visible)
     val runnerSpeedMps: Double = 2.5,
     val dt: Double = 1.0 / 15,
+    /** Routes through the walkable ground aimed to the left and right, to say which way to turn after a stop. */
+    val sideRoutes: List<FreeRoute> = emptyList(),
 )
 
 data class PathDecision(
@@ -25,6 +27,8 @@ data class PathDecision(
     val stopReason: StopReason = StopReason.NONE,
     val obstacleAheadM: Double? = null, // an obstacle on the path, not yet close enough to stop
     val blocking: TrackedObstacle? = null,
+    /** With a STOP for something ahead: the side where walkable ground goes on, if one clearly does. */
+    val turnSide: Side? = null,
 )
 
 data class PlannerConfig(
@@ -44,6 +48,10 @@ data class PlannerConfig(
     val freeEndWarnMarginM: Double = 1.0, // warn when walkable ground ends within stop distance + this
     val freeEndHysteresisM: Double = 0.5, // leaving a stop or a warning needs this much more ground
     val resumeFrames: Int = 10,          // ~0.7 s of a usable path before guidance resumes after a stop
+    val suddenMps: Double = 1.5,         // how fast the end of the ground may come closer beyond the runner's own speed
+    val progressConfirmFrames: Int = 6,  // a sudden much shorter way ahead must repeat this many frames to count
+    val turnMinDeg: Double = 15.0,       // a side route must bend at least this much to be a turn
+    val turnPreferenceM: Double = 1.5,   // with both sides open, one must go this much further to be named
 )
 
 /**
@@ -64,6 +72,8 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
     private var guided = false                   // guidance has started once; later stops resume slowly
     private var freeEndStopped = false
     private var freeEndWarned = false
+    private var gatedProgress: Double? = null
+    private var shortFrames = 0
 
     fun update(input: FrameInput): PathDecision {
         if (input.visibility < config.minVisibility) {
@@ -128,18 +138,20 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         // Both thresholds have hysteresis, so ground that wavers around them does not make the
         // runner feel stop, go, stop.
         if (decision.mode == PathMode.FREE_PATH && free != null) {
+            val progress = gateProgress(free.progressM, input)
             val stopLimit = stopAt + if (freeEndStopped) config.freeEndHysteresisM else 0.0
-            freeEndStopped = free.progressM < stopLimit
+            freeEndStopped = progress < stopLimit
             if (freeEndStopped) {
                 freeEndWarned = true
-                return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = free.progressM))
+                return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = progress, turnSide = turnSide(input, stopAt)))
             }
             val warnLimit = stopAt + config.freeEndWarnMarginM + if (freeEndWarned) config.freeEndHysteresisM else 0.0
-            freeEndWarned = free.progressM < warnLimit
-            if (freeEndWarned) decision = decision.copy(obstacleAheadM = free.progressM)
+            freeEndWarned = progress < warnLimit
+            if (freeEndWarned) decision = decision.copy(obstacleAheadM = progress)
         } else {
             freeEndStopped = false
             freeEndWarned = false
+            if (free == null) gatedProgress = null
         }
 
         // 3. Obstacles on the chosen path
@@ -178,7 +190,7 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         ) {
             return commit(decision.copy(obstacleAheadM = along, blocking = obstacle)) // free route already goes around
         }
-        return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.OBSTACLE_NO_ALTERNATIVE, along, obstacle))
+        return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.OBSTACLE_NO_ALTERNATIVE, along, obstacle, turnSide(input, stopAt)))
     }
 
     /**
@@ -195,7 +207,7 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             // The first start is already held back by the readiness check (and the tracker's
             // confirmation); a stop during the run must not be followed by a flickering "go".
             if (guided && ++resumeCount < config.resumeFrames) {
-                return PathDecision(PathMode.STOP, null, 0.0, StopReason.LOW_CONFIDENCE, d.obstacleAheadM, d.blocking)
+                return PathDecision(PathMode.STOP, null, 0.0, StopReason.LOW_CONFIDENCE, d.obstacleAheadM, d.blocking, d.turnSide)
             }
             lastMode = d.mode; resumeCount = 0; guided = true
             return d
@@ -248,6 +260,45 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         val c = DoubleArray(n) { (l.curve.coeffs.getOrElse(it) { 0.0 } + r.curve.coeffs.getOrElse(it) { 0.0 }) / 2 }
         val curve = PathCurve(c, max(l.curve.nearM, r.curve.nearM), minOf(l.curve.farM, r.curve.farM), (l.curve.rmsM + r.curve.rmsM) / 2)
         return Triple(curve, l, r)
+    }
+
+    /**
+     * How far the walkable ground goes, gated by physics: it cannot come closer faster than the
+     * runner moves (plus [PlannerConfig.suddenMps]). A much shorter reading in one frame is
+     * almost always a missed patch of ground (night, a band of shadow; the owner's video lost the
+     * ground right ahead for ~10 frames in a fence shadow), so it counts only after it has
+     * repeated for [PlannerConfig.progressConfirmFrames] frames in a row. Things that move into
+     * the path are the object tracker's job and are not gated here.
+     */
+    private fun gateProgress(raw: Double, input: FrameInput): Double {
+        val prev = gatedProgress
+        val floor = prev?.let { it - (input.runnerSpeedMps + config.suddenMps) * input.dt }
+        val out = if (floor == null || raw >= floor) {
+            shortFrames = 0
+            raw
+        } else if (++shortFrames >= config.progressConfirmFrames) {
+            shortFrames = 0
+            raw
+        } else floor
+        gatedProgress = out
+        return out
+    }
+
+    /**
+     * After a stop for something straight ahead: the side to turn to, when walkable ground clearly
+     * goes on there (well past the stopping distance, at a real angle) and not on the other side
+     * as well; otherwise none, and the runner only stops.
+     */
+    private fun turnSide(input: FrameInput, stopAt: Double): Side? {
+        val open = input.sideRoutes.filter { it.progressM >= stopAt + config.freeEndWarnMarginM && abs(it.steerDeg) >= config.turnMinDeg }
+        val left = open.filter { it.steerDeg < 0 }.maxOfOrNull { it.progressM }
+        val right = open.filter { it.steerDeg > 0 }.maxOfOrNull { it.progressM }
+        return when {
+            left != null && right == null -> Side.LEFT
+            right != null && left == null -> Side.RIGHT
+            left != null && right != null && abs(left - right) >= config.turnPreferenceM -> if (left > right) Side.LEFT else Side.RIGHT
+            else -> null
+        }
     }
 
     private fun shifted(c: PathCurve, dLat: Double) =

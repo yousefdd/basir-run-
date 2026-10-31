@@ -156,7 +156,7 @@ class GuidanceSession(
         }
         if (d.cue != lastCue) {
             if (d.severity == Severity.Critical) stopAlerts++
-            if (d.cue in setOf(Cue.Obstacle, Cue.ObstacleNear, Cue.HeadLevelStop, Cue.DropStop)) obstacleAlerts++
+            if (d.cue in setOf(Cue.Obstacle, Cue.TurnStop, Cue.ObstacleNear, Cue.HeadLevelStop, Cue.DropStop)) obstacleAlerts++
             lastCue = d.cue
         }
 

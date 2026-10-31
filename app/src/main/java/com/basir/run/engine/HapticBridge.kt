@@ -24,6 +24,7 @@ object HapticBridge {
         val conf = d.confidence.toDouble()
         return when {
             d.severity == Severity.Silent -> null
+            d.cue == Cue.TurnStop -> GuidanceCommand(CommandKind.STOP, side = engineSide(d.moveTo), confidence = conf)
             d.severity == Severity.Critical -> GuidanceCommand(CommandKind.STOP, confidence = conf)
             d.cue == Cue.NearEdge -> steer(CommandKind.CORRECT, d.moveTo, Level.HIGH, conf)
             d.severity == Severity.Warning -> GuidanceCommand(CommandKind.OBSTACLE, confidence = conf)
@@ -32,6 +33,12 @@ object HapticBridge {
             d.cue == Cue.Centered -> GuidanceCommand(CommandKind.ON_PATH, confidence = conf)
             else -> null
         }
+    }
+
+    private fun engineSide(side: Side?) = when (side) {
+        Side.Left -> run.basir.engine.Side.LEFT
+        Side.Right -> run.basir.engine.Side.RIGHT
+        null -> null
     }
 
     private fun level(n: Int) = when {

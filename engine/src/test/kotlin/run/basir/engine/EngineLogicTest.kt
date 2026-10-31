@@ -271,6 +271,56 @@ class EngineLogicTest {
     }
 
     @Test
+    fun `an obstacle straight ahead gives stop and the side where the ground goes on`() {
+        fun route(progress: Double, steer: Double = 0.0) =
+            FreeRoute((0..12).map { GroundPoint(it * progress / 12, it * progress / 12 * kotlin.math.tan(Math.toRadians(steer))) }, progress, progress, steer, 1.0)
+        fun decide(left: Double, right: Double): PathDecision {
+            val p = IntelligentPathPlanner()
+            var d: PathDecision? = null
+            repeat(3) { d = p.update(FrameInput(emptyList(), route(2.0), null, emptyList(), 1.0, sideRoutes = listOf(route(left, -40.0), route(right, 40.0)))) }
+            return d!!
+        }
+        assertEquals(Side.LEFT, decide(left = 6.0, right = 1.5).turnSide)    // only the left goes on
+        assertEquals(Side.RIGHT, decide(left = 1.0, right = 6.0).turnSide)
+        assertNull(decide(left = 6.0, right = 5.5).turnSide)                 // both open about the same: just stop
+        assertNull(decide(left = 2.0, right = 2.0).turnSide)                 // closed all round: just stop
+        assertEquals(PathMode.STOP, decide(6.0, 1.5).mode)
+        // the vibration: stop, a pause, then the bend rhythm of that side
+        val lang = HapticLanguage(true)
+        val turn = lang.forCommand(GuidanceCommand(CommandKind.STOP, Side.RIGHT))!!
+        assertEquals("stop_turn_right", turn.name)
+        assertEquals(lang.stop().amplitudes.count { it > 0 } + 2, turn.amplitudes.count { it > 0 })
+    }
+
+    @Test
+    fun `the end of the ground cannot jump closer in one frame, but an approaching one is followed`() {
+        fun route(progress: Double) = FreeRoute((0..12).map { GroundPoint(it * progress / 12, 0.0) }, progress, progress, 0.0, 1.0)
+        val walk = IntelligentPathPlanner()
+        fun step(p: Double) = walk.update(FrameInput(emptyList(), route(p), null, emptyList(), 1.0, runnerSpeedMps = 1.4)).mode
+        repeat(5) { step(6.0) }
+        // a shadow band: the ground "ends" at 1 m for a few frames, with good frames between
+        val shadow = listOf(1.0, 1.0, 6.0, 1.0, 1.0, 6.0, 1.0).map { step(it) }
+        assertTrue(shadow.none { it == PathMode.STOP }, "$shadow")
+        // a bench getting closer as the runner walks to it: followed, and stopped before it
+        val approach = (0..40).map { step(6.0 - it * 0.1) }
+        assertEquals(PathMode.STOP, approach.last())
+        // a real sudden end that stays: accepted after a few frames
+        val p2 = IntelligentPathPlanner()
+        repeat(5) { p2.update(FrameInput(emptyList(), route(6.0), null, emptyList(), 1.0, runnerSpeedMps = 1.4)) }
+        val sudden = (1..8).map { p2.update(FrameInput(emptyList(), route(1.0), null, emptyList(), 1.0, runnerSpeedMps = 1.4)).mode }
+        assertEquals(PathMode.STOP, sudden.last())
+    }
+
+    @Test
+    fun `one dark frame does not erase the walkable ground, two do`() {
+        val m = WalkableMemory()
+        fun mask(v: Float) = ProbabilityMask(4, 4, FloatArray(16) { v })
+        m.update(mask(1f)); m.update(mask(1f))
+        assertEquals(1f, m.update(mask(0f)).data[0])   // one missed frame: still walkable
+        assertEquals(0f, m.update(mask(0f)).data[0])   // two: gone
+    }
+
+    @Test
     fun `a stop during the run is not followed by a flickering go`() {
         // Ground that clears for single frames between stops (the owner's night video) must not
         // be felt as stop, go, stop: guidance resumes only after ~0.7 s of usable path.
@@ -279,12 +329,15 @@ class EngineLogicTest {
         fun step(progress: Double) = p.update(FrameInput(emptyList(), route(progress), null, emptyList(), 1.0)).mode
         repeat(5) { step(6.0) }
         assertEquals(PathMode.FREE_PATH, step(6.0))
-        assertEquals(PathMode.STOP, step(3.0))
+        // the ground really ends at 3 m (it stays so): stop
+        assertEquals(PathMode.STOP, (1..8).map { step(3.0) }.last())
         // one clear frame, then blocked again: never a go in between
         assertEquals(PathMode.STOP, step(6.0))
         assertEquals(PathMode.STOP, step(3.0))
+        // (the single blocked frame above is a one-frame drop, ignored by the progress gate, so the
+        // resume count goes on): ~0.7 s of clear path in all before "go"
         val modes = (1..12).map { step(6.0) }
-        assertTrue(modes.take(8).all { it == PathMode.STOP } && modes.last() == PathMode.FREE_PATH, "$modes")
+        assertTrue(modes.take(7).all { it == PathMode.STOP } && modes.last() == PathMode.FREE_PATH, "$modes")
     }
 
     @Test
