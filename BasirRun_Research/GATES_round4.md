@@ -64,9 +64,10 @@ Scope: Audit the current engine before changing it; widen the verified survey (r
   EXPECT: REPORT_OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=54f51788d1b6333226ca3e00f53b4dfbde0d65e344a1e3a4754d816da0cd73e7; exit=0; EXPECT=matched; output-sha256=8dcb09ed833912554121501fd0e9257d735cdc7ca097e32a9e47e62451129dff; output-bytes=52; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
-- [ ] G13: App commit and site are published (remote main has the local head; site page links the latest release)
+- [x] G13: App commit and site are published (remote main has the local head; site page links the latest release)
   CHECK: python3 BasirRun_Research/tools/gates/check_published.py
   EXPECT: PUBLISHED_OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9ff4b52dc11b28c512d51570e7b5a9ba35c7251d9df961b9450cf49d62d10f4b; exit=0; EXPECT=matched; output-sha256=870a0c193ce1d09207adb8aec66da4f19e3ff6481f0ceb2a8d45758aa5bb42c7; output-bytes=135; shell=/bin/sh; cwd=/home/user/basir-run-; path=7f4fb4b02918/15 entries
 
 - [ ] G14: Field test with a companion on a controlled track (owner)
   MANUAL: owner runs the app with a sighted companion and reports
