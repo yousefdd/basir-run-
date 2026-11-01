@@ -61,9 +61,10 @@ for name, sel in (("0.12.0 engine", base), ("round-4 engine", new)):
              f"({total(sel, 'felt_obstacles') / m:.2f}/min), direction cues {sum(r['direction_cues_per_min'] * r['minutes'] for r in sel) / m:.2f}/min, side flips {sum(r['side_flips_per_min'] * r['minutes'] for r in sel) / m:.2f}/min")
 gain = [(r["clip"], int(n_["felt_stops"]) - int(r["felt_stops"])) for r in base for n_ in new if n_["clip"] == r["clip"]]
 L.append("clips whose felt stops changed (round4 - 0.12.0): " + (", ".join(f"{c} {d:+d}" for c, d in gain if d) or "none"))
-cues = [(r["clip"], r["category"], r.get("surface_cues", 0)) for r in new]
+urban_run = lambda r: r["category"] == "running" and r["clip"].startswith("sanpo_") and "66XHCmoc" not in r["clip"] and "OLLkkVZ1" not in r["clip"]  # same rule as make_decision.py
+cues = [(r["clip"], "urban" if r["category"] in URBAN or urban_run(r) else r["category"], r.get("surface_cues", 0)) for r in new]
 m = total(new, "minutes")
-L.append(f"rough-surface cues: {sum(c for _, _, c in cues)} in {m:.1f} min ({sum(c for _, _, c in cues) / m:.2f}/min); on urban clips: {sum(c for _, cat, c in cues if cat in URBAN)}; clips with a cue: " + (", ".join(f"{c} ({n})" for c, _, n in cues if n) or "none"))
+L.append(f"rough-surface cues: {sum(c for _, _, c in cues)} in {m:.1f} min ({sum(c for _, _, c in cues) / m:.2f}/min); on urban clips: {sum(c for _, cat, c in cues if cat == "urban")}; clips with a cue: " + (", ".join(f"{c} ({n})" for c, _, n in cues if n) or "none"))
 L.append("")
 L.append("trail-like clips, walkable channel shipped ADE vs off-road B2 (round-4 engine): blocked-corridor share | felt stops | stop share")
 for r in new:

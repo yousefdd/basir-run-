@@ -1,12 +1,23 @@
-Round-4 video benchmark: 6 clips, 5 fps, same frames/masks/detections for both engines (desktop CPU).
-0.12.0 engine: 4.3 min, felt stops 11 (2.58/min), felt obstacle warnings 11 (2.58/min), direction cues 3.74/min, side flips 1.17/min
-round-4 engine: 4.3 min, felt stops 11 (2.58/min), felt obstacle warnings 11 (2.58/min), direction cues 3.74/min, side flips 1.17/min
-clips whose felt stops changed (round4 - 0.12.0): none
-rough-surface cues: 1 in 4.3 min (0.23/min); on urban clips: 0; clips with a cue: ia_cc0_forest_path_a (1)
+Round-4 video benchmark: 45 clips, 5 fps, same frames/masks/detections for both engines (desktop CPU).
+0.12.0 engine: 18.3 min, felt stops 73 (3.98/min), felt obstacle warnings 53 (2.89/min), direction cues 2.39/min, side flips 0.44/min
+round-4 engine: 18.3 min, felt stops 74 (4.04/min), felt obstacle warnings 52 (2.84/min), direction cues 2.39/min, side flips 0.49/min
+clips whose felt stops changed (round4 - 0.12.0): sanpo_open_terrain_qLpkgfo5 +1
+rough-surface cues: 4 in 18.3 min (0.22/min); on urban clips: 2; clips with a cue: ia_cc0_forest_path_a (1), sanpo_jogging_66XHCmoc (1), sanpo_jogging_uy5vEGS6 (1), ia_flickr_cliff_street_walk (1)
 
 trail-like clips, walkable channel shipped ADE vs off-road B2 (round-4 engine): blocked-corridor share | felt stops | stop share
 ia_cc0_forest_path_a: ADE 0.483 | 4 | 0.107   off-road 0.228 | 4 | 0.088   (walkable ms 57.4 vs 281.1)
 ia_cc0_forest_path_b: ADE 1.0 | 4 | 0.147   off-road 0.973 | 3 | 0.207   (walkable ms 56.2 vs 274.4)
+sanpo_rural_terrain_IxFctRJL: ADE 0.71 | 1 | 0.31   off-road 0.97 | 2 | 0.19   (walkable ms 59.8 vs 278.9)
+sanpo_rural_terrain_kXJGW5ax: ADE 0.276 | 1 | 0.061   off-road 0.571 | 1 | 0.255   (walkable ms 59.2 vs 270.1)
+sanpo_rural_terrain_uWmvsRfe: ADE 0.96 | 2 | 0.04   off-road 0.92 | 2 | 0.08   (walkable ms 56.7 vs 264.8)
+sanpo_gravel_GCV2vQ7-: ADE 0.061 | 1 | 0.02   off-road 0.082 | 1 | 0.02   (walkable ms 56.5 vs 275.6)
+sanpo_gravel_nXpof7fY: ADE 0.17 | 1 | 0.0   off-road 0.12 | 0 | 0.0   (walkable ms 54.5 vs 264.6)
+sanpo_gravel_zsUwfXG4: ADE 0.021 | 0 | 0.0   off-road 0.021 | 0 | 0.0   (walkable ms 55.7 vs 273.2)
+sanpo_open_terrain_BY-Y6r_c: ADE 0.041 | 2 | 0.061   off-road 0.439 | 1 | 0.071   (walkable ms 56.8 vs 263.6)
+sanpo_open_terrain_N-jJAWL6: ADE 0.093 | 1 | 0.124   off-road 0.546 | 2 | 0.165   (walkable ms 54.8 vs 265.3)
+sanpo_open_terrain_qLpkgfo5: ADE 0.55 | 3 | 0.05   off-road 0.97 | 1 | 0.15   (walkable ms 56.4 vs 273.2)
+sanpo_terrain_ground_pQcPNeko: ADE 0.23 | 0 | 0.0   off-road 0.64 | 2 | 0.04   (walkable ms 55.7 vs 268.2)
+ia_hiking_long_trail_mt_abe: ADE 0.89 | 4 | 0.513   off-road 0.967 | 3 | 0.533   (walkable ms 56.5 vs 267.2)
 
 per clip (round-4 engine, shipped walkable channel): clip | category | min | stops/min | obstacle/min | direction/min | flips/min | stop share | uncertain share | blocked corridor | ms sum
 owner_athletics_track | athletics_tracks | 0.4 | 0.0 | 0.0 | 5.0 | 0.0 | 0.0 | 0.0 | 0.175 | 160.7
@@ -15,3 +26,42 @@ sanpo_cloudy_lowvis_60_ibYCD | difficult_lighting | 0.32 | 6.19 | 0.0 | 0.0 | 0.
 sanpo_night_or_cloudy_zKsJQMv6 | difficult_lighting | 0.33 | 0.0 | 6.0 | 6.0 | 3.0 | 0.0 | 0.0 | 0.1 | 169.5
 ia_cc0_forest_path_a | forest_trails | 2.0 | 2.0 | 2.0 | 4.0 | 1.0 | 0.107 | 0.263 | 0.483 | 160.7
 ia_cc0_forest_path_b | forest_trails | 1.0 | 4.0 | 4.0 | 4.0 | 2.0 | 0.147 | 0.247 | 1.0 | 153.5
+sanpo_rural_terrain_IxFctRJL | forest_trails | 0.33 | 3.0 | 3.0 | 3.0 | 0.0 | 0.31 | 0.54 | 0.71 | 168.9
+sanpo_rural_terrain_kXJGW5ax | forest_trails | 0.33 | 3.06 | 3.06 | 0.0 | 0.0 | 0.061 | 0.643 | 0.276 | 166.3
+sanpo_rural_terrain_uWmvsRfe | forest_trails | 0.33 | 6.0 | 3.0 | 0.0 | 0.0 | 0.04 | 0.87 | 0.96 | 153.3
+sanpo_gravel_GCV2vQ7- | gravel_paths | 0.33 | 3.06 | 0.0 | 6.12 | 0.0 | 0.02 | 0.02 | 0.061 | 156.9
+sanpo_gravel_nXpof7fY | gravel_paths | 0.33 | 3.0 | 6.0 | 0.0 | 0.0 | 0.0 | 0.25 | 0.17 | 156.6
+sanpo_gravel_zsUwfXG4 | gravel_paths | 0.32 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.021 | 155.2
+ia_flickr_table_mountain_dam_wall | low_contrast | 0.26 | 7.69 | 0.0 | 0.0 | 0.0 | 0.526 | 0.359 | 0.872 | 162.9
+sanpo_dark_ground_8xZbveqy | low_contrast | 0.33 | 0.0 | 6.0 | 3.0 | 0.0 | 0.0 | 0.0 | 0.0 | 157.7
+sanpo_crowd_eEHioWre | obstacles | 0.33 | 6.06 | 3.03 | 0.0 | 0.0 | 0.253 | 0.667 | 0.081 | 163.1
+sanpo_many_obstacles_dB-D3W80 | obstacles | 0.33 | 6.0 | 6.0 | 3.0 | 0.0 | 0.06 | 0.4 | 0.08 | 158.9
+sanpo_open_terrain_BY-Y6r_c | park_paths | 0.33 | 6.12 | 6.12 | 6.12 | 3.06 | 0.061 | 0.449 | 0.041 | 158.5
+sanpo_open_terrain_N-jJAWL6 | park_paths | 0.32 | 3.09 | 6.19 | 6.19 | 3.09 | 0.124 | 0.299 | 0.093 | 153.0
+sanpo_open_terrain_qLpkgfo5 | park_paths | 0.33 | 9.0 | 3.0 | 0.0 | 0.0 | 0.05 | 0.75 | 0.55 | 154.6
+sanpo_terrain_ground_pQcPNeko | park_paths | 0.33 | 0.0 | 3.0 | 21.0 | 0.0 | 0.0 | 0.0 | 0.23 | 154.6
+ia_hiking_long_trail_mt_abe | rocky_surfaces | 1.0 | 4.0 | 2.0 | 3.0 | 1.0 | 0.513 | 0.297 | 0.89 | 153.8
+ia_boring_dallas_jogging | running | 1.0 | 1.0 | 6.0 | 0.0 | 0.0 | 0.063 | 0.047 | 0.1 | 154.5
+sanpo_jogging_66XHCmoc | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 1.0 | 0.0 | 0.19 | 158.6
+sanpo_jogging_NFJk5-KA | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.47 | 0.51 | 0.02 | 158.5
+sanpo_jogging_NiTQ4jek | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.87 | 0.11 | 0.04 | 156.5
+sanpo_jogging_XGAIMFoh | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.77 | 0.22 | 0.0 | 155.8
+sanpo_jogging_fyfUW3nG | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.82 | 0.15 | 0.14 | 156.9
+sanpo_jogging_tjIoesYz | running | 0.3 | 6.59 | 0.0 | 0.0 | 0.0 | 0.802 | 0.187 | 0.055 | 155.6
+sanpo_jogging_uy5vEGS6 | running | 0.29 | 6.9 | 0.0 | 0.0 | 0.0 | 0.529 | 0.448 | 0.057 | 156.2
+sanpo_running_OLLkkVZ1 | running | 0.32 | 6.19 | 0.0 | 0.0 | 0.0 | 0.567 | 0.392 | 0.691 | 154.6
+sanpo_running_oGmaqcOI | running | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.59 | 0.36 | 0.16 | 156.2
+ia_flickr_cliff_street_walk | walking | 0.49 | 8.11 | 6.08 | 2.03 | 0.0 | 0.108 | 0.331 | 0.453 | 154.8
+sanpo_colour_ground_8WF0e5NO | walking | 0.33 | 3.0 | 9.0 | 9.0 | 0.0 | 0.01 | 0.11 | 0.04 | 157.3
+sanpo_colour_ground_SWELFgFF | walking | 0.33 | 3.06 | 3.06 | 0.0 | 0.0 | 0.122 | 0.418 | 0.0 | 152.2
+sanpo_downhill_k1ElOc9v | walking | 0.32 | 6.25 | 6.25 | 6.25 | 0.0 | 0.042 | 0.25 | 0.083 | 157.7
+sanpo_motion_blur_nLaqyAdE | walking | 0.32 | 6.19 | 3.09 | 0.0 | 0.0 | 0.258 | 0.66 | 0.361 | 157.8
+sanpo_rural_1LbUU9SO | walking | 0.31 | 0.0 | 3.23 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 157.1
+sanpo_stairs_ddEl0Jtx | walking | 0.33 | 3.0 | 9.0 | 0.0 | 0.0 | 0.01 | 0.09 | 0.0 | 157.0
+sanpo_suburban_9_t59BK_ | walking | 0.31 | 0.0 | 0.0 | 9.57 | 3.19 | 0.0 | 0.0 | 0.032 | 160.3
+sanpo_uphill_OauQwDOm | walking | 0.31 | 6.38 | 0.0 | 0.0 | 0.0 | 0.021 | 0.574 | 0.511 | 153.7
+sanpo_rain_wet_6uEJtqNV | wet_surfaces | 0.33 | 6.0 | 0.0 | 0.0 | 0.0 | 0.39 | 0.61 | 0.82 | 159.1
+sanpo_rain_wet_AMWsWL1l | wet_surfaces | 0.33 | 6.0 | 3.0 | 0.0 | 0.0 | 0.29 | 0.69 | 0.37 | 155.7
+sanpo_rain_wet_jaFq58LA | wet_surfaces | 0.33 | 6.06 | 3.03 | 0.0 | 0.0 | 0.293 | 0.687 | 0.323 | 153.4
+sanpo_snow_bSo4owzN | wet_surfaces | 0.29 | 6.98 | 3.49 | 0.0 | 0.0 | 0.07 | 0.605 | 0.256 | 152.8
+sanpo_snow_hITui4Ne | wet_surfaces | 0.31 | 3.23 | 0.0 | 0.0 | 0.0 | 0.108 | 0.645 | 0.409 | 156.7

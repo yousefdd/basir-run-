@@ -24,7 +24,6 @@ enum class Phrase(val id: String, val ar: String) {
     HeadLevel("head_level", "انتبه، عائق على مستوى الرأس أمامك. توقف وتحقق"),
     DropAhead("drop_ahead", "انتبه، قد يوجد درج نازل أو حفرة أمامك. توقف وتحقق"),
     PathUnclear("path_unclear", "المسار غير واضح. خفف سرعتك"),
-    RoughSurface("rough_surface", "أرض طبيعية أمامك. خفف سرعتك"),
     EdgeOnly("edge_only", "أرى حداً واحداً فقط للمسار. خفف سرعتك"),
     EdgeNearStop("edge_near_stop", "اقتربت من حد المسار ولا أرى الجهة الأخرى. توقف وتحقق"),
     CannotVerifyStop("cannot_verify_stop", "توقف، لم أتمكن من التحقق من المسار"),
@@ -166,7 +165,6 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.HeadLevelStop -> HeadLevel
             Cue.DropStop -> DropAhead
             Cue.PathUnclear -> PathUnclear
-            Cue.RoughSurface -> RoughSurface
             Cue.EdgeOnlyCaution -> EdgeOnly
             Cue.EdgeNearStop -> EdgeNearStop
             // The same plain sentence whenever the path cannot be verified, whatever the cause.

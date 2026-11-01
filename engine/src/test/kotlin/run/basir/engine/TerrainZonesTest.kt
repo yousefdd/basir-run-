@@ -94,12 +94,4 @@ class TerrainZonesTest {
         for (t in 8000L until 10000L step 200) if (m.update(summary(0.9), t)) cues++   // dirt again
         assertEquals(1, cues)
     }
-
-    @Test
-    fun implausibleDetectionsAreFiltered() {
-        assertFalse(DetectionFilter.keep("bear", 0.3, 0.3, 0.6, 0.9, 0.65))              // forest trail false "bear"
-        assertTrue(DetectionFilter.keep("bear", 0.3, 0.3, 0.6, 0.9, 0.9))                // a sure one stays
-        assertFalse(DetectionFilter.keep("tie", 0.45, 0.4, 0.5, 0.5, 0.9))               // part of a person
-        assertTrue(DetectionFilter.keep("bench", 0.3, 0.5, 0.6, 0.8, 0.5))               // real obstacles unchanged
-    }
 }

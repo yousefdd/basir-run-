@@ -35,8 +35,6 @@ class LineResult(
     val freeRoute: FreeRoute? = null,
     /** The lines came from the guide-line model rather than the colour-contrast detector. */
     val lineFromModel: Boolean = false,
-    /** The ground under the feet just turned from smooth to natural / loose (engine SurfaceMonitor); held 1 s. */
-    val roughSurface: Boolean = false,
 ) {
     val width get() = camera.width
     val height get() = camera.height
@@ -63,9 +61,6 @@ class LineEngine {
     private val freePlanner = FreeSpacePlanner(freeConfig)
     private var lastFreeSteerDeg = 0.0
     private val walkableMemory = WalkableMemory()
-    private var surfaceMonitor = run.basir.engine.SurfaceMonitor()
-    private var lastTerrainFrameMs = Long.MIN_VALUE
-    private var roughUntilMs = Long.MIN_VALUE
     private var planner = IntelligentPathPlanner()
     private var guidance = StableGuidanceController()
     private var obstacles = run.basir.engine.ObstacleTracker()
@@ -84,7 +79,6 @@ class LineEngine {
         lastMs = -1L
         lastFreeSteerDeg = 0.0
         walkableMemory.reset()
-        surfaceMonitor = run.basir.engine.SurfaceMonitor(); lastTerrainFrameMs = Long.MIN_VALUE; roughUntilMs = Long.MIN_VALUE
     }
 
     /**
@@ -133,13 +127,7 @@ class LineEngine {
         val decision = planner.update(FrameInput(lines, route, grid, tracked, visibility, speedMps, dt, sideRoutes))
         // States with hysteresis, dwell and curve-vs-offset separation (engine/StableGuidance.kt)
         val command = guidance.update(decision, speedMps, dt).command
-        // Terrain: once per new surface result, watch the ground under the feet (smooth → natural / loose)
-        val terrain = surface?.terrain
-        if (terrain != null && surface.frameTimeMs != lastTerrainFrameMs) {
-            lastTerrainFrameMs = surface.frameTimeMs
-            if (surfaceMonitor.update(terrain, surface.frameTimeMs)) roughUntilMs = start + ROUGH_HOLD_MS
-        }
-        return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start, route, modelLines.isNotEmpty(), start < roughUntilMs)
+        return LineResult(cam, lines, decision, command, SystemClock.elapsedRealtime() - start, route, modelLines.isNotEmpty())
     }
 
     /**
@@ -181,8 +169,6 @@ class LineEngine {
     companion object {
         /** Analysis width in pixels; the reference photo gives the same path at 320 as at 640. */
         const val WIDTH = 240
-        /** The rough-surface flag stays on this long, so the decision loop (its own rate) sees it once. */
-        private const val ROUGH_HOLD_MS = 1000L
         /** The free route aims where it went last frame, within this bearing, so it follows bends. */
         private const val MAX_GOAL_DEG = 30.0
         /** Side routes are looked for when the way ahead is shorter than this. */

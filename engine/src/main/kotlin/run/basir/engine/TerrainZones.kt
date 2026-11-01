@@ -17,7 +17,13 @@ package run.basir.engine
  * The camera cannot know friction, wetness or firmness. CAUTION only says "natural or loose surface
  * seen", never "safe". Measured in round 4 (benchmarks/results/terrain_labelled.txt): removing UNCLEAR
  * pixels from the route lowers false-walkable but costs about as much IoU on SANPO. So the zones do
- * **not** cut the route; they feed [SurfaceMonitor] and the developer overlay and log.
+ * **not** cut the route.
+ *
+ * Status (round-4 decision, BasirRun_Research/benchmarks/results/integration_decision.txt): this layer and
+ * [SurfaceMonitor] are **not wired into the app**. On the 45-clip video library the "rough surface" cue fired
+ * 4 times in 18.3 min, once correctly (asphalt → dirt trail) but twice on urban clips, against a
+ * pre-registered limit of one. They stay here, with their tests, for the research harness
+ * (tools/kt/TerrainHarness.kt) and a later round.
  */
 enum class Zone { WALKABLE, CAUTION, OBSTACLE, UNCLEAR, UNVERIFIED, NONE }
 

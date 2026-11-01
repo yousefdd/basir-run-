@@ -28,7 +28,7 @@ object HapticBridge {
             d.cue == Cue.TurnStop -> GuidanceCommand(CommandKind.STOP, side = engineSide(d.moveTo), confidence = conf)
             d.severity == Severity.Critical -> GuidanceCommand(CommandKind.STOP, confidence = conf)
             d.cue == Cue.NearEdge -> steer(CommandKind.CORRECT, d.moveTo, Level.HIGH, conf)
-            d.cue == Cue.PathUnclear || d.cue == Cue.EdgeOnlyCaution || d.cue == Cue.RoughSurface -> GuidanceCommand(CommandKind.CAUTION, confidence = conf)
+            d.cue == Cue.PathUnclear || d.cue == Cue.EdgeOnlyCaution -> GuidanceCommand(CommandKind.CAUTION, confidence = conf)
             d.cue == Cue.ObstacleNear && d.moveTo != null -> GuidanceCommand(CommandKind.OBSTACLE, side = engineSide(d.moveTo), level = Level.HIGH, confidence = conf)
             d.severity == Severity.Warning -> GuidanceCommand(CommandKind.OBSTACLE, confidence = conf)
             d.cue == Cue.Correct -> steer(CommandKind.CORRECT, d.moveTo, level(d.level), conf)

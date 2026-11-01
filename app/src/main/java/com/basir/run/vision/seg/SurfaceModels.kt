@@ -35,12 +35,8 @@ class WalkableSegmenter(context: Context) {
     private val input = FloatBuffer.allocate(3 * SIZE * SIZE)
     /** Which ground classes count, remembered across frames (the model renames surfaces now and then). */
     private val underfoot = run.basir.engine.UnderfootClasses()
-    /** Terrain Understanding (engine TerrainZones): zone shares of the last frame, for the surface monitor and the log. */
-    private val terrainZones = run.basir.engine.TerrainZones()
-    @Volatile var lastTerrain: run.basir.engine.TerrainSummary? = null
-        private set
 
-    fun resetMemory() { underfoot.reset(); lastTerrain = null }
+    fun resetMemory() = underfoot.reset()
 
     /** Walkable probability (0 or 1 per cell) resampled to [outW]×[outH] of the upright frame, or null. */
     fun walkable(upright: Bitmap, outW: Int, outH: Int): ProbabilityMask? {
@@ -65,23 +61,16 @@ class WalkableSegmenter(context: Context) {
                     val w = shape[3].toInt()
                     val logits = FloatArray(classes * h * w).also { out.floatBuffer.get(it) }
                     val label = IntArray(w * h)
-                    val margin = FloatArray(w * h)
                     for (k in 0 until w * h) {
                         var best = 0
                         var bestV = logits[k]
-                        var second = Float.NEGATIVE_INFINITY
                         for (c in 1 until classes) {
                             val v = logits[c * w * h + k]
-                            if (v > bestV) { second = bestV; bestV = v; best = c } else if (v > second) second = v
+                            if (v > bestV) { bestV = v; best = c }
                         }
                         label[k] = best
-                        // softmax top-1 minus top-2 probability: (1 - e^(l2 - l1)) / sum_c e^(lc - l1)
-                        var sum = 0.0
-                        for (c in 0 until classes) sum += kotlin.math.exp((logits[c * w * h + k] - bestV).toDouble())
-                        margin[k] = ((1.0 - kotlin.math.exp((second - bestV).toDouble())) / sum).toFloat()
                     }
                     val runnable = runnableClasses(label, w, h, underfoot, android.os.SystemClock.elapsedRealtime())
-                    lastTerrain = terrainZones.summarize(terrainZones.classify(label, margin, BooleanArray(w * h) { label[it] in runnable }, w, h), w, h)
                     nearest(FloatArray(w * h) { if (label[it] in runnable) 1f else 0f }, w, h, outW, outH)
                 }
             }

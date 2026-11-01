@@ -1,0 +1,4 @@
+walkable_fusion: NOT ADOPTED — test IoU 0.748 vs shipped 0.787 (need >= -0.01: False); false-walkable 0.274 vs 0.334 (need <=: True)
+offroad_obstacle_class: NOT ADOPTED — no dev parameter set reached false-positive rate <= 0.08 with depth (untuned dev FPR 0.325, recall 0.739)
+detection_filter_v2: NOT ADOPTED — 45 clips: felt stops 73 -> 74, felt obstacle warnings 53 -> 52, worst clip change +1
+terrain_surface_cue: NOT ADOPTED — 4 cues in 18.3 min (0.22/min), urban 2, forest_path_a 1

@@ -77,24 +77,31 @@ A("## 10. Before and after (same clips, same inputs)\n")
 A("```\n" + txt("benchmarks/results/video_benchmark.txt") + "\n```\n")
 A("## 11. The engine chosen\n")
 A("Decision, re-computed from the result files by `tools/make_decision.py` (gate G10):\n\n```\n" + dec + "\n```\n")
-A("Resulting pipeline: camera → walkable ground (SegFormer-B0 ADE20K 256, unchanged) → **Terrain Understanding layer** (engine `TerrainZones`: WALKABLE / CAUTION / OBSTACLE / UNCLEAR / UNVERIFIED from class, "
-  "softmax top-2 margin, the walkable rule and connectivity to the feet) → free-space planner and stable guidance controller (unchanged) → **SurfaceMonitor** (one caution vibration when the feet move from smooth onto "
-  "natural/loose ground; at most one per 30 s) → vibration language. Detector boxes pass **DetectionFilter v2** (wild animals need score ≥ 0.8, worn items dropped). "
-  "The zones do not cut the route: removing UNCLEAR pixels lowered false-walkable but cost as much IoU (measured, section 9 notes in `tools/bench_terrain.py`).\n")
+A("Result: **the app's guidance engine stays as in 0.12.0**. Nothing tested this round met its pre-registered criterion "
+  "(`benchmarks/decision_criteria_round4.md`, written before the video results), so nothing new is wired into the app:\n\n"
+  "- Walkable fusion with the off-road model: lost 0.039 IoU on the test sessions (limit 0.01).\n"
+  "- Off-road obstacle class: no setting reached <= 8 % false alarms on clear frames.\n"
+  "- DetectionFilter v2 (wild animals need score >= 0.8, 'tie' dropped): removed the false 'bear' obstacle on the forest trail, but those frames then became path-end stops and one clip "
+  "(sanpo_open_terrain_qLpkgfo5) gained a felt stop; total felt stops 73 -> 74 against a limit of 'no more than 0.12.0'. Reverted.\n"
+  "- Terrain zones + 'rough surface' caution: fired once correctly (ia_cc0_forest_path_a, asphalt -> dirt trail) but also on two urban clips (limit one): "
+  "sanpo_jogging_uy5vEGS6, where the camera turned toward a grass corner while the runner stayed on the pavement, and ia_flickr_cliff_street_walk, where a grey lane was read as natural ground "
+  "(frames inspected). Reverted from the app.\n\n"
+  "The Terrain Understanding layer (engine `TerrainZones`: WALKABLE / CAUTION / OBSTACLE / UNCLEAR / UNVERIFIED from class, softmax top-2 margin, the walkable rule and connectivity to the feet, "
+  "plus `SurfaceMonitor`) is kept in the engine module with its tests, **not called by the app**, for the research harness and the next round. "
+  "Transparency note: SurfaceMonitor was rewritten twice after it missed the transition on ia_cc0_forest_path_a, which is also the clip named in the criterion; that part of the criterion was "
+  "therefore met with tuning on the same clip. The urban limit, which was not tuned, is what failed.\n")
 A("## 12. Changes to the project\n")
-A("- `engine/.../TerrainZones.kt` (new): zones, summary, SurfaceMonitor. Tests: `engine/src/test/.../TerrainZonesTest.kt` (9 tests).\n- `engine/.../Obstacles.kt`: DetectionFilter v2.\n"
-  "- App: `vision/seg/SurfaceModels.kt` (softmax margin + zones per frame), `vision/seg/SurfaceChannel.kt` (terrain in SurfaceResult), `vision/line/LineEngine.kt` (SurfaceMonitor, rough flag held 1 s), "
-  "`engine/DecisionEngine.kt` (Cue.RoughSurface, only while on the path), `engine/HapticBridge.kt` (→ caution pattern), `engine/Phrases.kt` + `docs/voice/phrases_tashkeel.tsv` (phrase `rough_surface`, recording pending), "
-  "`GuidanceSession.kt`, `DeveloperScreens.kt`. Tests: DecisionEngineTest, HapticBridgeTest.\n"
+A("- `engine/.../TerrainZones.kt` (new, not used by the app): zones, summary, SurfaceMonitor. Tests: `engine/src/test/.../TerrainZonesTest.kt` (8 tests).\n"
+  "- App and the rest of the engine: no change kept (DetectionFilter v2 and the rough-surface cue were written, tested, then reverted by the decision above).\n- App version 0.12.1 (code 36): carries only the athletics-track fixes made before this round (commit 18569b2: ground-class memory in `UnderfootClasses`, the planner keeps coasting a tracked lane for a moment, small sports items and birds need score >= 0.6). These are already in the '0.12.0 engine' column of section 10, because that jar was built from the pre-round-4 source.\n"
   "- Research tools: `safe_ckpt.py` (reads whole-model pickles without running their code), `offroad_model.py`, `bench_terrain.py`, `bench_videos.py`, `bench_videos_summary.py`, `build_video_manifest.py`, `ia_fetch.py`, `make_decision.py`, `visual_test.py` (several engine jars on the same inputs, portrait/rotated video, off-road variant, terrain dump), `kt/TerrainHarness.kt`.\n")
 A("## 13. Problems fixed\n")
-A("- False 'bear' on a forest trail and 'tie' in a crowd no longer become obstacles (DetectionFilter v2).\n- Surface type is now known as zones; a runner leaving asphalt for a dirt trail gets one caution.\n"
+A("- The research harness now runs several engine builds on the same frames, masks and detections, so before/after numbers compare engines and nothing else.\n"
   "- The visual test squashed portrait and rotated phone videos (it assumed 16:9); fixed.\n- onnxruntime on this desktop had moved to 1.29 and refused the guideline model; pinned to 1.20.1 like the app.\n"
   "- Licence hygiene: three unlicensed clips removed; every library clip's licence is recorded from its source metadata.\n")
 A("## 14. Still open\n")
 A("- Forest dirt trails: the shipped ADE model still often fails to see them as walkable (the off-road model sees them, but is too slow and not proven on urban test frames).\n"
   "- Fixed-obstacle recall from depth alone stays low (0.26 test); the off-road obstacle class finds more but with too many false alarms.\n"
-  "- Curves are still followed mostly as corrections.\n- No phone timing, battery or heat numbers (G14); no field test (G10 of round 2, G14 here).\n- The `rough_surface` phrase is read by text-to-speech until it is recorded.\n")
+  "- Curves are still followed mostly as corrections.\n- No phone timing, battery or heat numbers (G14); no field test (G10 of round 2, G14 here).\n- False 'bear'/'tie' detections still reach the engine on rare frames; a filter that does not turn them into path-end stops is still needed.\n- A surface cue needs a foot-area model that tells pavement from a grass verge (both false cues were at the pavement edge).\n")
 A("## 15. Technical limits\n")
 A("- A camera cannot know friction, wetness, firmness or hidden holes; CAUTION means 'natural or loose surface seen', never 'safe'.\n- SANPO labels cover walking in cities and parks; trails and running are thin in the labelled set.\n"
   "- Licences: SegFormer weights (shipped ADE, Cityscapes, and the off-road B2 fine-tuned from them) trace back to NVIDIA's research-only licence; D-FINE and Depth Anything V2 Small are Apache-2.0.\n"

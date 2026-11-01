@@ -197,7 +197,6 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
                 obstacleKind = s.hazardKind,
                 depthStale = s.depthStale,
                 line = s.line?.command,
-                roughSurface = s.line?.roughSurface ?: false,
             )
         )
         decision = d
