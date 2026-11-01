@@ -1,0 +1,15 @@
+category,clip,walkable_channel,engine,frames,minutes,felt_stops_per_min,felt_stops,felt_obstacle_per_min,felt_obstacles,direction_cues_per_min,side_flips_per_min,stop_required_share,uncertain_share,lost_share,blocked_corridor_share,ms_walkable,ms_line,ms_detector,ms_engine,ms_sum_sequential,surface_cues,corr_caution,corr_unclear,corr_unverified,foot_caution
+athletics_tracks,owner_athletics_track,segformer256,round4,120,0.4,0.0,0,0.0,0,5.0,0.0,0.0,0.0,0.0,0.175,56.5,23.3,78.2,2.72,160.7,0,0.759,0.032,0.017,0.791
+athletics_tracks,owner_athletics_track,segformer256,0.12.0,120,0.4,0.0,0,0.0,0,5.0,0.0,0.0,0.0,0.0,0.175,56.5,23.3,78.2,2.8,160.8,,,,,
+difficult_lighting,owner_night_field,segformer256,round4,66,0.22,4.55,1,4.55,1,0.0,0.0,0.076,0.258,0.0,0.091,58.0,23.9,78.7,5.22,165.9,0,0.791,0.023,0.015,0.774
+difficult_lighting,owner_night_field,segformer256,0.12.0,66,0.22,4.55,1,4.55,1,0.0,0.0,0.076,0.258,0.0,0.091,58.0,23.9,78.7,8.46,169.1,,,,,
+difficult_lighting,sanpo_cloudy_lowvis_60_ibYCD,segformer256,round4,97,0.32,6.19,2,0.0,0,0.0,0.0,0.299,0.701,0.0,0.711,59.5,24.1,80.7,1.87,166.2,0,0.0,0.018,0.007,0.0
+difficult_lighting,sanpo_cloudy_lowvis_60_ibYCD,segformer256,0.12.0,97,0.32,6.19,2,0.0,0,0.0,0.0,0.299,0.701,0.0,0.711,59.5,24.1,80.7,2.15,166.5,,,,,
+difficult_lighting,sanpo_night_or_cloudy_zKsJQMv6,segformer256,round4,100,0.33,0.0,0,6.0,2,6.0,3.0,0.0,0.0,0.0,0.1,59.5,25.4,81.8,2.85,169.5,0,0.0,0.033,0.03,0.0
+difficult_lighting,sanpo_night_or_cloudy_zKsJQMv6,segformer256,0.12.0,100,0.33,0.0,0,6.0,2,6.0,3.0,0.0,0.0,0.0,0.1,59.5,25.4,81.8,2.6,169.3,,,,,
+forest_trails,ia_cc0_forest_path_a,offroad512,round4,600,2.0,2.0,4,2.0,4,6.0,1.5,0.088,0.115,0.0,0.228,281.1,36.5,82.2,1.18,401.0,,,,,
+forest_trails,ia_cc0_forest_path_a,segformer256,round4,600,2.0,2.0,4,2.0,4,4.0,1.0,0.107,0.263,0.0,0.483,57.4,23.6,78.5,1.19,160.7,1,0.115,0.033,0.058,0.113
+forest_trails,ia_cc0_forest_path_a,segformer256,0.12.0,600,2.0,2.0,4,2.0,4,4.0,1.0,0.118,0.265,0.0,0.483,57.4,23.6,78.5,1.18,160.7,,,,,
+forest_trails,ia_cc0_forest_path_b,offroad512,round4,300,1.0,3.0,3,3.0,3,4.0,0.0,0.207,0.227,0.0,0.973,274.4,33.7,79.7,0.79,388.5,,,,,
+forest_trails,ia_cc0_forest_path_b,segformer256,round4,300,1.0,4.0,4,4.0,4,4.0,2.0,0.147,0.247,0.0,1.0,56.2,22.2,74.1,0.99,153.5,0,0.02,0.023,0.009,0.019
+forest_trails,ia_cc0_forest_path_b,segformer256,0.12.0,300,1.0,4.0,4,4.0,4,4.0,2.0,0.187,0.23,0.0,1.0,56.2,22.2,74.1,0.88,153.4,,,,,

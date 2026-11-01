@@ -18,6 +18,8 @@ class SurfaceResult(
     val line: ProbabilityMask?,
     val walkableMs: Long,
     val lineMs: Long,
+    /** Terrain zones of the walkable model's class map (walkable / caution / obstacle / unclear / unverified). */
+    val terrain: run.basir.engine.TerrainSummary? = null,
 ) {
     /** Share of walkable cells in the corridor just ahead (bottom 45 %, central 40 % of the frame). */
     fun walkableAheadShare(): Float {
@@ -81,7 +83,7 @@ class SurfaceChannel(context: Context) {
                 val t1 = SystemClock.elapsedRealtime()
                 val line = lineModel?.takeIf { it.ready }?.line(upright, outW, outH)
                 val t2 = SystemClock.elapsedRealtime()
-                latest = SurfaceResult(frameTimeMs, walk, line, t1 - t0, t2 - t1)
+                latest = SurfaceResult(frameTimeMs, walk, line, t1 - t0, t2 - t1, walkableModel?.lastTerrain)
             } catch (e: Exception) {
                 Log.w("SurfaceChannel", "Surface analysis failed", e)
             } finally {

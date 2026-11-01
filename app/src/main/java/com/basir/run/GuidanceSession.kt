@@ -142,6 +142,7 @@ class GuidanceSession(
                 obstacleKind = s?.hazardKind ?: com.basir.run.vision.HazardKind.Object,
                 depthStale = s?.depthStale ?: false,
                 line = s?.line?.command,
+                roughSurface = s?.line?.roughSurface ?: false,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
             )

@@ -13,3 +13,14 @@ experiment_results/*
 !*/README.md
 tools/kt/*.jar
 __pycache__/
+# round 4: clips and per-frame material stay local (manifest + records are committed)
+videos/*
+visual_reports/round4/*/*/f/
+visual_reports/round4/*/*/m/
+visual_reports/round4/*/*/o/
+visual_reports/round4/*/*/o_*/
+visual_reports/round4/*/*/*.mp4
+visual_reports/round4/*/*/terrain.bin
+visual_reports/round4/*/*/probe.png
+visual_reports/external_*/*/m/
+visual_reports/external_*/*/f/

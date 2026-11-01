@@ -145,10 +145,19 @@ object DetectionFilter {
     val SMALL_ITEMS = setOf("sports ball", "tennis racket", "baseball bat", "baseball glove", "frisbee", "kite", "bird", "skis", "snowboard", "skateboard")
     const val SMALL_ITEM_MIN_SCORE = 0.6
 
+    /** Round 4, real clips: a "bear" (0.65) covered a forest dirt trail and stopped the walker for 30 frames
+     *  (archive.org CC0 trail clip); wild animals on a running path need a very sure detection. */
+    val WILD_ANIMALS = setOf("bear", "elephant", "zebra", "giraffe")
+    const val WILD_ANIMAL_MIN_SCORE = 0.8
+
+    /** Worn items are part of a person, never an obstacle on their own ("tie" in a running crowd, 8 frames). */
+    val WORN_ITEMS = setOf("tie")
+
     /** Box corners as fractions of the frame (0..1). */
     fun keep(label: String, left: Double, top: Double, right: Double, bottom: Double, score: Double = 1.0): Boolean {
-        if (label in NOT_ON_A_FOOTPATH) return false
+        if (label in NOT_ON_A_FOOTPATH || label in WORN_ITEMS) return false
         if (label in SMALL_ITEMS && score < SMALL_ITEM_MIN_SCORE) return false
+        if (label in WILD_ANIMALS && score < WILD_ANIMAL_MIN_SCORE) return false
         val w = (right - left).coerceIn(0.0, 1.0); val h = (bottom - top).coerceIn(0.0, 1.0)
         return w * h <= MAX_AREA && w <= MAX_WIDTH
     }

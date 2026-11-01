@@ -1,0 +1,7 @@
+method,split,obstacle_frames,recall,false_negative_rate,clear_frames,false_positive_rate
+depth only (shipped),dev,23,0.348,0.652,77,0.026
+offroad obstacle class,dev,23,0.696,0.304,77,0.299
+offroad obstacle class OR depth,dev,23,0.739,0.261,77,0.325
+depth only (shipped),test,31,0.258,0.742,68,0.029
+offroad obstacle class,test,31,0.839,0.161,68,0.206
+offroad obstacle class OR depth,test,31,0.871,0.129,68,0.221

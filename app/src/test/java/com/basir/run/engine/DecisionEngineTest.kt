@@ -263,4 +263,16 @@ class DecisionEngineTest {
         assertEquals(SystemState.Paused, d.state)
         assertEquals(Severity.Silent, d.severity)
     }
+
+    @Test
+    fun roughGroundGivesOneCautionOnlyWhileOnThePath() {
+        val onPath = GuidanceCommand(CommandKind.ON_PATH, confidence = 0.8)
+        val rough = DecisionEngine().decide(withLine(onPath).copy(roughSurface = true))
+        assertEquals(Cue.RoughSurface, rough.cue)
+        assertEquals(null, rough.moveTo)                                              // no direction with it
+        // a correction or a stop is never replaced by the surface caution
+        val corr = DecisionEngine().decide(withLine(GuidanceCommand(CommandKind.CORRECT, run.basir.engine.Side.LEFT, Level.LOW, confidence = 0.8)).copy(roughSurface = true))
+        assertEquals(Cue.Correct, corr.cue)
+        assertEquals(Cue.Centered, DecisionEngine().decide(withLine(onPath)).cue)
+    }
 }

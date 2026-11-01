@@ -1,0 +1,24 @@
+Terrain benchmark, 280 SANPO chest frames, split by session (dev = tune, test = report). Off-road B2 512: 296 ms/frame desktop CPU.
+method | split | IoU | Dice | precision | recall | F1 | false-walkable | boundary F1
+cityscapes512 | dev | 0.731 | 0.844 | 0.877 | 0.814 | 0.844 | 0.475 | 0.618
+cityscapes512 | test | 0.785 | 0.879 | 0.975 | 0.8 | 0.879 | 0.261 | 0.631
+offroad512 | dev | 0.729 | 0.844 | 0.871 | 0.818 | 0.844 | 0.5 | 0.583
+offroad512 | test | 0.797 | 0.887 | 0.977 | 0.812 | 0.887 | 0.248 | 0.609
+shipped_ade | dev | 0.694 | 0.82 | 0.893 | 0.757 | 0.82 | 0.377 | 0.573
+shipped_ade | test | 0.787 | 0.881 | 0.969 | 0.807 | 0.881 | 0.334 | 0.596
+terrain_full | dev | 0.708 | 0.829 | 0.877 | 0.786 | 0.829 | 0.458 | 0.571
+terrain_full | test | 0.778 | 0.875 | 0.975 | 0.794 | 0.875 | 0.261 | 0.588
+terrain_selected | dev | 0.702 | 0.825 | 0.895 | 0.765 | 0.825 | 0.372 | 0.552
+terrain_selected | test | 0.748 | 0.856 | 0.973 | 0.764 | 0.856 | 0.274 | 0.564
+terrain_veto | dev | 0.662 | 0.796 | 0.896 | 0.717 | 0.796 | 0.346 | 0.53
+terrain_veto | test | 0.718 | 0.836 | 0.979 | 0.729 | 0.836 | 0.202 | 0.533
+terrain_veto_plus_smooth | dev | 0.712 | 0.832 | 0.892 | 0.779 | 0.832 | 0.39 | 0.568
+terrain_veto_plus_smooth | test | 0.762 | 0.865 | 0.975 | 0.777 | 0.865 | 0.259 | 0.578
+
+fixed obstacles within 4 m (frames) | split | obstacle frames | recall | false-negative rate | clear frames | false-positive rate
+depth only (shipped) | dev | 23 | 0.348 | 0.652 | 77 | 0.026
+offroad obstacle class | dev | 23 | 0.696 | 0.304 | 77 | 0.299
+offroad obstacle class OR depth | dev | 23 | 0.739 | 0.261 | 77 | 0.325
+depth only (shipped) | test | 31 | 0.258 | 0.742 | 68 | 0.029
+offroad obstacle class | test | 31 | 0.839 | 0.161 | 68 | 0.206
+offroad obstacle class OR depth | test | 31 | 0.871 | 0.129 | 68 | 0.221

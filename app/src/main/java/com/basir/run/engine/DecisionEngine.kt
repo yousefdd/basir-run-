@@ -48,6 +48,8 @@ enum class Cue {
     HeadLevelStop,
     DropStop,
     PathUnclear,
+    /** The ground under the feet turned natural / loose (dirt, grass, sand): slow down, no direction. */
+    RoughSurface,
     EdgeOnlyCaution,
     EdgeNearStop,
     LostStop,
@@ -90,6 +92,8 @@ data class EngineInput(
     val depthStale: Boolean = false,
     /** The Virtual Path Engine's command for this frame, or null when it is not running. */
     val line: GuidanceCommand? = null,
+    /** Terrain: the runner just moved from smooth onto natural / loose ground (engine SurfaceMonitor). */
+    val roughSurface: Boolean = false,
 )
 
 data class EngineConfig(
@@ -255,7 +259,9 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             CommandKind.CURVE -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, level = level, curve = side, confidence = conf)
             // Path briefly unclear: slow down, no direction (level 3 of the owner's four levels).
             CommandKind.CAUTION -> Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear, confidence = conf)
-            else -> if (cmd.confirm) Decision(SystemState.PathTracked, Severity.Info, Cue.BackOnPath, curve = bend, confidence = conf)
+            // On the path and the ground turned rough: one caution (the monitor allows one per 30 s).
+            else -> if (i.roughSurface) Decision(SystemState.PathTracked, Severity.Warning, Cue.RoughSurface, curve = bend, confidence = conf)
+            else if (cmd.confirm) Decision(SystemState.PathTracked, Severity.Info, Cue.BackOnPath, curve = bend, confidence = conf)
             else Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, curve = bend, confidence = conf)
         }
     }

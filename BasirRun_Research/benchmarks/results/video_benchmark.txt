@@ -1,0 +1,17 @@
+Round-4 video benchmark: 6 clips, 5 fps, same frames/masks/detections for both engines (desktop CPU).
+0.12.0 engine: 4.3 min, felt stops 11 (2.58/min), felt obstacle warnings 11 (2.58/min), direction cues 3.74/min, side flips 1.17/min
+round-4 engine: 4.3 min, felt stops 11 (2.58/min), felt obstacle warnings 11 (2.58/min), direction cues 3.74/min, side flips 1.17/min
+clips whose felt stops changed (round4 - 0.12.0): none
+rough-surface cues: 1 in 4.3 min (0.23/min); on urban clips: 0; clips with a cue: ia_cc0_forest_path_a (1)
+
+trail-like clips, walkable channel shipped ADE vs off-road B2 (round-4 engine): blocked-corridor share | felt stops | stop share
+ia_cc0_forest_path_a: ADE 0.483 | 4 | 0.107   off-road 0.228 | 4 | 0.088   (walkable ms 57.4 vs 281.1)
+ia_cc0_forest_path_b: ADE 1.0 | 4 | 0.147   off-road 0.973 | 3 | 0.207   (walkable ms 56.2 vs 274.4)
+
+per clip (round-4 engine, shipped walkable channel): clip | category | min | stops/min | obstacle/min | direction/min | flips/min | stop share | uncertain share | blocked corridor | ms sum
+owner_athletics_track | athletics_tracks | 0.4 | 0.0 | 0.0 | 5.0 | 0.0 | 0.0 | 0.0 | 0.175 | 160.7
+owner_night_field | difficult_lighting | 0.22 | 4.55 | 4.55 | 0.0 | 0.0 | 0.076 | 0.258 | 0.091 | 165.9
+sanpo_cloudy_lowvis_60_ibYCD | difficult_lighting | 0.32 | 6.19 | 0.0 | 0.0 | 0.0 | 0.299 | 0.701 | 0.711 | 166.2
+sanpo_night_or_cloudy_zKsJQMv6 | difficult_lighting | 0.33 | 0.0 | 6.0 | 6.0 | 3.0 | 0.0 | 0.0 | 0.1 | 169.5
+ia_cc0_forest_path_a | forest_trails | 2.0 | 2.0 | 2.0 | 4.0 | 1.0 | 0.107 | 0.263 | 0.483 | 160.7
+ia_cc0_forest_path_b | forest_trails | 1.0 | 4.0 | 4.0 | 4.0 | 2.0 | 0.147 | 0.247 | 1.0 | 153.5

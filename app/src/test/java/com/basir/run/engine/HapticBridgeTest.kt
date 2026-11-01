@@ -51,4 +51,9 @@ class HapticBridgeTest {
     fun onThePathIsAQuietTick() {
         assertEquals(CommandKind.ON_PATH, cmd(Decision(SystemState.PathTracked, Severity.Info, Cue.Centered))?.kind)
     }
+
+    @Test
+    fun roughGroundIsTheCautionPattern() {
+        assertEquals(CommandKind.CAUTION, cmd(Decision(SystemState.PathTracked, Severity.Warning, Cue.RoughSurface))?.kind)
+    }
 }
