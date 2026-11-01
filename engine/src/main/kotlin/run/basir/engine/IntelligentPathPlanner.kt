@@ -52,6 +52,9 @@ data class PlannerConfig(
     val minFreeProgressM: Double = 2.0,
     val minPathConfidence: Double = 0.5,
     val modeHoldFrames: Int = 5,         // hysteresis before switching between modes
+    /** Owner, round 5: while the followed source (line, lane, parallel line, free path) is still seen, another
+     *  source must be the preferred one for longer than this before the path switches to it. */
+    val sourceSwitchS: Double = 1.0,
     val freeEndWarnMarginM: Double = 1.0, // warn when walkable ground ends within stop distance + this
     val freeEndHysteresisM: Double = 0.5, // leaving a stop or a warning needs this much more ground
     val resumeFrames: Int = 10,          // ~0.7 s of a usable path before guidance resumes after a stop
@@ -73,6 +76,8 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
     private var trackedMode: PathMode? = null
     private var lastMode = PathMode.STOP
     private var pendingMode: PathMode? = null
+    private var switchKind: PathMode? = null
+    private var switchS = 0.0
     private var pendingCount = 0
     private var parallelOffset: Double? = null   // locked distance to a line followed alongside
     private var resumeCount = 0
@@ -97,7 +102,7 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
         // boundary) or when it is the only guide in view.
         val isBoundary = line != null && laneFound != null && (line === laneFound.second || line === laneFound.third)
         val onLine = line != null && !isBoundary && abs(line.lateralAtRunner(1.0)) <= config.onLineM
-        val (measurement, kind) = when {
+        var (measurement, kind) = when {
             trackedMode == PathMode.LANE_CENTER && lane != null && !onLine -> lane to PathMode.LANE_CENTER
             lane != null && !onLine -> lane to PathMode.LANE_CENTER
             onLine -> line!!.curve to PathMode.LINE
@@ -126,6 +131,21 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
                 (input.freeCenterline?.curve ?: input.freeRoute.toCurve()) to PathMode.FREE_PATH
             else -> null to null
         }
+        // Source hysteresis: keep following the current source while it is still seen, until the new one
+        // has been preferred for sourceSwitchS (a lane edge that flickers in and out does not switch the path).
+        val current = trackedMode
+        val stay: PathCurve? = if (kind != null && current != null && kind != current && tracker.state == TrackState.TRACKING) when (current) {
+            PathMode.LANE_CENTER -> lane
+            PathMode.LINE -> line?.takeIf { !isBoundary }?.curve
+            PathMode.LINE_PARALLEL -> line?.let { l -> parallelOffset?.let { shifted(l.curve, -it) } }
+            PathMode.FREE_PATH -> input.freeRoute?.takeIf { it.progressM >= config.minFreeProgressM }?.let { input.freeCenterline?.curve ?: it.toCurve() }
+            else -> null
+        } else null
+        if (stay != null) {
+            switchS = if (kind == switchKind) switchS + input.dt else input.dt
+            switchKind = kind
+            if (switchS <= config.sourceSwitchS) { measurement = stay; kind = current }
+        } else { switchKind = null; switchS = 0.0 }
         if (kind != null && kind != trackedMode && tracker.state == TrackState.TRACKING) tracker.reset()
         tracker.update(measurement)
         if (kind != null) trackedMode = kind
@@ -149,6 +169,12 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             if (free != null) {
                 val stopAtShort = max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5)
                 turnAway(input, stopAtShort, free.progressM)?.let { return commit(it) }
+            }
+            // Walkable ground under the runner that ends within stopping distance, with no side open, is a
+            // closed way (it used to be called low confidence); no ground and no line at all is NO_PATH.
+            if (free != null) {
+                val stopAtShort = max(config.minStopDistanceM, input.runnerSpeedMps * config.reactionTimeS + 0.5)
+                if (free.progressM < stopAtShort) return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.PATH_UNSAFE, obstacleAheadM = free.progressM))
             }
             val reason = if (tracked != null || free != null) StopReason.LOW_CONFIDENCE else StopReason.NO_PATH
             return commit(PathDecision(PathMode.STOP, null, 0.0, reason))

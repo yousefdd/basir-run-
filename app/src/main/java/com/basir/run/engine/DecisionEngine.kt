@@ -108,6 +108,9 @@ data class EngineConfig(
     val curveThreshold: Float = 0.15f,
     /** EdgeOnly: stop when the single visible edge is this close to the runner (frame fraction). */
     val edgeStopDistance: Float = 0.12f,
+    /** Owner, round 5 (field test): false = an unclear path, a lone edge or the runner at the edge give
+     *  warnings, not stops. Stops stay for a closed way (> 1 s), head-level obstacles, drops and camera faults. */
+    val stopWhenUncertain: Boolean = false,
 )
 
 /**
@@ -143,22 +146,24 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             val to = if (detourSide == run.basir.engine.Side.LEFT) Side.Left else Side.Right
             return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = to)
         }
-        // No way around an obstacle is offered: the space beside it has not been assessed.
+        // Head-level obstacles and drops (stairs down, a hole) stay stops: the camera cannot show a way
+        // past them. A close object on the ground is a warning (slow down): the owner's field-test rule
+        // (round 5) is to stop only when the way is closed for over a second, which the path engine decides.
         if (i.obstacle == ObstacleLevel.Hazard) {
-            val cue = when (i.obstacleKind) {
-                HazardKind.HeadLevel -> Cue.HeadLevelStop
-                HazardKind.Drop -> Cue.DropStop
-                HazardKind.Object -> Cue.Obstacle
+            return when (i.obstacleKind) {
+                HazardKind.HeadLevel -> Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.HeadLevelStop)
+                HazardKind.Drop -> Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.DropStop)
+                HazardKind.Object -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
             }
-            return Decision(SystemState.ObstacleAhead, Severity.Critical, cue)
         }
         if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
 
         // The Virtual Path Engine steers whenever it follows a line, a lane or runs alongside a
         // line. It finds no line → the image-space path below is the fallback.
         val cmd = i.line
-        // The path engine stops for something on the way (an object, or the walkable ground ends
-        // within stopping distance); with a side where the ground clearly goes on, it says where to turn.
+        // The path engine stops only when the way has been closed for over a second (an object with no way
+        // around, or the walkable ground ends within stopping distance); with a side where the ground
+        // clearly goes on, it says where to turn.
         if (cmd != null && cmd.kind == CommandKind.STOP &&
             (cmd.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE || cmd.stopReason == StopReason.PATH_UNSAFE)
         ) {
@@ -182,14 +187,17 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             if (unclearSince < 0) unclearSince = i.nowMs
             val unclearFor = i.nowMs - unclearSince
             val estimate = p?.estimate
-            if (estimate?.status == PathStatus.EdgeOnly && estimate.edgeDistance < cfg.edgeStopDistance) {
-                return Decision(SystemState.StopAndCheck, Severity.Critical, Cue.EdgeNearStop)
-            }
-            if (q != null && !q.usable && unclearFor >= cfg.unclearCautionMs) {
-                return Decision(SystemState.PoorVisibility, Severity.Critical, Cue.VisibilityStop)
+            // Owner, round 5: an unclear or lost path slows the runner down, it never stops them.
+            if (cfg.stopWhenUncertain) {
+                if (estimate?.status == PathStatus.EdgeOnly && estimate.edgeDistance < cfg.edgeStopDistance) {
+                    return Decision(SystemState.StopAndCheck, Severity.Critical, Cue.EdgeNearStop)
+                }
+                if (q != null && !q.usable && unclearFor >= cfg.unclearCautionMs) {
+                    return Decision(SystemState.PoorVisibility, Severity.Critical, Cue.VisibilityStop)
+                }
+                if (unclearFor >= cfg.lostStopMs) return Decision(SystemState.TrackingLost, Severity.Critical, Cue.LostStop)
             }
             return when {
-                unclearFor >= cfg.lostStopMs -> Decision(SystemState.TrackingLost, Severity.Critical, Cue.LostStop)
                 unclearFor >= cfg.unclearCautionMs -> Decision(
                     SystemState.BoundariesUnclear, Severity.Warning,
                     if (estimate?.status == PathStatus.EdgeOnly) Cue.EdgeOnlyCaution else Cue.PathUnclear,
@@ -214,7 +222,8 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         // Positive offset: the runner is right of centre, so the way back is to the left.
         val moveTo = if (off > 0) Side.Left else Side.Right
         return when {
-            magnitude >= cfg.atEdge -> Decision(SystemState.StopAndCheck, Severity.Critical, Cue.AtEdgeStop, moveTo, 3, curve)
+            magnitude >= cfg.atEdge && cfg.stopWhenUncertain -> Decision(SystemState.StopAndCheck, Severity.Critical, Cue.AtEdgeStop, moveTo, 3, curve)
+            magnitude >= cfg.atEdge -> Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, moveTo, 3, curve)
             magnitude >= cfg.nearEdge -> Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, moveTo, 2, curve)
             magnitude >= cfg.slight -> Decision(SystemState.Drifting, Severity.Correction, Cue.Correct, moveTo, 1, curve)
             curve != null -> Decision(SystemState.PathCurving, Severity.Info, Cue.CurveAhead, curve = curve)

@@ -53,9 +53,14 @@ class DecisionEngineTest {
         assertEquals(Side.Left, e.decide(input(path = tracked(0.3f))).moveTo)
         assertEquals(Cue.NearEdge, e.decide(input(path = tracked(-0.5f))).cue)
         assertEquals(Side.Right, e.decide(input(path = tracked(-0.5f))).moveTo)
+        // Owner, round 5: at the edge is a strong correction toward the path, not a stop
         val edge = e.decide(input(path = tracked(0.8f)))
-        assertEquals(SystemState.StopAndCheck, edge.state)
-        assertEquals(Severity.Critical, edge.severity)
+        assertEquals(Cue.NearEdge, edge.cue)
+        assertEquals(Severity.Warning, edge.severity)
+        assertEquals(Side.Left, edge.moveTo)
+        val old = DecisionEngine(EngineConfig(stopWhenUncertain = true)).decide(input(path = tracked(0.8f)))
+        assertEquals(SystemState.StopAndCheck, old.state)
+        assertEquals(Severity.Critical, old.severity)
     }
 
     @Test
@@ -83,7 +88,11 @@ class DecisionEngineTest {
         val e = DecisionEngine()
         assertEquals(Severity.Silent, e.decide(input(now = 0, path = unclear)).severity)
         assertEquals(Cue.PathUnclear, e.decide(input(now = 700, path = unclear)).cue)
-        val stop = e.decide(input(now = 1600, path = unclear))
+        // Owner, round 5: a lasting unclear path stays a caution (slow down), it never stops the runner
+        for (t in listOf(1600L, 5000L, 20_000L)) assertEquals(Cue.PathUnclear, e.decide(input(now = t, path = unclear)).cue)
+        val old = DecisionEngine(EngineConfig(stopWhenUncertain = true))
+        old.decide(input(now = 0, path = unclear))
+        val stop = old.decide(input(now = 1600, path = unclear))
         assertEquals(SystemState.TrackingLost, stop.state)
         assertEquals(Cue.LostStop, stop.cue)
     }
@@ -99,17 +108,29 @@ class DecisionEngineTest {
     @Test
     fun singleEdgeCloseToRunnerStops() {
         val edge = PathEstimate(PathStatus.EdgeOnly, PathSource.PaintedLines, edgeSide = Side.Left, edgeDistance = 0.05f)
-        val d = DecisionEngine().decide(input(path = TrackedPath(edge, 0f, 0f, false)))
-        assertEquals(Cue.EdgeNearStop, d.cue)
+        val e = DecisionEngine()
+        e.decide(input(now = 0, path = TrackedPath(edge, 0f, 0f, false)))
+        val d = e.decide(input(now = 700, path = TrackedPath(edge, 0f, 0f, false)))
+        assertEquals(Cue.EdgeOnlyCaution, d.cue)                       // round 5: caution, not a stop
         assertNull(d.moveTo)
+        val old = DecisionEngine(EngineConfig(stopWhenUncertain = true)).decide(input(path = TrackedPath(edge, 0f, 0f, false)))
+        assertEquals(Cue.EdgeNearStop, old.cue)
+        assertNull(old.moveTo)
     }
 
     @Test
     fun obstacleMeansStopWithoutASidewaysDirection() {
+        // Round 5: a close object on the ground is a warning (slow down) with no side; the stop for a closed
+        // way comes from the path engine after a second. Head-level obstacles and drops still stop.
         val d = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)))
         assertEquals(SystemState.ObstacleAhead, d.state)
-        assertEquals(Severity.Critical, d.severity)
+        assertEquals(Severity.Warning, d.severity)
+        assertEquals(Cue.ObstacleNear, d.cue)
         assertNull(d.moveTo)
+        assertEquals(Cue.HeadLevelStop, DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.HeadLevel)).cue)
+        val drop = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.Drop))
+        assertEquals(Cue.DropStop, drop.cue)
+        assertEquals(Severity.Critical, drop.severity)
         val near = DecisionEngine().decide(input(obstacle = ObstacleLevel.Possible, path = tracked(0.3f)))
         assertEquals(Cue.ObstacleNear, near.cue)
         assertNull(near.moveTo)
@@ -254,7 +275,10 @@ class DecisionEngineTest {
         val dark = good.copy(meanLuma = 20f, darkFraction = 0.9f)
         val e = DecisionEngine()
         e.decide(input(now = 0, path = unclear, quality = dark))
-        assertEquals(Cue.VisibilityStop, e.decide(input(now = 700, path = unclear, quality = dark)).cue)
+        assertEquals(Cue.PathUnclear, e.decide(input(now = 700, path = unclear, quality = dark)).cue)   // round 5: caution
+        val old = DecisionEngine(EngineConfig(stopWhenUncertain = true))
+        old.decide(input(now = 0, path = unclear, quality = dark))
+        assertEquals(Cue.VisibilityStop, old.decide(input(now = 700, path = unclear, quality = dark)).cue)
     }
 
     @Test

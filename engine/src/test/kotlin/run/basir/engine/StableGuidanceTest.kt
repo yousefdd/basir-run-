@@ -77,37 +77,62 @@ class StableGuidanceTest {
     }
 
     @Test
-    fun `a short loss of the path gives a caution cue without a direction, a lasting one stops`() {
+    fun `a lost or untrusted path slows the runner down and never stops them`() {
+        // Owner, round 5: stops only when the way is closed; an unsure path is a caution without a direction.
         val c = StableGuidanceController()
         run(c, follow(path(offset = 0.7)), 20)
         val held = run(c, stop(StopReason.LOW_CONFIDENCE), 15) // 1.0 s
         assertTrue(held.all { it.command.kind == CommandKind.CAUTION && it.command.side == null }, "caution, no direction from unsure frames")
         assertTrue(held.all { it.state == GuidanceState.VISION_UNCERTAIN })
         assertEquals("caution", HapticLanguage().forCommand(held.first().command)!!.name)
-        val longer = run(c, stop(StopReason.LOW_CONFIDENCE), 5)
-        assertEquals(CommandKind.STOP, longer.last().command.kind, "after the hold time the runner is stopped")
-        val lost = StableGuidanceController()
-        run(lost, follow(path()), 10)
-        assertEquals(GuidanceState.TRACK_LOST, run(lost, stop(StopReason.NO_PATH), 25).last().state) // after the 1.2 s hold
+        val longer = run(c, stop(StopReason.LOW_CONFIDENCE), 150) // 10 s more
+        assertTrue(longer.none { it.command.kind == CommandKind.STOP }, "no stop however long the path stays unsure")
+        assertTrue(run(c, stop(StopReason.POOR_VISIBILITY), 60).none { it.command.kind == CommandKind.STOP })
+        // the old behaviour is still there behind the switch
+        val old = StableGuidanceController(StableGuidanceConfig(stopWhenUncertain = true))
+        run(old, follow(path()), 10)
+        assertEquals(CommandKind.STOP, run(old, stop(StopReason.LOW_CONFIDENCE), 25).last().command.kind)
     }
 
     @Test
-    fun `running stops sooner than walking when the path is not trusted`() {
-        fun framesToStop(speed: Double): Int {
-            val c = StableGuidanceController(); run(c, follow(path()), 10, speed)
-            return (1..30).first { c.update(stop(StopReason.LOW_CONFIDENCE), speed, dt).command.kind == CommandKind.STOP }
+    fun `a closed way stops only after it has lasted more than a second without a break`() {
+        for (reason in listOf(StopReason.OBSTACLE_NO_ALTERNATIVE, StopReason.PATH_UNSAFE, StopReason.NO_PATH)) {
+            val c = StableGuidanceController()
+            run(c, follow(path(offset = 0.7)), 20)
+            val first = run(c, stop(reason), 15) // 1.0 s: not yet
+            assertTrue(first.none { it.command.kind == CommandKind.STOP }, "$reason: no stop within the first second")
+            assertEquals(GuidanceState.OBSTACLE_WARNING, first.first().state, "$reason: the warning comes at once")
+            assertEquals(CommandKind.OBSTACLE, first.first().command.kind)
+            val e = c.update(stop(reason), 1.4, dt) // just over 1 s
+            assertEquals(GuidanceState.STOP_REQUIRED, e.state, "$reason")
+            assertEquals(CommandKind.STOP, e.command.kind)
+            assertEquals(4, e.severity)
+            assertTrue(run(c, stop(reason), 10).all { it.command.kind == CommandKind.STOP }, "$reason: stays stopped while closed")
         }
-        assertTrue(framesToStop(2.8) < framesToStop(1.4))
+        // closed for 0.8 s, open for one frame, closed again for 0.8 s: the timer starts over, no stop
+        val c = StableGuidanceController()
+        run(c, follow(path()), 20)
+        val flicker = run(c, stop(StopReason.OBSTACLE_NO_ALTERNATIVE), 12) + run(c, follow(path()), 1) + run(c, stop(StopReason.OBSTACLE_NO_ALTERNATIVE), 12)
+        assertTrue(flicker.none { it.command.kind == CommandKind.STOP })
+        // the planner's hold before it resumes (LOW_CONFIDENCE) is the tail of the same warning: no caution, no stop
+        val tail = run(c, stop(StopReason.LOW_CONFIDENCE), 30)
+        assertTrue(tail.all { it.state == GuidanceState.OBSTACLE_WARNING && it.command.kind == CommandKind.OBSTACLE })
     }
 
     @Test
-    fun `a stop for an obstacle without a way around wins at once over anything`() {
+    fun `a new direction is given only after it has lasted a second, a side change after one and a half`() {
         val c = StableGuidanceController()
-        run(c, follow(path(offset = 0.7)), 20)
-        val e = c.update(stop(StopReason.OBSTACLE_NO_ALTERNATIVE), 1.4, dt)
-        assertEquals(GuidanceState.STOP_REQUIRED, e.state)
-        assertEquals(CommandKind.STOP, e.command.kind)
-        assertEquals(4, e.severity)
+        run(c, follow(path()), 30)
+        val toRight = run(c, follow(path(offset = 0.7)), 30) // 2 s, 0.7 m beside the path: correct right
+        val first = toRight.indexOfFirst { it.state == GuidanceState.CORRECT_RIGHT }
+        assertTrue(first >= 0, "corrected at last")
+        assertTrue(first * dt >= 0.9, "not before about a second: ${first * dt} s")
+        val back = run(c, follow(path(offset = -0.7)), 45)
+        val flip = back.indexOfFirst { it.state == GuidanceState.CORRECT_LEFT }
+        assertTrue(flip >= 0 && flip * dt >= 1.4, "left <-> right after about 1.5 s: ${flip * dt} s")
+        // A strong correction (about to leave the path) is still given at once.
+        val u = StableGuidanceController(); run(u, follow(path()), 30)
+        assertEquals(GuidanceState.CORRECT_RIGHT, run(u, follow(path(offset = 1.5)), 2).last().state)
     }
 
     @Test

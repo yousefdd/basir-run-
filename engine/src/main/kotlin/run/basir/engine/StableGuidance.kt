@@ -98,9 +98,10 @@ data class StableGuidanceConfig(
     // >= the runner's own lag (react ~0.5 s + turn ~0.5 s): with 0.8 s the simulated runner overshot
     // and left the path in 24 of 36 runs, with 1.6 s in 6 (BasirRun_Research/benchmarks/results/planner_sim.txt)
     val correctionTimeS: Double = 1.6,
-    val deadZoneM: Double = 0.15,          // inside: nothing to correct
-    val enterCorrectionM: Double = 0.30,   // a correction starts above this ...
-    val exitCorrectionM: Double = 0.15,    // ... and ends below this (hysteresis)
+    // Owner's field-test settings (round 5): less sensitive to small drifts than round 3 (0.15 / 0.30 / 0.15)
+    val deadZoneM: Double = 0.20,          // inside: nothing to correct
+    val enterCorrectionM: Double = 0.40,   // a correction starts above this ...
+    val exitCorrectionM: Double = 0.20,    // ... and ends below this (hysteresis)
     val mediumCorrectionM: Double = 0.60,
     val highCorrectionM: Double = 1.00,
     val highHeadingDeg: Double = 25.0,
@@ -116,16 +117,25 @@ data class StableGuidanceConfig(
     val curveTaperS: Double = 2.0,         // after this long inside a bend its cue goes quiet
     val counterHeadingDeg: Double = 8.0,   // no bend cue against a path that clearly heads the other way at the feet (S-shape)
     // Timing
-    val confirmFrames: Int = 3,            // a new non-critical state must persist this many frames
+    val confirmFrames: Int = 3,            // a new non-critical state must persist this many frames ...
+    val confirmS: Double = 1.0,            // ... and this long (owner, round 5: no change of command in under a second)
     val curveConfirmFrames: Int = 3,       // a bend (low priority, announced early) may wait longer
-    val minDwellS: Double = 0.6,           // and the current one must have lasted this long
-    val sideFlipFrames: Int = 6,           // left <-> right needs more evidence
-    val sideFlipDwellS: Double = 1.0,      // and the current side must have lasted this long (not urgent)
+    val minDwellS: Double = 1.0,           // and the current one must have lasted this long
+    val sideFlipFrames: Int = 6,           // left <-> right needs more evidence ...
+    val sideFlipS: Double = 1.5,           // ... and must persist this long
+    val sideFlipDwellS: Double = 1.5,      // and the current side must have lasted this long (not urgent)
     val uncertainHoldWalkingS: Double = 1.2,  // a short loss of the path gives a caution cue (no direction) ...
     val uncertainHoldRunningS: Double = 0.8,  // ... shorter when running: stop sooner when in doubt
     val detourConfirmFrames: Int = 4,      // a way around must be seen this many frames before it is given
     val turnSideConfirmFrames: Int = 4,    // the same for the side named after a stop
     val runningMps: Double = 2.0,
+    // Stops (owner, round 5): only when the way is closed (an obstacle with no way around, the walkable
+    // ground ending within stopping distance with no side open, or no ground at all) for longer than
+    // blockStopS without a break. Before that the runner feels the obstacle warning (slow down).
+    val blockStopS: Double = 1.0,
+    // A lost or untrusted path (dark, blur, low confidence) gives the caution cue (slow down, no
+    // direction) and never a stop when false.
+    val stopWhenUncertain: Boolean = false,
 )
 
 /** One frame of guidance: the state plus the command the vibration layer understands. */
@@ -182,6 +192,9 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
     private var stateTimeS = 0.0
     private var candidate: GuidanceState? = null
     private var candidateFrames = 0
+    private var candidateS = 0.0
+    private var blockedS = 0.0
+    private var lastDt = 1.0 / 15
     private var uncertainS = 0.0
     private var curveInsideS = 0.0
     private var detourSide: Side? = null
@@ -192,24 +205,43 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
 
     fun reset() {
         fOffset.reset(); fHeading.reset(); fCurve.reset()
-        state = GuidanceState.TRACK_CENTERED; stateTimeS = 0.0; candidate = null; candidateFrames = 0
+        state = GuidanceState.TRACK_CENTERED; stateTimeS = 0.0; candidate = null; candidateFrames = 0; candidateS = 0.0; blockedS = 0.0
         uncertainS = 0.0; curveInsideS = 0.0; detourSide = null; detourFrames = 0; turnSide = null; turnFrames = 0
         wasCorrecting = false
     }
 
     fun update(decision: PathDecision, speedMps: Double = 2.5, dt: Double = 1.0 / 15): GuidanceEvent {
         stateTimeS += dt
+        lastDt = dt
         val running = speedMps >= config.runningMps
         val path = decision.path
 
         // --- No usable path ---------------------------------------------------------------
         if (decision.mode == PathMode.STOP || path == null) {
-            val critical = decision.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE || decision.stopReason == StopReason.PATH_UNSAFE
-            if (critical) {
+            val closed = decision.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE || decision.stopReason == StopReason.PATH_UNSAFE ||
+                decision.stopReason == StopReason.NO_PATH
+            if (closed) {
                 uncertainS = 0.0
+                blockedS += dt
                 val side = confirmedTurnSide(decision.turnSide)
-                return emit(GuidanceState.STOP_REQUIRED, GuidanceCommand(CommandKind.STOP, side = side, stopReason = decision.stopReason, mode = decision.mode), 4, force = true)
+                val reason = if (decision.stopReason == StopReason.NO_PATH) StopReason.PATH_UNSAFE else decision.stopReason
+                // Closed for longer than blockStopS without a break (or already stopped): stop.
+                if (blockedS > config.blockStopS || state == GuidanceState.STOP_REQUIRED) {
+                    return emit(GuidanceState.STOP_REQUIRED, GuidanceCommand(CommandKind.STOP, side = side, stopReason = reason, mode = decision.mode), 4, force = true)
+                }
+                // Not yet: obstacle warning (slow down), with the side to turn to once it is confirmed.
+                return emit(GuidanceState.OBSTACLE_WARNING, GuidanceCommand(CommandKind.OBSTACLE, side = side, level = Level.HIGH,
+                    confidence = decision.confidence, mode = decision.mode), 3, force = true)
             }
+            // The planner holds a few frames after a closed way before it resumes (LOW_CONFIDENCE): that is the
+            // tail of the same warning, not a new caution, and it never counts toward a stop.
+            if (!config.stopWhenUncertain && decision.stopReason == StopReason.LOW_CONFIDENCE &&
+                (state == GuidanceState.OBSTACLE_WARNING || state == GuidanceState.STOP_REQUIRED)) {
+                blockedS = 0.0
+                return emit(GuidanceState.OBSTACLE_WARNING, GuidanceCommand(CommandKind.OBSTACLE, side = turnSide?.takeIf { turnFrames >= config.turnSideConfirmFrames },
+                    level = Level.HIGH, confidence = decision.confidence, mode = decision.mode), 3, force = true)
+            }
+            blockedS = 0.0
             turnSide = null; turnFrames = 0
             val lost = if (decision.stopReason == StopReason.NO_PATH) GuidanceState.TRACK_LOST else GuidanceState.VISION_UNCERTAIN
             uncertainS += dt
@@ -219,9 +251,14 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
                 return quiet(GuidanceState.VISION_UNCERTAIN, decision)
             }
             fOffset.reset(); fHeading.reset(); fCurve.reset()
+            if (!config.stopWhenUncertain) {
+                // Lost or untrusted for longer than the hold: caution (slow down, no direction), never a stop.
+                return emit(lost, GuidanceCommand(CommandKind.CAUTION, confidence = decision.confidence, mode = decision.mode), 1, force = true)
+            }
             return emit(lost, GuidanceCommand(CommandKind.STOP, stopReason = decision.stopReason, mode = decision.mode), 4, force = true)
         }
         uncertainS = 0.0
+        blockedS = 0.0
         turnSide = null; turnFrames = 0
 
         // --- Signals: offset, heading, curvature (smoothed) -----------------------------------
@@ -318,18 +355,21 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
     private fun emit(wanted: GuidanceState, cmd: GuidanceCommand, severity: Int, force: Boolean,
                      offset: Double = 0.0, heading: Double = 0.0, kappa: Double = 0.0, correction: Double = 0.0): GuidanceEvent {
         if (wanted == state) {
-            candidate = null; candidateFrames = 0
+            candidate = null; candidateFrames = 0; candidateS = 0.0
             return GuidanceEvent(state, cmd.copy(state = state), severity, offset, heading, kappa, correction, false)
         }
         val critical = state == GuidanceState.STOP_REQUIRED || state == GuidanceState.TRACK_LOST || state == GuidanceState.VISION_UNCERTAIN || state == GuidanceState.OBSTACLE_WARNING
         if (!force) {
-            if (wanted == candidate) candidateFrames++ else { candidate = wanted; candidateFrames = 1 }
+            // The first frame of a candidate counts as one frame of time, so N frames at dt make N*dt seconds.
+            if (wanted == candidate) { candidateFrames++; candidateS += lastDt } else { candidate = wanted; candidateFrames = 1; candidateS = lastDt }
             val flip = sideOf(wanted) != null && sideOf(state) != null && sideOf(wanted) != sideOf(state)
             val bend = wanted == GuidanceState.CURVE_LEFT || wanted == GuidanceState.CURVE_RIGHT
             val need = maxOf(if (flip) config.sideFlipFrames else config.confirmFrames, if (bend) config.curveConfirmFrames else 0)
-            // Leaving a critical state needs only persistence (the planner already has its own resume rule).
+            // Leaving a warning, a caution or a stop also needs a second of the new state (owner, round 5): a way
+            // that clears for half a second and closes again is felt as one warning, not warning-go-warning.
+            val needS = if (flip) config.sideFlipS else config.confirmS
             val dwellOk = critical || stateTimeS >= (if (flip) config.sideFlipDwellS else config.minDwellS)
-            if (candidateFrames < need || !dwellOk) {
+            if (candidateFrames < need || candidateS < needS - 1e-9 || !dwellOk) {
                 // Hold the current state; while held, a held correction or bend keeps its own cue.
                 val held = when (state) {
                     GuidanceState.TRACK_CENTERED -> cmd.copy(kind = CommandKind.ON_PATH, side = null, level = null)
@@ -338,7 +378,7 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
                 return GuidanceEvent(state, (held ?: holdCommand(cmd)).copy(state = state), severity, offset, heading, kappa, correction, false)
             }
         }
-        state = wanted; stateTimeS = 0.0; candidate = null; candidateFrames = 0
+        state = wanted; stateTimeS = 0.0; candidate = null; candidateFrames = 0; candidateS = 0.0
         return GuidanceEvent(state, cmd.copy(state = state), severity, offset, heading, kappa, correction, true)
     }
 
