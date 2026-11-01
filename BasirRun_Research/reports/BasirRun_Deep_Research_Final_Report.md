@@ -1,6 +1,6 @@
 # Basir-Run — Deep Research Final Report (round 4)
 
-Local commit at build time: `e7321fb`. All timings are desktop CPU (4 cores); **nothing was measured on a phone**. The system is **not** declared ready for independent running: no field test with a companion on a controlled track has been done (gate G14).
+Local commit at build time: `b99cabb`. All timings are desktop CPU (4 cores); **nothing was measured on a phone**. The system is **not** declared ready for independent running: no field test with a companion on a controlled track has been done (gate G14).
 
 ## 1. The old engine and its problems
 
