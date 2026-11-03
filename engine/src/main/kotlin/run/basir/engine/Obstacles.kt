@@ -145,6 +145,17 @@ object DetectionFilter {
     val SMALL_ITEMS = setOf("sports ball", "tennis racket", "baseball bat", "baseball glove", "frisbee", "kite", "bird", "skis", "snowboard", "skateboard")
     const val SMALL_ITEM_MIN_SCORE = 0.6
 
+    /**
+     * Fallen leaves on the ground come out of the COCO detector as "bird" (0.4-0.7 on a leaf-covered lawn,
+     * SANPO 6D6CrPEV, research round 6), and other small-item classes fire on ground patterns too. A small-item
+     * detection whose box the depth floor planner shows to be flat on the ground ([raisedShare] of raised depth
+     * cells under it below [FlatSurfaceCheck.MIN_RAISED_SHARE]) is a pattern on the ground, not an obstacle.
+     * [raisedShare] is null when depth cannot tell (no floor, or the box is beyond the depth range): then it is kept.
+     * People, vehicles, benches and every other class are never dropped by this rule.
+     */
+    fun flatGroundPattern(label: String, raisedShare: Double?): Boolean =
+        label in SMALL_ITEMS && raisedShare != null && raisedShare < FlatSurfaceCheck.MIN_RAISED_SHARE
+
     /** Box corners as fractions of the frame (0..1). */
     fun keep(label: String, left: Double, top: Double, right: Double, bottom: Double, score: Double = 1.0): Boolean {
         if (label in NOT_ON_A_FOOTPATH) return false

@@ -197,10 +197,11 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
                 obstacleKind = s.hazardKind,
                 depthStale = s.depthStale,
                 line = s.line?.command,
+                corner = s.line?.corner,
             )
         )
         decision = d
-        haptics.guide(d, now)?.let { pattern = it.name }
+        haptics.guide(d, now, trackConfidence = s.line?.trackConfidence ?: 1.0)?.let { pattern = it.name }
         for (out in policy.next(d, now)) if (out is Output.Say) voice.say(out.phrase, out.interrupt)
     }
 

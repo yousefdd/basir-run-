@@ -38,7 +38,7 @@ class AnnouncementPolicy(var verbose: Boolean = false) {
 
     fun next(d: Decision, now: Long): List<Output> {
         val out = ArrayList<Output>(3)
-        val key = Triple(d.cue, d.moveTo, d.level)
+        val key = listOf(d.cue, d.moveTo, d.level, d.corner)
         val changed = key != lastKey
         val since = now - lastSpokenAt
         val rising = d.severity.ordinal > lastSeverity.ordinal

@@ -142,6 +142,7 @@ class GuidanceSession(
                 obstacleKind = s?.hazardKind ?: com.basir.run.vision.HazardKind.Object,
                 depthStale = s?.depthStale ?: false,
                 line = s?.line?.command,
+                corner = s?.line?.corner,
                 processingP90Ms = s?.processingP90Ms ?: 0f,
                 cameraPitchDeg = motion.pitchBelowHorizonDeg,
             )
@@ -161,7 +162,7 @@ class GuidanceSession(
         }
 
         // One vibration vocabulary for everything: the decision goes to the engine's scheduler.
-        if (!paused) haptics.guide(d, now)
+        if (!paused) haptics.guide(d, now, trackConfidence = s?.line?.trackConfidence ?: 1.0)
         for (out in policy.next(d, now)) when (out) {
             // Stops and warnings are spoken even with voice guidance turned off.
             is Output.Say -> voice.say(out.phrase, out.interrupt)

@@ -63,6 +63,30 @@ class Prefs(context: Context) {
     /** Camera height above the ground in metres, which every distance on the ground scales with. */
     val cameraHeightM: Double get() = runnerHeightCm / 100.0 * CHEST_RATIO
 
+    /** Guidance goes to the vibration belt when it is connected (the phone vibrates when it is not). */
+    var beltEnabled: Boolean
+        get() = sp.getBoolean("belt_enabled", false)
+        set(value) = sp.edit().putBoolean("belt_enabled", value).apply()
+
+    /** The Bluetooth address of the belt found the first time (null: scan for one). */
+    var beltAddress: String?
+        get() = sp.getString("belt_address", null)
+        set(value) = sp.edit().putString("belt_address", value).apply()
+
+    /** 40 to 100: overall belt strength the runner chose (sent to the belt as its intensity). */
+    var beltIntensityPct: Int
+        get() = sp.getInt("belt_intensity", 85)
+        set(value) = sp.edit().putInt("belt_intensity", value.coerceIn(40, 100)).apply()
+
+    /** Quiet time (ms) before a different guidance cue may follow the last one; warnings and the stop never wait. */
+    var cueCooldownMs: Int
+        get() = sp.getInt("cue_cooldown_ms", 1200)
+        set(value) = sp.edit().putInt("cue_cooldown_ms", value.coerceIn(600, 2500)).apply()
+
+    var beltQuizPassed: Boolean
+        get() = sp.getBoolean("belt_quiz_passed", false)
+        set(value) = sp.edit().putBoolean("belt_quiz_passed", value).apply()
+
     /** Shows the camera, the virtual path, detector boxes and timings during guidance, for testing. */
     var developerMode: Boolean
         get() = sp.getBoolean("developer_mode", false)

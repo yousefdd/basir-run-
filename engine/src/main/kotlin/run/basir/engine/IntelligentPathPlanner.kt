@@ -20,6 +20,10 @@ data class FrameInput(
     val sideRoutes: List<FreeRoute> = emptyList(),
     /** Middle of the walkable strip along the route ([CorridorCenterline]); followed instead of the route when present. */
     val freeCenterline: Centerline? = null,
+    /** Frame time (ms); when null the planner advances its own clock by [dt]. */
+    val timeMs: Long? = null,
+    /** How the runner moved since the previous frame (gyroscope yaw, speed); used by the temporal tracker. */
+    val ego: EgoMotion? = null,
 )
 
 data class PathDecision(
@@ -45,10 +49,28 @@ data class PlannerConfig(
     val minStopDistanceM: Double = 2.0,
     val warnDistanceM: Double = 6.0,
     val lineMaxOffsetM: Double = 0.6,    // a lone line this close can be followed
+    /** Round 7 (sports grounds): a STRONG lone line up to this far to the side (a football touchline, the edge line of a
+     *  track or court) can be run beside at the distance where it was first seen. Weak lines keep [lineMaxOffsetM]. */
+    val followDistantLines: Boolean = true,
+    val parallelMaxOffsetM: Double = 2.0,
+    val strongLineCoverageM: Double = 3.0,
+    val strongLineContinuity: Double = 0.6,
+    val strongLineNearM: Double = 2.0,
+    /** While running beside a line, the next frames' line is the one nearest the locked offset (within this gate),
+     *  not the best-scored line near the runner: no jumping between parallel lines (lanes, pitch markings). */
+    val parallelGateM: Double = 0.5,
     val onLineM: Double = 0.3,           // the line is under the runner (guide-line running)
     val laneMinWidthM: Double = 0.8,
     val laneMaxWidthM: Double = 4.0,
     val minVisibility: Double = 0.4,
+    /** Research round 6: a blurred or dark frame stops guidance only when this many come in a row (0.2 s at 15 fps).
+     *  A single one (a stride's jolt while running) is a frame without measurements: the tracked path coasts and
+     *  obstacles are still checked. On SANPO jogging clips one blurred frame in 16 kept the runner on "path unclear"
+     *  half the time (each one forced a stop and a 10-frame resume). 1 = the 0.12.2 behaviour. */
+    val poorVisibilityFrames: Int = 3,
+    /** Research round 6: track the path with [TemporalPathTracker] (time-based, ego-motion compensated, association gate,
+     *  challenger confirmation, confidence decay, dropped after 1 s without evidence). false = the 0.12.2 [PathTracker]. */
+    val temporalTracking: Boolean = true,
     val minFreeProgressM: Double = 2.0,
     val minPathConfidence: Double = 0.5,
     val modeHoldFrames: Int = 5,         // hysteresis before switching between modes
@@ -72,7 +94,20 @@ data class PlannerConfig(
  * visible and verified; otherwise the decision is STOP. Low confidence never yields a direction.
  */
 class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()) {
-    private val tracker = PathTracker()
+    /** This frame's raw path measurement fed to the tracker (before temporal tracking), and its kind; for diagnostics. */
+    var lastMeasurement: PathCurve? = null
+        private set
+    var lastMeasurementKind: PathMode? = null
+        private set
+
+    private val tracker: PathTrack = if (config.temporalTracking) TemporalPathTracker() else LegacyPathTrack()
+    private var clockMs = 0L
+
+    val trackState: TrackState get() = tracker.state
+    val trackConfidence: Double get() = tracker.confidence
+
+    /** The temporal tracker, when used (diagnostics: prediction-only frames, path switches). */
+    val temporal: TemporalPathTracker? get() = tracker as? TemporalPathTracker
     private var trackedMode: PathMode? = null
     private var lastMode = PathMode.STOP
     private var pendingMode: PathMode? = null
@@ -86,15 +121,45 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
     private var freeEndWarned = false
     private var gatedProgress: Double? = null
     private var shortFrames = 0
+    private var lowVisibilityFrames = 0
+    private var coasting = false
 
     fun update(input: FrameInput): PathDecision {
-        if (input.visibility < config.minVisibility) {
-            tracker.update(null)
-            return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.POOR_VISIBILITY))
+        if (!coasting) {
+            lastMeasurement = null; lastMeasurementKind = null
+            clockMs = input.timeMs ?: (clockMs + (input.dt * 1000).toLong())
         }
+        if (input.visibility < config.minVisibility) {
+            lowVisibilityFrames++
+            val canCoast = lowVisibilityFrames < config.poorVisibilityFrames && trackedMode != null &&
+                (tracker.state == TrackState.TRACKING || tracker.state == TrackState.COASTING) && tracker.confidence >= config.minPathConfidence
+            if (!canCoast) {
+                tracker.update(null, clockMs, input.ego)
+                return commit(PathDecision(PathMode.STOP, null, 0.0, StopReason.POOR_VISIBILITY))
+            }
+            // Nothing measured in this frame: the tracked path coasts, the obstacles are checked against it
+            val keepGate = gatedProgress
+            coasting = true
+            val d = try {
+                update(input.copy(lines = emptyList(), freeRoute = null, freeGrid = null, sideRoutes = emptyList(),
+                    freeCenterline = null, visibility = config.minVisibility))
+            } finally { coasting = false }
+            gatedProgress = keepGate
+            return d
+        }
+        if (!coasting) lowVisibilityFrames = 0
 
         // 1. Line or lane measurement, preferring the kind already being tracked
+        // Within lineMaxOffsetM exactly the 0.13.0 choice. Only when no line is that close: the line nearest the locked
+        // offset while running beside a distant line (no jump to another marking), else a strong line up to 2 m away.
+        // Measured: giving the locked line priority over near lines kept a parallel lock where the runner was on the line.
+        val locked = parallelOffset.takeIf { trackedMode == PathMode.LINE_PARALLEL && config.followDistantLines }
         val line = input.lines.firstOrNull { abs(it.lateralAtRunner(1.0)) <= config.lineMaxOffsetM }
+            ?: locked?.let { off ->
+                input.lines.filter { abs(it.lateralAtRunner(1.0)) <= config.parallelMaxOffsetM && abs(it.lateralAtRunner(1.0) - off) <= config.parallelGateM }
+                    .minByOrNull { abs(it.lateralAtRunner(1.0) - off) }
+            }
+            ?: input.lines.firstOrNull { config.followDistantLines && isStrongLine(it) && abs(it.lateralAtRunner(1.0)) <= config.parallelMaxOffsetM }
         val laneFound = findLane(input.lines)
         val lane = laneFound?.first
         // A line that bounds the runner's lane is an edge, never the path; the lane center is.
@@ -147,7 +212,9 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
             if (switchS <= config.sourceSwitchS) { measurement = stay; kind = current }
         } else { switchKind = null; switchS = 0.0 }
         if (kind != null && kind != trackedMode && tracker.state == TrackState.TRACKING) tracker.reset()
-        tracker.update(measurement)
+        lastMeasurement = measurement
+        lastMeasurementKind = kind
+        tracker.update(measurement, clockMs, input.ego)
         if (kind != null) trackedMode = kind
 
         // 2. Candidate path: tracked line/lane if trustworthy and on walkable ground, else free space
@@ -308,6 +375,10 @@ class IntelligentPathPlanner(private val config: PlannerConfig = PlannerConfig()
      * spacing that contain the runner (who may drift a little past one of them). Returns the
      * center line and the two boundaries.
      */
+    /** Long, continuous and starting near the runner: a painted line worth running beside even 1–2 m away. */
+    private fun isStrongLine(l: LineCandidate) = l.coverageM >= config.strongLineCoverageM &&
+        l.continuity >= config.strongLineContinuity && l.curve.nearM <= config.strongLineNearM
+
     private fun findLane(lines: List<LineCandidate>): Triple<PathCurve, LineCandidate, LineCandidate>? {
         val cands = lines.filter { it.coverageM >= 2.0 }.sortedBy { it.lateralAtRunner(1.0) }
         var best: Pair<LineCandidate, LineCandidate>? = null

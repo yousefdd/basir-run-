@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Page { Guide, Permissions, Contact, Training, Home, Run, Summary, Emergency, Settings, SettingsGuide, SettingsTraining, DeveloperLogin, Developer, LiveVision }
+private enum class Page { Guide, Permissions, Contact, Training, Home, Run, Summary, Emergency, Settings, SettingsGuide, SettingsTraining, SettingsBelt, DeveloperLogin, Developer, LiveVision }
 
 @Composable
 private fun BasirApp() {
@@ -70,6 +70,11 @@ private fun BasirApp() {
     val voice = remember { Voice(context) }
     val motion = remember { MotionMonitor(context) }
     val haptics = remember { HapticEngine(context, prefs) }
+    // the belt reconnects by itself when it was in use; losing it is said once, and the phone vibrates meanwhile
+    LaunchedEffect(Unit) {
+        haptics.belt.onLost = { voice.sayText("انقطع الحزام. الاهتزاز من الهاتف حتى يعود الاتصال") }
+        if (prefs.beltEnabled && haptics.belt.hasPermission()) haptics.belt.connect()
+    }
     val obstacles = remember { ObstacleDetector(context) }
     val deep = remember { DeepChannel(context) }
     val surface = remember { SurfaceChannel(context) }
@@ -77,6 +82,7 @@ private fun BasirApp() {
     DisposableEffect(Unit) {
         onDispose {
             voice.shutdown()
+            haptics.belt.close()
             obstacles.close()
             deep.close()
             surface.close()
@@ -219,6 +225,7 @@ private fun BasirApp() {
                 prefs = prefs,
                 voice = voice,
                 onTraining = { page = Page.SettingsTraining },
+                onBelt = { page = Page.SettingsBelt },
                 onGuide = { page = Page.SettingsGuide },
                 onBack = { page = Page.Home },
             )
@@ -239,6 +246,7 @@ private fun BasirApp() {
             Page.LiveVision -> LiveVisionScreen(pipeline, motion, prefs, haptics, voice, onBack = { page = Page.Developer })
 
             Page.SettingsTraining -> HapticTrainingScreen(prefs, voice, haptics, doneLabel = Phrase.ButtonSave.ar, onDone = { page = Page.Settings }, onBack = { page = Page.Settings })
+            Page.SettingsBelt -> BeltTrainingScreen(prefs, voice, haptics, onBack = { page = Page.Settings })
         }
     }
 }

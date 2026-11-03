@@ -8,7 +8,10 @@ import com.basir.run.vision.Side
 import com.basir.run.vision.TrackedPath
 import kotlin.math.abs
 import run.basir.engine.CommandKind
+import run.basir.engine.CornerPhase
+import run.basir.engine.CornerState
 import run.basir.engine.GuidanceCommand
+import run.basir.engine.GuidanceMode
 import run.basir.engine.Level
 import run.basir.engine.StopReason
 
@@ -70,7 +73,18 @@ data class Decision(
     val curve: Side? = null,
     /** How much the path behind this decision can be trusted, 0..1; scales vibration strength. */
     val confidence: Float = 1f,
-)
+    /** Round 8: set with [Cue.CurveAhead] when the bend is a sharp corner: PREPARE_TURN or TURNING (side in [curve]). */
+    val corner: CornerPhase? = null,
+) {
+    /** Round 8: the decision as one of the four guidance states (EMERGENCY_STOP only for critical decisions). */
+    val mode: GuidanceMode get() = when {
+        severity == Severity.Critical -> GuidanceMode.EMERGENCY_STOP
+        cue == Cue.PathUnclear || cue == Cue.EdgeOnlyCaution || cue == Cue.LatencySlow || (cue == Cue.ObstacleNear && moveTo == null) ->
+            GuidanceMode.GUIDANCE_CAUTION
+        cue == Cue.Correct || cue == Cue.NearEdge || cue == Cue.CurveAhead || cue == Cue.ObstacleNear -> GuidanceMode.GUIDANCE_CORRECTION
+        else -> GuidanceMode.GUIDANCE_ACTIVE
+    }
+}
 
 data class EngineInput(
     val nowMs: Long,
@@ -90,10 +104,30 @@ data class EngineInput(
     val depthStale: Boolean = false,
     /** The Virtual Path Engine's command for this frame, or null when it is not running. */
     val line: GuidanceCommand? = null,
+    /** Round 8: the corner engine's state for this frame (LineResult.corner), or null. */
+    val corner: CornerState? = null,
 )
 
 data class EngineConfig(
+    /** Round 8: frames older than this give the caution cue (no direction from stale data) ... */
     val maxFrameAgeMs: Long = 700,
+    /** ... and only a camera frozen this long is a stop (one or a few late frames used to stop the runner at 700 ms). */
+    val frozenFrameStopMs: Long = 1500,
+    /**
+     * Round 8: processing must stay above [latencyStopMs] this long before it is a stop. Owner: as few commands as
+     * possible; a slow spell is covered by one "slow down" cue and silence (no guidance from stale data), and only a
+     * system that stays this slow for 3 s (effectively stalled: new obstacles would be seen too late) stops the runner.
+     */
+    val latencyStopHoldMs: Long = 3000,
+    /** Round 8: obstacle warnings are judged before "slow down" (false = 0.14.0: slowness could hide them). */
+    val obstaclesOverSlowness: Boolean = true,
+    /**
+     * Round 8: a head-level obstacle or a drop gives the obstacle warning on its first frame and the STOP once it has
+     * lasted this long (5 frames at 15 fps; owner: a stop of a fraction of a second must not count). Measured: on SANPO
+     * these hazards came mostly as 1-2 frame blips of the depth channel while the recorded walker went on. At 2.5 m/s the
+     * confirmation costs ~0.65 m; head level stops only within 2.5 m and drops are seen up to 3 m ahead.
+     */
+    val criticalConfirmMs: Long = 260,
     val minConfidence: Float = 0.5f,
     val unclearCautionMs: Long = 600,
     val lostStopMs: Long = 1500,
@@ -122,9 +156,13 @@ data class EngineConfig(
 class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
 
     private var unclearSince = -1L
+    private var slowSince = -1L
+    private var criticalSince = -1L
 
     fun reset() {
         unclearSince = -1L
+        slowSince = -1L
+        criticalSince = -1L
     }
 
     fun decide(i: EngineInput): Decision {
@@ -132,31 +170,52 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             reset()
             return Decision(SystemState.Paused, Severity.Silent, Cue.Paused)
         }
-        if (i.frameAgeMs > cfg.maxFrameAgeMs) return Decision(SystemState.TrackingLost, Severity.Critical, Cue.CameraStop)
+        // Round 8 (stop audit): a late frame is stale data, not a danger. Late -> caution without a direction;
+        // frozen (no new frame for frozenFrameStopMs) -> stop, as before for a frozen camera.
+        if (i.frameAgeMs > cfg.frozenFrameStopMs) return Decision(SystemState.TrackingLost, Severity.Critical, Cue.CameraStop)
         val q = i.quality
         if (q != null && q.blocked) return Decision(SystemState.CameraBlocked, Severity.Critical, Cue.CameraStop)
+        if (i.frameAgeMs > cfg.maxFrameAgeMs) return Decision(SystemState.TrackingLost, Severity.Warning, Cue.PathUnclear)
 
-
-        if (i.processingP90Ms > cfg.latencyStopMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
+        // Round 8: very slow processing is a stop only when it lasts; before that it slows the runner (no steering).
+        if (i.processingP90Ms > cfg.latencyStopMs) {
+            if (slowSince < 0) slowSince = i.nowMs
+            if (i.nowMs - slowSince >= cfg.latencyStopHoldMs) return Decision(SystemState.HighLatency, Severity.Critical, Cue.LatencyStop)
+            if (!cfg.obstaclesOverSlowness) return Decision(SystemState.HighLatency, Severity.Warning, Cue.LatencySlow)
+            // Not stalled yet: no early return. Obstacles and closed ways are judged first (below); "slow down" is given
+            // only where no obstacle decision applies (fromLine / trusted path). Before, slowness hid obstacle warnings.
+        } else slowSince = -1L
         // An object on the ground close ahead, but the path engine has seen a way around it for
         // several frames (a detour side): guide the turn instead of stopping. The owner wants a
         // stop only in extreme cases; head-level obstacles and drops stay stops.
         val detourSide = i.line?.takeIf { it.kind == CommandKind.OBSTACLE }?.side
         if (i.obstacle == ObstacleLevel.Hazard && i.obstacleKind == HazardKind.Object && detourSide != null) {
             val to = if (detourSide == run.basir.engine.Side.LEFT) Side.Left else Side.Right
-            return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = to)
+            return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = to, level = 3)
         }
         // Head-level obstacles and drops (stairs down, a hole) stay stops: the camera cannot show a way
         // past them. A close object on the ground is a warning (slow down): the owner's field-test rule
         // (round 5) is to stop only when the way is closed for over a second, which the path engine decides.
+        val critical = i.obstacle == ObstacleLevel.Hazard && i.obstacleKind != HazardKind.Object
+        if (!critical) criticalSince = -1L
         if (i.obstacle == ObstacleLevel.Hazard) {
+            // Round 8: warning at once, stop once confirmed (criticalConfirmMs); never a stop from a single depth blip
+            if (critical) {
+                if (criticalSince < 0) criticalSince = i.nowMs
+                if (i.nowMs - criticalSince < cfg.criticalConfirmMs) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, level = 3)
+            }
             return when (i.obstacleKind) {
                 HazardKind.HeadLevel -> Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.HeadLevelStop)
                 HazardKind.Drop -> Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.DropStop)
-                HazardKind.Object -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
+                // level 3: within stopping distance (its reminders are not capped, round 8)
+                HazardKind.Object -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, level = 3)
             }
         }
-        if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear)
+        // A warning is "close" (level 3) when ANY source sees it close: the depth channel may still say "possible" while
+        // the path engine already reports the way closed within stopping distance (found on turn90_b).
+        val pathClose = i.line?.let { it.kind == CommandKind.OBSTACLE && it.level == Level.HIGH } == true
+        if (i.obstacle == ObstacleLevel.Possible) return Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear,
+            level = if (pathClose) 3 else 2)
 
         // The Virtual Path Engine steers whenever it follows a line, a lane or runs alongside a
         // line. It finds no line → the image-space path below is the fallback.
@@ -175,6 +234,9 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             return if (turn != null) Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.TurnStop, moveTo = turn)
             else Decision(SystemState.ObstacleAhead, Severity.Critical, Cue.Obstacle)
         }
+        // Round 8: a sharp corner (CornerNavigationEngine) is one clear cue that outranks corrections and bends of
+        // the same side and slight ones of the other; a strong correction the other way (about to leave the path) wins.
+        cornerDecision(cmd, i)?.let { unclearSince = -1L; return it }
         if (cmd != null && cmd.kind != CommandKind.STOP) {
             unclearSince = -1L
             return fromLine(cmd, i)
@@ -231,6 +293,40 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         }
     }
 
+    private fun cornerDecision(cmd: GuidanceCommand?, i: EngineInput): Decision? {
+        val c = i.corner ?: return null
+        if (c.exitUnverified) {
+            // A turn ended without a verified way out: no direction, slow down (unless the path is clearly followed again)
+            if (cmd != null && (cmd.kind == CommandKind.ON_PATH || cmd.kind == CommandKind.CORRECT) && cmd.confidence >= 0.5) return null
+            return Decision(SystemState.BoundariesUnclear, Severity.Warning, Cue.PathUnclear)
+        }
+        val cs = c.side
+        if (!c.active) {
+            // Turn done (exit / new straight): the new direction is held. A slight or medium correction toward the side
+            // the runner came from is a reading of the old path in the new view, not a real change (strong ones pass).
+            // Only while exiting, and not when a next corner is already being seen (consecutive turns: the next one may
+            // well be to the other side).
+            if (cs != null && c.phase == CornerPhase.EXIT_CORNER && c.nextSide == null && cmd != null &&
+                cmd.kind == CommandKind.CORRECT && cmd.level != Level.HIGH && cmd.side != null && cmd.side != cs) {
+                return Decision(SystemState.PathTracked, Severity.Info, Cue.Centered, confidence = cmd.confidence.toFloat().coerceIn(0f, 1f))
+            }
+            return null
+        }
+        // Safety outranks the corner: an obstacle warning or a closed way from the path engine is never replaced by it.
+        if (cmd != null && (cmd.kind == CommandKind.OBSTACLE || cmd.kind == CommandKind.STOP)) return null
+        val side = when (c.side) { run.basir.engine.Side.LEFT -> Side.Left; run.basir.engine.Side.RIGHT -> Side.Right; null -> return null }
+        if (cmd != null && cmd.kind == CommandKind.CORRECT && cmd.level == Level.HIGH && cmd.side != c.side) return null
+        if (i.processingP90Ms > cfg.latencyWarnMs || i.depthStale) return null
+        // Approaching the corner and the path turns unclear: the caution is the honest cue. Inside the turn the corner's
+        // geometry and the measured turn carry the guidance for its (bounded) duration.
+        // (Close to the corner the line is expected to leave the view: that gap is part of the corner, not a caution.)
+        val atCorner = (c.distanceM ?: Double.MAX_VALUE) <= 2.5
+        if (c.phase == CornerPhase.PREPARE_TURN && !atCorner && (cmd == null || cmd.kind == CommandKind.CAUTION || cmd.kind == CommandKind.STOP)) return null
+        if (cmd != null && cmd.kind == CommandKind.STOP) return null
+        return Decision(SystemState.PathCurving, Severity.Correction, Cue.CurveAhead, level = 3, curve = side,
+            confidence = (cmd?.confidence ?: c.confidence).toFloat().coerceIn(0.3f, 1f), corner = c.phase)
+    }
+
     private fun fromLine(cmd: GuidanceCommand, i: EngineInput): Decision {
         val conf = cmd.confidence.toFloat().coerceIn(0f, 1f)
         val bend = when {
@@ -239,7 +335,8 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
             cmd.curveCurvature < 0 -> Side.Left
             else -> null
         }
-        if (i.processingP90Ms > cfg.latencyWarnMs || i.depthStale) {
+        // Slowness never hides an obstacle warning of the path engine (it outranks "slow down")
+        if ((i.processingP90Ms > cfg.latencyWarnMs || i.depthStale) && (cmd.kind != CommandKind.OBSTACLE || !cfg.obstaclesOverSlowness)) {
             return Decision(SystemState.HighLatency, Severity.Warning, Cue.LatencySlow, curve = bend, confidence = conf)
         }
         val side = when (cmd.side) {
@@ -255,7 +352,8 @@ class DecisionEngine(private val cfg: EngineConfig = EngineConfig()) {
         return when (cmd.kind) {
             // Something on the path, not yet at stopping distance: slow down, no way around offered.
             // With a way around that the engine has seen for several frames, the side to pass on.
-            CommandKind.OBSTACLE -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = side, confidence = conf)
+            CommandKind.OBSTACLE -> Decision(SystemState.ObstacleAhead, Severity.Warning, Cue.ObstacleNear, moveTo = side,
+                level = if (cmd.level == Level.HIGH) 3 else 2, confidence = conf)
             CommandKind.CORRECT -> if (level == 3) {
                 Decision(SystemState.Drifting, Severity.Warning, Cue.NearEdge, side, 3, bend, conf)
             } else {

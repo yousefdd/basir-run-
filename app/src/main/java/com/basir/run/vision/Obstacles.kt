@@ -66,6 +66,8 @@ object ObstacleAssessment {
     const val HAZARD_OVERLAP = 0.3f
     const val HAZARD_HEIGHT = 0.25f
     const val HAZARD_BOTTOM = 0.8f
+    /** A box reaching this low is cut by the frame's bottom edge. */
+    const val BOTTOM_EDGE = 0.97f
 
     fun assess(d: Detection, path: PathEstimate?, runnerX: Float): ObstacleFinding? {
         if (d.label !in SUPPORTED || d.score < MIN_SCORE) return null
@@ -88,8 +90,66 @@ object ObstacleAssessment {
         return ObstacleFinding(d, overlap, level)
     }
 
+    /**
+     * Round 7: the same decision against the metric path the engine follows (and draws), instead of the fallback
+     * detectors' image-space corridor or a fixed fraction of the screen. The object's foot point (bottom centre of its
+     * box) is put on the ground; it is in the way when its body overlaps a corridor of [halfWidthM] around the path's
+     * centre line at that distance. Near (Hazard) = within [stopDistanceM]; up to [warnDistanceM] = Possible; further
+     * or beside the path = not a finding. Null also when the box does not reach the ground (above the horizon).
+     */
+    fun assessOnPath(
+        d: Detection, path: run.basir.engine.PathCurve, camera: run.basir.engine.CameraModel,
+        halfWidthM: Double = PathLinkedHazards.HALF_WIDTH_M, stopDistanceM: Double = PathLinkedHazards.STOP_M,
+        warnDistanceM: Double = PathLinkedHazards.WARN_M,
+    ): ObstacleFinding? {
+        if (d.label !in SUPPORTED || d.score < MIN_SCORE) return null
+        val v = (d.bottom * camera.height).toDouble().coerceAtMost(camera.height - 1.0)
+        val u = ((d.left + d.right) / 2 * camera.width).toDouble()
+        val foot = camera.imageToGround(u, v) ?: return null
+        if (foot.forward <= 0.0 || foot.forward > warnDistanceM) return null
+        val mpp = camera.lateralMetersPerPixel(v) ?: return null
+        val radius = ((d.right - d.left) * camera.width * mpp / 2).coerceIn(0.1, 2.0)
+        val far = maxOf(path.farM, path.nearM + 0.5)
+        val centre = if (foot.forward <= far) path.lateralAt(foot.forward)
+        else path.lateralAt(far) + (path.lateralAt(far) - path.lateralAt(far - 0.25)) / 0.25 * (foot.forward - far)
+        // Within stopping distance the runner's own heading counts too (they may not follow the path exactly):
+        // measured, a tent passed at ~0.4 m was missed when only the planned path's corridor was checked.
+        val onPath = kotlin.math.abs(foot.lateral - centre) - radius <= halfWidthM
+        // A box cut by the bottom edge stands at or nearer than the nearest visible ground (its foot is out of view)
+        val near = foot.forward <= stopDistanceM || d.bottom >= BOTTOM_EDGE
+        // Straight ahead of the runner within the warning distance (we are already within it): at least a warning,
+        // even when the planned path goes round it — the runner is heading at it now (measured: a tent 3 m ahead
+        // with the path bending past it was otherwise never announced).
+        val ahead = kotlin.math.abs(foot.lateral) - radius <= halfWidthM
+        if (!onPath && !ahead) return null
+        val c = if (onPath) centre else 0.0
+        // Share of the object's width inside the corridor
+        val inside = (minOf(foot.lateral + radius, c + halfWidthM) - maxOf(foot.lateral - radius, c - halfWidthM)).coerceAtLeast(0.0)
+        val overlap = (inside / (2 * radius)).toFloat()
+        val level = if (near && overlap >= HAZARD_OVERLAP && (onPath || foot.forward <= stopDistanceM || d.bottom >= BOTTOM_EDGE)) ObstacleLevel.Hazard else ObstacleLevel.Possible
+        return ObstacleFinding(d, overlap, level)
+    }
+
     /** Kept for callers that only need yes or no. */
     fun isRelevant(d: Detection, path: PathEstimate?, runnerX: Float) = assess(d, path, runnerX) != null
+}
+
+/**
+ * Round 7 switch: obstacles (detections and depth) are judged against the metric path the engine follows. Off = the
+ * 0.13.0 behaviour (image-space corridor of the fallback detectors / straight depth corridor along the path's bearing).
+ * The corridor is body-wide (the depth channel's 1.2 m), so an object beside a wide walkable strip is not "in the way".
+ */
+object PathLinkedHazards {
+    @Volatile var enabled = true
+    const val HALF_WIDTH_M = 0.6
+    /** Stop distance of the depth channel (DepthHazards.RUNNING.stopDistanceM). */
+    const val STOP_M = 2.5
+    /** Warning distance of the depth channel (DepthHazards.RUNNING.safeDistanceM), so both channels agree. */
+    const val WARN_M = 4.0
+    /** Below this camera tilt the ground is seen almost edge-on and image-to-ground distances are meaningless (an
+     *  object 4 m away projects beyond 6 m): the 0.13.0 image-space corridor is used instead. Measured on a SANPO clip
+     *  filmed with a level camera (pitch about -1 deg), where the metric check dropped every approaching person. */
+    const val MIN_PITCH_DEG = 5.0
 }
 
 /**

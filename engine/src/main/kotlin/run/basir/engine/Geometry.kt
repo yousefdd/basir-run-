@@ -105,6 +105,17 @@ object GravityTilt {
         return Math.toDegrees(kotlin.math.asin((z / g).coerceIn(-1.0, 1.0)))
     }
 
+    /**
+     * Turn rate about the vertical, rad/s, positive when the runner turns RIGHT, from the gyroscope ([wx], [wy], [wz],
+     * rad/s about the device axes, counter-clockwise positive) and the gravity reading ([gx], [gy], [gz], pointing up).
+     * A rotation counter-clockwise seen from above (to the left) is positive about the up axis, hence the minus sign.
+     */
+    fun yawRateRight(gx: Double, gy: Double, gz: Double, wx: Double, wy: Double, wz: Double): Double? {
+        val g = kotlin.math.sqrt(gx * gx + gy * gy + gz * gz)
+        if (g < 1.0) return null
+        return -(wx * gx + wy * gy + wz * gz) / g
+    }
+
     fun rollDeg(x: Double, y: Double, z: Double): Double? {
         val g = kotlin.math.sqrt(x * x + y * y + z * z)
         if (g < 1.0) return null

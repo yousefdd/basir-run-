@@ -32,6 +32,13 @@ data class GuidanceCommand(
     val state: GuidanceState? = null,
     /** Back on the path after a correction: one quiet confirmation pulse. */
     val confirm: Boolean = false,
+    /**
+     * Round 8: set on a CURVE command when it is a sharp corner (CornerNavigationEngine) rather than a gradual bend:
+     * PREPARE_TURN plays the "prepare to turn" pattern, TURNING the "turn now" pattern. Null = a gradual bend as before.
+     */
+    val corner: CornerPhase? = null,
+    /** Distance to the corner (m) while it is ahead. */
+    val cornerInM: Double? = null,
 )
 
 data class GuidanceConfig(

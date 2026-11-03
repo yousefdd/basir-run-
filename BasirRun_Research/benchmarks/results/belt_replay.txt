@@ -1,0 +1,7 @@
+Belt replay: 45 clips, recorded guidance commands at 5 fps, app scheduler + belt language
+setting | min | cues/min (direction / warning / stop / continue) | closest cues s | early direction changes | L/R flips <2 s | overlaps | vibrating %
+phone repeats 1200 ms | 18.4 | 17.17 (3.21 / 12.39 / 1.58 / 0.00) | 0.20 | 0 | 0 | 0 | 11.0
+belt 800 ms | 18.4 | 16.46 (2.50 / 12.39 / 1.58 / 0.00) | 0.20 | 0 | 0 | 0 | 10.6
+belt 1200 ms | 18.4 | 16.46 (2.50 / 12.39 / 1.58 / 0.00) | 0.20 | 0 | 0 | 0 | 10.6
+belt 1600 ms | 18.4 | 16.46 (2.50 / 12.39 / 1.58 / 0.00) | 0.20 | 0 | 0 | 0 | 10.6
+belt 2000 ms | 18.4 | 16.46 (2.50 / 12.39 / 1.58 / 0.00) | 0.20 | 0 | 0 | 0 | 10.6

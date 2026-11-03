@@ -54,6 +54,56 @@ class ContrastLineDetector(
         return keepThinRuns(out, cam)
     }
 
+    /**
+     * Round 8: the same stripe test along image COLUMNS, for lines that run across the image (the perpendicular line
+     * of a 90° corner, which [detect] cannot see because it compares each pixel with its left and right neighbours).
+     * The expected thickness in rows follows from the ground distance covered by one row at that depth. Used only by the
+     * corner engine (the path's own line extraction is unchanged).
+     */
+    fun detectAcross(image: RgbImage, camera: CameraModel): ProbabilityMask {
+        val cam = camera.resized(image.width, image.height)
+        val w = image.width
+        val h = image.height
+        val lab = toLab(image)
+        var chroma = 0.0
+        for (i in lab[1].indices step 7) chroma += kotlin.math.hypot(lab[1][i].toDouble(), lab[2][i].toDouble())
+        lightnessWeight = if (chroma / (lab[1].size / 7 + 1) < 6.0) 1.0 else 0.25
+        val out = ProbabilityMask(w, h)
+        val top = max(0, (cam.horizonRow + 2).toInt())
+        val cx = w / 2.0
+        for (y in top until h - 1) {
+            val g0 = cam.imageToGround(cx, y.toDouble()) ?: continue
+            val g1 = cam.imageToGround(cx, y + 1.0) ?: continue
+            val mpr = kotlin.math.abs(g0.forward - g1.forward)            // metres of ground per image row here
+            if (mpr <= 0) continue
+            val lineH = expectedLineWidthM / mpr
+            if (lineH < 1.0) continue
+            val off = max(2, (1.5 * lineH).roundToInt())
+            if (y - off < top || y + off >= h) continue
+            for (x in 0 until w) {
+                val c = y * w + x
+                val u = (y - off) * w + x
+                val d = (y + off) * w + x
+                val response = min(deltaE(lab, c, u), deltaE(lab, c, d)) - 0.5 * deltaE(lab, u, d)
+                out.data[c] = (1.0 / (1.0 + exp(-(response - minDeltaE) / 3.0))).toFloat()
+            }
+        }
+        // remove vertical runs much taller than a line seen at that depth
+        for (x in 0 until w) {
+            var y = top
+            while (y < h) {
+                if (out[x, y] < 0.5f) { y++; continue }
+                var e = y
+                while (e < h && out[x, e] >= 0.5f) e++
+                val g0 = cam.imageToGround(x.toDouble(), y.toDouble()); val g1 = cam.imageToGround(x.toDouble(), e.toDouble())
+                val tallM = if (g0 != null && g1 != null) kotlin.math.abs(g0.forward - g1.forward) else Double.MAX_VALUE
+                if (tallM > 3.0 * expectedLineWidthM + 0.15) for (i in y until e) out[x, i] = 0f
+                y = e
+            }
+        }
+        return out
+    }
+
     /** Remove runs much wider than a line (a large colored area is a surface, not a line). */
     private fun keepThinRuns(mask: ProbabilityMask, cam: CameraModel): ProbabilityMask {
         for (y in 0 until mask.height) {

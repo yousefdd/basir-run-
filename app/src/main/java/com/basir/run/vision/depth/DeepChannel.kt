@@ -84,7 +84,9 @@ class DeepChannel(context: Context) {
      * then simply not analysed by this channel). [pitchDeg] is the camera tilt from the gravity
      * sensor; without it the planner estimates the tilt from the depth map itself.
      */
-    fun offer(sensorBitmap: Bitmap, rotationDegrees: Int, frameTimeMs: Long, pitchDeg: Float?, pathBearingDeg: Double? = null): Boolean {
+    fun offer(sensorBitmap: Bitmap, rotationDegrees: Int, frameTimeMs: Long, pitchDeg: Float?, pathBearingDeg: Double? = null,
+              /** Round 7: the followed path; depth hazards are then looked for along it (DepthHazards.assess). */
+              path: run.basir.engine.PathCurve? = null): Boolean {
         if (!busy.compareAndSet(false, true)) return false
         executor.execute {
             try {
@@ -105,7 +107,7 @@ class DeepChannel(context: Context) {
                     }
                 } else null
                 val t2 = SystemClock.elapsedRealtime()
-                val hazard = confirm.update(DepthHazards.assess(analysis, headingDeg = pathBearingDeg))
+                val hazard = confirm.update(DepthHazards.assess(analysis, headingDeg = pathBearingDeg, path = path))
                 latest = DeepResult(frameTimeMs, analysis, detections, hazard, t2 - t1, t1 - t0)
             } catch (e: Exception) {
                 Log.w("DeepChannel", "Analysis failed", e)

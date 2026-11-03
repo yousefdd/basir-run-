@@ -18,6 +18,12 @@ class SurfaceResult(
     val line: ProbabilityMask?,
     val walkableMs: Long,
     val lineMs: Long,
+    /** Walkable-model classes (ADE20K ids) on its own grid, whole frame; null without the model. */
+    val labels: IntArray? = null,
+    val labelW: Int = 0,
+    val labelH: Int = 0,
+    /** The walkable decision on that grid (0/1), before resampling to [walkable]'s size. */
+    val walkableGrid: FloatArray? = null,
 ) {
     /** Share of walkable cells in the corridor just ahead (bottom 45 %, central 40 % of the frame). */
     fun walkableAheadShare(): Float {
@@ -78,10 +84,11 @@ class SurfaceChannel(context: Context) {
                 )
                 val t0 = SystemClock.elapsedRealtime()
                 val walk = walkableModel?.takeIf { it.ready }?.walkable(upright, outW, outH)
+                val grid = walkableModel?.lastGrid?.takeIf { walk != null }
                 val t1 = SystemClock.elapsedRealtime()
                 val line = lineModel?.takeIf { it.ready }?.line(upright, outW, outH)
                 val t2 = SystemClock.elapsedRealtime()
-                latest = SurfaceResult(frameTimeMs, walk, line, t1 - t0, t2 - t1)
+                latest = SurfaceResult(frameTimeMs, walk, line, t1 - t0, t2 - t1, grid?.labels, grid?.width ?: 0, grid?.height ?: 0, grid?.walkable)
             } catch (e: Exception) {
                 Log.w("SurfaceChannel", "Surface analysis failed", e)
             } finally {

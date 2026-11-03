@@ -15,6 +15,11 @@ enum class Phrase(val id: String, val ar: String) {
     AtEdgeStop("at_edge_stop", "أنت على حد المسار. توقف وتحقق"),
     CurveRight("curve_right", "المسار ينحني تدريجياً إلى اليمين"),
     CurveLeft("curve_left", "المسار ينحني تدريجياً إلى اليسار"),
+    // Round 8: sharp corners (no recorded voice yet: the phone's text to speech is used until the files are added)
+    TurnPrepareRight("turn_prepare_right", "زاوية قادمة، استعد للانعطاف إلى اليمين"),
+    TurnPrepareLeft("turn_prepare_left", "زاوية قادمة، استعد للانعطاف إلى اليسار"),
+    TurnNowRight("turn_now_right", "انعطف الآن إلى اليمين"),
+    TurnNowLeft("turn_now_left", "انعطف الآن إلى اليسار"),
 
     // Warnings and stops
     Obstacle("obstacle", "يوجد عائق محتمل أمامك. خفف سرعتك وتوقف للتحقق"),
@@ -55,6 +60,8 @@ enum class Phrase(val id: String, val ar: String) {
     PatternStrength("pattern_strength", "كلما زاد ابتعادك عن المسار صارت النبضات أقوى. هذه خفيفة، ثم متوسطة، ثم قوية"),
     PatternBendLeft("pattern_bend_left", "نبضة طويلة هادئة: منعطف إلى اليسار قادم"),
     PatternBendRight("pattern_bend_right", "نبضتان طويلتان هادئتان: منعطف إلى اليمين قادم"),
+    PatternTurnPrepare("pattern_turn_prepare", "نبضة تتصاعد من خفيفة إلى قوية: زاوية حادة قادمة، استعد. واحدة لليسار، واثنتان لليمين"),
+    PatternTurnNow("pattern_turn_now", "نبضة قصيرة ثم طويلة: انعطف الآن. مرة لليسار، ومرتان لليمين"),
     PatternAttention("pattern_attention", "ثلاث نبضات سريعة قوية: عائق أو أمر يحتاج انتباهك فوراً"),
     PatternStop("pattern_stop", "اهتزاز طويل تتبعه نبضتان: توقف عن الجري فوراً"),
     PatternConfirm("pattern_confirm", "نبضة تأكيد خفيفة: اكتمل الفحص أو بدأت الجلسة"),
@@ -158,7 +165,11 @@ enum class Phrase(val id: String, val ar: String) {
             Cue.Correct -> if (d.moveTo == com.basir.run.vision.Side.Right) CorrectRight else CorrectLeft
             Cue.NearEdge -> if (d.moveTo == com.basir.run.vision.Side.Right) NearEdgeRight else NearEdgeLeft
             Cue.AtEdgeStop -> AtEdgeStop
-            Cue.CurveAhead -> curve(d.curve)
+            Cue.CurveAhead -> when (d.corner) {
+                run.basir.engine.CornerPhase.PREPARE_TURN -> if (d.curve == com.basir.run.vision.Side.Right) TurnPrepareRight else TurnPrepareLeft
+                run.basir.engine.CornerPhase.TURNING -> if (d.curve == com.basir.run.vision.Side.Right) TurnNowRight else TurnNowLeft
+                else -> curve(d.curve)
+            }
             Cue.Obstacle -> Obstacle
             Cue.TurnStop -> if (d.moveTo == com.basir.run.vision.Side.Right) TurnStopRight else TurnStopLeft
             Cue.ObstacleNear -> ObstacleNear

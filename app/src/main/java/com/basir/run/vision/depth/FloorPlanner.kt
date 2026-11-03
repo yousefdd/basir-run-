@@ -227,6 +227,8 @@ class FloorPlanner(private val geometry: Geometry, private val cfg: Config = Con
             clearDistanceM = round(clear), headings = headings, sectors = sectors(oF, oL), nearestObstacle = nearest,
             headLevelM = headLevel, dropM = straight.dropM, pitchDeg = pitchDeg, pitchSource = pitchSource, raisedSurface = switched,
             width = w, height = h, obstacleMask = obstacle, dropMask = dropMask,
+            obstaclePoints = FloatArray(oF.size * 3) { k -> (when (k % 3) { 0 -> oF[k / 3]; 1 -> oL[k / 3]; else -> oH[k / 3] }).toFloat() },
+            minPixels = cfg.minPixels,
         )
     }
 
@@ -485,6 +487,11 @@ class DepthAnalysis(
     val height: Int,
     val obstacleMask: BooleanArray?,
     val dropMask: BooleanArray?,
+    /** The raised points behind [obstacleMask] on the ground, as (forward, lateral right, height) triplets in metres
+     *  (round 7: obstacles are checked along the path being followed, not along a straight bearing). */
+    val obstaclePoints: FloatArray? = null,
+    /** How many raised points make an obstacle (the planner's minPixels), for checks done on [obstaclePoints]. */
+    val minPixels: Int = 8,
 )
 
 /** mulberry32, the deterministic generator of the reference, so RANSAC picks the same samples. */

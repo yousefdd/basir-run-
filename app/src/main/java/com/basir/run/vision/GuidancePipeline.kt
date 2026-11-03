@@ -67,6 +67,8 @@ class GuidancePipeline(
     private val pitch: () -> Float?,
     /** Sideways lean of the phone from the gravity sensor (top to the right positive), or null. */
     private val roll: () -> Float?,
+    /** Turn rate about the vertical in rad/s, + right (GravityTilt.yawRateRight from gyroscope and gravity), or null. */
+    private val yawRate: () -> Float? = { null },
 ) {
 
     @Volatile var calibration = Calibration()
@@ -94,6 +96,10 @@ class GuidancePipeline(
         set(value) { lineEngine.speedMps = value }
     private val tracker = PathTracker()
     private val intrusions = IntrusionDetector()
+    private val groundCover = run.basir.engine.GroundCoverResolver()
+    /** When the heavy surface models run (keyframes); the safety channel is never gated by it. */
+    private val frameController = run.basir.engine.AdaptiveFrameController()
+    private var lastLine: com.basir.run.vision.line.LineResult? = null
     private val motion = ObstacleMotionTracker()
     private val obstacleTracker = ObstacleTracker()
     private val copier = FrameCopier()
@@ -112,6 +118,8 @@ class GuidancePipeline(
         surfaceChannel.reset()
         pathBearingDeg = null
         lineEngine.reset()
+        frameController.reset()
+        lastLine = null
         lastDeepTime = -1L
         lanes.reset()
         selector.reset()
@@ -138,34 +146,75 @@ class GuidancePipeline(
         val freshModel = modelLive && deep!!.frameTimeMs != lastDeepTime
         val wantDeep = deepChannel.idle && (deepChannel.depthReady || deepChannel.detectorReady)
         val wantFallback = !modelLive && frameIndex % OBSTACLE_EVERY == 0L
-        val wantSurface = surfaceChannel.idle && (surfaceChannel.walkableReady || surfaceChannel.lineReady)
+        val prev = lastLine
+        val keyDecision = frameController.decide(run.basir.engine.AdaptiveFrameController.Context(
+            frameTimeMs = now, nowMs = now, newerFrameWaiting = false,
+            trackState = prev?.trackState ?: run.basir.engine.TrackState.SEARCHING, trackConfidence = prev?.trackConfidence ?: 0.0,
+            curvature = prev?.decision?.path?.let { it.curvatureAt(minOf(3.0, it.farM)) } ?: 0.0,
+            yawRateRadPerS = (yawRate() ?: 0f).toDouble(), speedMps = speedMps,
+            obstacleWithinM = prev?.decision?.obstacleAheadM, peopleInView = lastDetections.any { it.label == "person" },
+        ))
+        val keyframe = keyDecision.keyframe
+        val wantSurface = keyframe && surfaceChannel.idle && (surfaceChannel.walkableReady || surfaceChannel.lineReady)
         val bitmap = if (wantDeep || wantFallback || wantSurface) image.toBitmap() else null
-        if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch(), pathBearingDeg)
+        if (wantDeep && bitmap != null) deepChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, pitch(), pathBearingDeg,
+            prev?.let { it.trackedPath ?: it.decision.path })
         if (wantSurface && bitmap != null) {
             val outH = (frame.uprightHeight / (frame.uprightWidth.toFloat() / LineEngine.WIDTH)).toInt()
             surfaceChannel.offer(bitmap, image.imageInfo.rotationDegrees, now, LineEngine.WIDTH, outH)
         }
-        val surface = surfaceChannel.latest?.takeIf { now - it.frameTimeMs <= SURFACE_STALE_MS }
+        // Round 7 fix: a mask's age swings between the model's processing time and about twice that before the next
+        // one arrives, plus the interval the adaptive controller deliberately waits (250-400 ms). A fixed 500 ms limit
+        // therefore dropped valid masks in a large share of frames once the surface models take ~300 ms (measured with
+        // phone-like latency: no mask in 43 % of frames, path availability 0.78 -> 0.41). The limit now adds the
+        // result's own processing time and the chosen interval, capped at SURFACE_STALE_MAX_MS; LineEngine compensates
+        // the mask's age by the runner's motion either way.
+        val rawSurface = surfaceChannel.latest?.takeIf { s ->
+            val limit = if (STALE_FOLLOWS_KEYFRAMES) minOf(SURFACE_STALE_MAX_MS, SURFACE_STALE_MS + keyDecision.intervalMs + s.walkableMs + s.lineMs)
+            else SURFACE_STALE_MS
+            now - s.frameTimeMs <= limit
+        }
+        // Depth evidence for flat ground (leaves): camera of the depth map's frame, at the analysis size
+        val hfov = deepChannel.hfovDeg(image.imageInfo.rotationDegrees)
+        val evidenceCam = run.basir.engine.CameraModel(frame.uprightWidth, frame.uprightHeight, hfov, cameraHeightM,
+            (pitch() ?: FALLBACK_PITCH).toDouble(), (roll() ?: 0f).toDouble())
+        // Depth evidence is used only when its frame is close in time to what it is applied to: a runner moves ~0.75 m in 300 ms
+        val surface = rawSurface?.let { s -> GroundEvidence.refineWalkable(s,
+            deep?.takeIf { kotlin.math.abs(it.frameTimeMs - s.frameTimeMs) <= EVIDENCE_SKEW_MS }?.analysis, evidenceCam, groundCover) }
 
         val detectorRan = freshModel || (wantFallback && bitmap != null)
         if (detectorRan) {
-            lastDetections = if (freshModel) deep!!.detections
-            else if (obstacles.ready) obstacles.detect(bitmap!!, image.imageInfo.rotationDegrees) else emptyList()
+            lastDetections = GroundEvidence.filterDetections(
+                if (freshModel) deep!!.detections
+                else if (obstacles.ready) obstacles.detect(bitmap!!, image.imageInfo.rotationDegrees) else emptyList(),
+                // D-FINE boxes come with the depth map of the same frame; the fallback detector sees the current frame
+                (if (freshModel) deep else deep?.takeIf { now - it.frameTimeMs <= EVIDENCE_SKEW_MS })?.analysis, evidenceCam,
+            )
             if (freshModel) lastDeepTime = deep!!.frameTimeMs
             val runnerX = calibration.runnerX
-            val modelFindings = lastDetections.mapNotNull { ObstacleAssessment.assess(it, path.estimate, runnerX) }
-            val surfaceFindings = if (path.stable) intrusions.detect(frame, path.estimate, runnerX) else emptyList()
+            // Round 7: judged against the metric path the engine follows when there is one (PathLinkedHazards)
+            val metricPath = prev?.let { it.trackedPath ?: it.decision.path }
+                ?.takeIf { PathLinkedHazards.enabled && (pitch() ?: FALLBACK_PITCH) >= PathLinkedHazards.MIN_PITCH_DEG }
+            val modelFindings = lastDetections.mapNotNull {
+                if (metricPath != null) ObstacleAssessment.assessOnPath(it, metricPath, evidenceCam)
+                else ObstacleAssessment.assess(it, path.estimate, runnerX)
+            }
+            val surfaceFindings = GroundEvidence.filterSurfaceFindings(
+                if (path.stable) intrusions.detect(frame, path.estimate, runnerX) else emptyList(),
+                deep?.takeIf { now - it.frameTimeMs <= EVIDENCE_SKEW_MS }?.analysis)
             val centre = path.estimate.center?.x(1f) ?: runnerX
             lastFindings = motion.annotate(modelFindings, lastDetections, centre) + surfaceFindings
             obstacle = obstacleTracker.update(lastFindings)
         }
         frameIndex++
         val line = lineEngine.process(
-            frame, deepChannel.hfovDeg(image.imageInfo.rotationDegrees), (pitch() ?: FALLBACK_PITCH).toDouble(),
-            (roll() ?: 0f).toDouble(), quality, if (detectorRan) lastDetections else null, surface,
+            frame, hfov, (pitch() ?: FALLBACK_PITCH).toDouble(),
+            (roll() ?: 0f).toDouble(), quality, if (detectorRan) lastDetections else null, surface, yawRate()?.toDouble(),
         )
+        lastLine = line
         pathBearingDeg = line.decision.path?.let { Math.toDegrees(kotlin.math.atan2(it.lateralAt(BEARING_AT_M), BEARING_AT_M)) }
-        val depthHazard = deep?.hazard?.takeIf { it.level != ObstacleLevel.None }
+        val depthHazard = deep?.hazard?.aged((now - deep.frameTimeMs) / 1000.0, speedMps, com.basir.run.vision.depth.DepthHazards.RUNNING)
+            ?.takeIf { it.level != ObstacleLevel.None }
         val combined = if (depthHazard != null && depthHazard.level > obstacle) depthHazard.level else obstacle
         val kind = if (depthHazard != null && depthHazard.level >= obstacle) depthHazard.kind else HazardKind.Object
         val depthStale = deepChannel.depthReady && deepChannel.latest.let { it == null || now - it.frameTimeMs > DEEP_STALE_MS }
@@ -212,7 +261,12 @@ class GuidancePipeline(
         const val DEEP_STALE_MS = 1500L
         /** Surface masks older than this no longer match the frame (a runner covers ~1.5 m). */
         const val SURFACE_STALE_MS = 500L
+        /** Round 7: the surface stale limit includes the masks' processing time and the adaptive keyframe interval. */
+        const val STALE_FOLLOWS_KEYFRAMES = true
+        const val SURFACE_STALE_MAX_MS = 1000L
         private const val BEARING_AT_M = 3.0
+        /** Largest time gap between a depth map and the frame its flat-ground evidence is applied to. */
+        const val EVIDENCE_SKEW_MS = 300L
         private const val WINDOW = 60
         /** Rotation faster than this blurs the frame and swings the view; such frames count less. */
         private const val JOLT_RAD_PER_S = 2.5f

@@ -314,6 +314,7 @@ fun SettingsScreen(
     onTraining: () -> Unit,
     onGuide: () -> Unit,
     onBack: () -> Unit,
+    onBelt: () -> Unit = {},
 ) {
     var vibrate by remember { mutableStateOf(prefs.vibrateOn) }
     var verbose by remember { mutableStateOf(prefs.verboseVoice) }
@@ -332,6 +333,7 @@ fun SettingsScreen(
 
             SectionTitle("الاهتزاز")
             SpeakButton("أنماط الاهتزاز واختبارها", onTraining, spoken = Phrase.ButtonHapticLessons.ar, modifier = Modifier.fillMaxWidth())
+            SpeakButton("حزام الاهتزاز: الاتصال والتدريب", onBelt, modifier = Modifier.fillMaxWidth())
             SpeakSwitch(Phrase.SwitchVibration.ar, "قناة التوجيه الأساسية", vibrate) { vibrate = it; prefs.vibrateOn = it }
             SpeakSwitch(Phrase.SwitchWalking.ar, "للمشي بدل الجري: يتوقف أقرب إلى العائق ويبقى أهدأ", walking) { walking = it; prefs.walkingMode = it }
 

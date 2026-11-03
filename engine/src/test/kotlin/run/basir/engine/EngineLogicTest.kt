@@ -228,7 +228,10 @@ class EngineLogicTest {
         assertNotNull(s.onCommand(curve, 0))
         assertNull(s.onCommand(curve, 500))                     // too soon
         assertNull(s.onCommand(GuidanceCommand(CommandKind.ON_PATH), 100)) // lower priority while playing
-        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE), 120)) // higher priority interrupts
+        // Round 8: a close obstacle (within stopping distance, level HIGH) interrupts at once; a merely possible one waits
+        // for the owner's cooldown between different vibrations (minChangeGapMs)
+        assertNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE), 110))
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE, level = Level.HIGH), 120)) // higher priority interrupts
     }
 
     @Test
@@ -369,8 +372,10 @@ class EngineLogicTest {
         val s = HapticScheduler(r)
         assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CORRECT, Side.RIGHT, Level.LOW), 0))
         assertNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 600))     // bend cue 0.6 s later: waits
-        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE), 650))                       // obstacle: at once
-        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 1500))
+        assertNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE), 630))                          // possible obstacle: cooldown (round 8)
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.OBSTACLE, level = Level.HIGH), 650))   // close obstacle: at once
+        assertNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 1500))     // 0.85 s after it: cooldown
+        assertNotNull(s.onCommand(GuidanceCommand(CommandKind.CURVE, Side.RIGHT, Level.LOW), 1900))
     }
 
     @Test
@@ -413,5 +418,39 @@ class EngineLogicTest {
         assertEquals(0.0, level, 0.01)
         assertEquals(20.0, down20, 0.01)
         assertEquals(0.0, roll, 0.01)
+    }
+}
+
+class VisibilityCoastTest {
+    private fun straightLine(): LineCandidate {
+        val curve = PathCurve(doubleArrayOf(0.0, 0.0, 0.0), 0.5, 8.0)
+        return LineCandidate(emptyList(), curve, 7.5, 1.0, 0.9, 5.0)
+    }
+
+    private fun frame(vis: Double) = FrameInput(listOf(straightLine()), null, null, emptyList(), vis)
+
+    @Test
+    fun aSingleBlurredFrameWhileTrackingDoesNotStop() {
+        val p = IntelligentPathPlanner()
+        repeat(10) { p.update(frame(1.0)) }
+        val d = p.update(frame(0.3))
+        kotlin.test.assertNotEquals(PathMode.STOP, d.mode, "one blurred frame stopped a tracked runner")
+        kotlin.test.assertNotNull(d.path)
+        kotlin.test.assertEquals(PathMode.LINE, p.update(frame(1.0)).mode, "guidance did not continue right after")
+    }
+
+    @Test
+    fun persistentPoorVisibilityStillStops() {
+        val p = IntelligentPathPlanner()
+        repeat(10) { p.update(frame(1.0)) }
+        val ds = (0 until 3).map { p.update(frame(0.2)) }
+        kotlin.test.assertEquals(StopReason.POOR_VISIBILITY, ds.last().stopReason)
+    }
+
+    @Test
+    fun oneFrameSettingKeepsTheOldBehaviour() {
+        val p = IntelligentPathPlanner(PlannerConfig(poorVisibilityFrames = 1))
+        repeat(10) { p.update(frame(1.0)) }
+        kotlin.test.assertEquals(StopReason.POOR_VISIBILITY, p.update(frame(0.3)).stopReason)
     }
 }

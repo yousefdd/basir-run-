@@ -38,6 +38,11 @@ class WalkableSegmenter(context: Context) {
 
     fun resetMemory() = underfoot.reset()
 
+    /** Classes and walkable decision of the last frame on the model's grid, for GroundEvidence. */
+    class Grid(val labels: IntArray, val walkable: FloatArray, val width: Int, val height: Int)
+    @Volatile var lastGrid: Grid? = null
+        private set
+
     /** Walkable probability (0 or 1 per cell) resampled to [outW]×[outH] of the upright frame, or null. */
     fun walkable(upright: Bitmap, outW: Int, outH: Int): ProbabilityMask? {
         val s = session ?: return null
@@ -71,7 +76,9 @@ class WalkableSegmenter(context: Context) {
                         label[k] = best
                     }
                     val runnable = runnableClasses(label, w, h, underfoot, android.os.SystemClock.elapsedRealtime())
-                    nearest(FloatArray(w * h) { if (label[it] in runnable) 1f else 0f }, w, h, outW, outH)
+                    val grid = FloatArray(w * h) { if (label[it] in runnable) 1f else 0f }
+                    lastGrid = Grid(label, grid, w, h)
+                    nearest(grid, w, h, outW, outH)
                 }
             }
         } catch (e: Exception) {

@@ -136,6 +136,13 @@ data class StableGuidanceConfig(
     // A lost or untrusted path (dark, blur, low confidence) gives the caution cue (slow down, no
     // direction) and never a stop when false.
     val stopWhenUncertain: Boolean = false,
+    /**
+     * Round 8: an obstacle on the path is level HIGH ("close") only within stopping distance (closeObstacleS of travel
+     * plus 0.5 m, at least 2 m: 2.5 m at 2.5 m/s, as the depth channel's stop distance); further away it is MEDIUM, so it
+     * takes part in the dominant-command vote and the cooldown between vibrations. false = 0.14.0 (always HIGH).
+     */
+    val obstacleLevelByDistance: Boolean = true,
+    val closeObstacleS: Double = 0.8,
 )
 
 /** One frame of guidance: the state plus the command the vibration layer understands. */
@@ -210,7 +217,12 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
         wasCorrecting = false
     }
 
-    fun update(decision: PathDecision, speedMps: Double = 2.5, dt: Double = 1.0 / 15): GuidanceEvent {
+    /**
+     * [expectedGap] (round 8): the path is missing because a confirmed sharp corner takes the line out of view (the
+     * corner engine is in PREPARE_TURN/TURNING). Such a NO_PATH / LOW_CONFIDENCE frame is held quietly (no direction, no
+     * obstacle warning, no stop count) instead of being treated as a closed way. Obstacles and PATH_UNSAFE still act.
+     */
+    fun update(decision: PathDecision, speedMps: Double = 2.5, dt: Double = 1.0 / 15, expectedGap: Boolean = false): GuidanceEvent {
         stateTimeS += dt
         lastDt = dt
         val running = speedMps >= config.runningMps
@@ -218,6 +230,14 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
 
         // --- No usable path ---------------------------------------------------------------
         if (decision.mode == PathMode.STOP || path == null) {
+            // The band/line turns away at the corner: no ground or line straight ahead is expected there. Never for an
+            // object in the way (blocking) and never when the end is right at the runner's feet.
+            val cornerGap = decision.blocking == null && (decision.stopReason == StopReason.NO_PATH || decision.stopReason == StopReason.LOW_CONFIDENCE ||
+                (decision.stopReason == StopReason.PATH_UNSAFE && (decision.obstacleAheadM ?: 0.0) >= 1.0))
+            if (expectedGap && cornerGap) {
+                blockedS = 0.0
+                return quiet(GuidanceState.VISION_UNCERTAIN, decision)
+            }
             val closed = decision.stopReason == StopReason.OBSTACLE_NO_ALTERNATIVE || decision.stopReason == StopReason.PATH_UNSAFE ||
                 decision.stopReason == StopReason.NO_PATH
             if (closed) {
@@ -280,7 +300,9 @@ class StableGuidanceController(private val config: StableGuidanceConfig = Stable
                 if (side == detourSide) detourFrames++ else { detourSide = side; detourFrames = 1 }
             } else { detourSide = null; detourFrames = 0 }
             val verified = detourSide != null && detourFrames >= config.detourConfirmFrames
-            val cmd = GuidanceCommand(CommandKind.OBSTACLE, side = if (verified) detourSide else null, level = Level.HIGH,
+            val closeM = max(2.0, speedMps * config.closeObstacleS + 0.5)
+            val lvl = if (!config.obstacleLevelByDistance || decision.obstacleAheadM <= closeM || verified) Level.HIGH else Level.MEDIUM
+            val cmd = GuidanceCommand(CommandKind.OBSTACLE, side = if (verified) detourSide else null, level = lvl,
                 steerDeg = heading, confidence = decision.confidence, mode = decision.mode)
             return emit(GuidanceState.OBSTACLE_WARNING, cmd, 3, force = true, offset, heading, kappa, correction)
         }

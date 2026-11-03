@@ -17,17 +17,38 @@ import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Opens an ONNX model from assets; null if the file is missing or cannot be loaded. */
-internal fun openSession(context: Context, asset: String, threads: Int): OrtSession? = try {
-    val bytes = context.assets.open(asset).use { it.readBytes() }
-    val options = OrtSession.SessionOptions().apply {
-        setIntraOpNumThreads(threads)
-        setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+/**
+ * Opens an ONNX model from assets; null if the file is missing or cannot be loaded.
+ *
+ * Round 7 fix: recent ONNX Runtime releases (seen with 1.29) refuse the quantized guide-line model at ALL_OPT with
+ * "two nodes with same node name (tfl.add_prequant)": the QDQ fusion pass names a fused node after one that still
+ * exists. The guide-line model then silently never loaded and every line came from the colour-contrast detector. A
+ * model that fails at ALL_OPT is now opened again with the QDQ fusion passes disabled (all other optimisations kept;
+ * output measured identical to the unoptimised graph, and faster), then with BASIC optimisation as a last resort.
+ */
+internal fun openSession(context: Context, asset: String, threads: Int): OrtSession? {
+    val bytes = try {
+        context.assets.open(asset).use { it.readBytes() }
+    } catch (e: Exception) {
+        Log.w("OnnxModels", "Model $asset missing", e)
+        return null
     }
-    OrtEnvironment.getEnvironment().createSession(bytes, options)
-} catch (e: Exception) {
-    Log.w("OnnxModels", "Model $asset unavailable", e)
-    null
+    val attempts = listOf<OrtSession.SessionOptions.() -> Unit>(
+        { setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT) },
+        { setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT); addConfigEntry("session.disable_quant_qdq", "1") },
+        { setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT) },
+    )
+    for ((k, configure) in attempts.withIndex()) {
+        try {
+            val options = OrtSession.SessionOptions().apply { setIntraOpNumThreads(threads); configure() }
+            val session = OrtEnvironment.getEnvironment().createSession(bytes, options)
+            if (k > 0) Log.w("OnnxModels", "Model $asset opened with fallback options #$k")
+            return session
+        } catch (e: Exception) {
+            Log.w("OnnxModels", "Model $asset failed to open with options #$k", e)
+        }
+    }
+    return null
 }
 
 /**

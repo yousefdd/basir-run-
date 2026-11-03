@@ -37,6 +37,8 @@ interface HapticOutput {
  * | correct RIGHT       | 2 short pulses                            |
  * |   low/medium/high   | stronger (or longer without amplitude)    |
  * | bend LEFT / RIGHT   | 1 / 2 long soft pulses (calm repeat)      |
+ * | prepare corner L/R  | 1 / 2 rising pulses (soft -> firm), round 8 |
+ * | turn now L/R        | 1 / 2 "short-long" pairs, firm, round 8   |
  * | obstacle            | 3 quick strong pulses                     |
  * | STOP                | long strong buzz + 2-pulse confirmation   |
  * | on path (optional)  | faint tick                                |
@@ -53,6 +55,8 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         const val P_OBSTACLE = 4
         const val P_CORRECT = 3
         const val P_CURVE = 2
+        /** Round 8: a sharp corner ranks above a correction (owner's priority list: corner before corrections). */
+        const val P_CORNER = 3
         const val P_CAUTION = 3
         const val P_ON_PATH = 1
         private val AMP = mapOf(Level.LOW to 90, Level.MEDIUM to 170, Level.HIGH to 255)
@@ -70,7 +74,11 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
             CommandKind.STOP -> cmd.side?.let { stopTurn(it) } ?: stop()
             CommandKind.OBSTACLE -> cmd.side?.let { obstacleDetour(it) } ?: obstacle()
             CommandKind.CORRECT -> correct(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
-            CommandKind.CURVE -> curve(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
+            CommandKind.CURVE -> when (cmd.corner) {
+                CornerPhase.PREPARE_TURN -> turnPrepare(cmd.side ?: return null, cmd.confidence)
+                CornerPhase.TURNING -> turnNow(cmd.side ?: return null, cmd.confidence)
+                else -> curve(cmd.side ?: return null, cmd.level ?: Level.LOW, cmd.confidence)
+            }
             CommandKind.ON_PATH -> if (cmd.confirm) backOnPath() else onPath()
             CommandKind.CAUTION -> caution()
         }
@@ -118,6 +126,31 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         return pattern("curve_${side.name.lowercase()}_${level.name.lowercase()}", P_CURVE, pulses(pulses, len, 220L, amp))
     }
 
+    /**
+     * Round 8: a sharp corner is coming (prepare to turn). Each pulse rises from soft to firm, unlike the flat soft bend
+     * pulse and the short correction pulse; one rising pulse = left, two = right, as everywhere.
+     */
+    fun turnPrepare(side: Side, confidence: Double = 1.0): HapticPattern {
+        val steps = if (amplitudeControl) listOf(170L to scaled(70, confidence), 170L to scaled(140, confidence), 220L to scaled(220, confidence))
+        else listOf(560L to 255)
+        val segs = buildList {
+            repeat(if (side == Side.LEFT) 1 else 2) { i -> if (i > 0) add(260L to 0); addAll(steps) }
+        }
+        return pattern("turn_prepare_${side.name.lowercase()}", P_CORNER, segs)
+    }
+
+    /**
+     * Round 8: turn now (inside the corner). A firm short pulse followed by a long one ("da-daaa"), a rhythm no other
+     * cue has; one pair = left, two pairs = right.
+     */
+    fun turnNow(side: Side, confidence: Double = 1.0): HapticPattern {
+        val amp = scaled(230, confidence)
+        // 90 + 600 ms on: clearly unlike a strong correction (2 x 240 ms) and the bend (soft, 400 ms each)
+        val pair = listOf(90L to amp, 110L to 0, 600L to amp)
+        val segs = buildList { repeat(if (side == Side.LEFT) 1 else 2) { i -> if (i > 0) add(300L to 0); addAll(pair) } }
+        return pattern("turn_now_${side.name.lowercase()}", P_CORNER, segs)
+    }
+
     fun onPath() = pattern("on_path", P_ON_PATH, listOf(60L to 50))
 
     /**
@@ -139,6 +172,10 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         add(Triple(correct(Side.RIGHT, Level.HIGH), "تصحيح قوي إلى اليمين", "Strong correction right"))
         add(Triple(curve(Side.LEFT, Level.LOW), "انحناء تدريجي إلى اليسار قادم", "Gentle bend left ahead"))
         add(Triple(curve(Side.RIGHT, Level.HIGH), "منعطف حاد إلى اليمين قادم", "Sharp bend right ahead"))
+        add(Triple(turnPrepare(Side.LEFT), "زاوية قادمة: استعد للانعطاف إلى اليسار", "Corner ahead: prepare to turn left"))
+        add(Triple(turnPrepare(Side.RIGHT), "زاوية قادمة: استعد للانعطاف إلى اليمين", "Corner ahead: prepare to turn right"))
+        add(Triple(turnNow(Side.LEFT), "انعطف الآن إلى اليسار", "Turn left now"))
+        add(Triple(turnNow(Side.RIGHT), "انعطف الآن إلى اليمين", "Turn right now"))
         add(Triple(obstacle(), "عائق محتمل أمامك", "Possible obstacle ahead"))
         add(Triple(obstacleDetour(Side.LEFT), "عائق أمامك، تجاوزه من اليسار", "Obstacle ahead, pass on the left"))
         add(Triple(obstacleDetour(Side.RIGHT), "عائق أمامك، تجاوزه من اليمين", "Obstacle ahead, pass on the right"))
@@ -174,16 +211,49 @@ data class SchedulerConfig(
     val stopReleaseFrames: Int = 15,      // STOP holds until the danger is gone this many frames (1 s): a brief clear flicker is not "go"
     val obstacleRepeatMs: Long = 2500,    // the same warning: once, then at most [obstacleMaxReminders] reminders
     val obstacleMaxReminders: Int = 2,
+    /**
+     * Round 8 fix: an obstacle warning that comes after this long without any obstacle command is a NEW warning (its
+     * reminder count starts again). Before, the reminder count was only reset when another pattern played, so a second
+     * obstacle long after the first (with nothing vibrating in between) was never felt — found on the barrier clip.
+     */
+    val obstacleEpisodeGapMs: Long = 1000,
+    /**
+     * Round 8: an obstacle that ESCALATES to within stopping distance (level HIGH after a lower level, i.e. something
+     * possible became close) is a new warning: its reminder count starts again (still at most one play per
+     * [obstacleRepeatMs]). A warning that stays the same keeps the owner's cap (once + 2 reminders). Found on the replays:
+     * one long warning (a crowd) used up its reminders and a later, closer hazard inside it was never felt.
+     */
+    val uncapHighObstacle: Boolean = true,
+    /** Round 8: the escalated (now close) obstacle may play this soon after the previous obstacle warning. */
+    val escalationGapMs: Long = 800,
     val correctRepeatMs: Map<Level, Long> = mapOf(Level.LOW to 1100, Level.MEDIUM to 800, Level.HIGH to 650),
     val curveRepeatMs: Long = 1600,
+    /** Round 8: a corner's "prepare" plays once and is repeated at most once; "turn now" plays once per corner. */
+    val cornerPrepareRepeatMs: Long = 2200,
+    val cornerTurnRepeatMs: Long = 4000,
     val onPathRepeatMs: Long = 3500,
     val enableOnPathTick: Boolean = true,
     val oppositeSideGuardMs: Long = 1000, // no left within 1 s of right (and back) unless HIGH (scenario suite: one 0.8 s flip on a forest trail)
     val changeGapMs: Long = 800,          // a different cue that is not more serious waits this long
+    /**
+     * Round 8 (owner: a cooldown between commands, no overlapping fast commands): ANY different pattern waits this long
+     * after the last one, whether it is calmer or more serious. Only real safety passes at once: STOP (handled above), an
+     * obstacle within stopping distance (level HIGH), a strong correction (about to leave the path) and "turn now" right
+     * after its "prepare". A command that waits is not queued: it plays when the gap is over if it is still the command.
+     * Measured before this rule: 4.5 different vibrations per minute came less than 1 s apart, the closest 0.07 s.
+     */
+    val minChangeGapMs: Long = 1200,
+    val cooldownAllChanges: Boolean = true,
     /** Quiet while on the path: the on-path cue plays only as the one-off "back on the path". */
     val onPathOnlyOnConfirm: Boolean = false,
     val confirmRepeatMs: Long = 1500,
     val cautionRepeatMs: Long = 2500,
+    /**
+     * Round 8 (owner: as few commands as possible): the same caution (path unclear, slow processing) is felt once plus at
+     * most this many reminders while it lasts; after [obstacleEpisodeGapMs] without a caution, a new one counts again.
+     */
+    val cautionMaxReminders: Int = 1,
+    val capCaution: Boolean = true,
 )
 
 /**
@@ -203,6 +273,8 @@ class HapticScheduler(
     private var stopLatched = false
     private var stopReminders = 0
     private var obstacleReminders = 0
+    private var cautionReminders = 0
+    private var lastCautionCmdMs = Long.MIN_VALUE / 2
     private var stopSide: Side? = null
     private var clearFrames = 0
     private var lastSide: Side? = null
@@ -210,6 +282,9 @@ class HapticScheduler(
     private var lastKey: String? = null
     private var lastKeyAt = Long.MIN_VALUE / 2
     private var lastKeyPriority = 0
+    private var lastObstacleCmdMs = Long.MIN_VALUE / 2
+    private var lastObstacleLevel: Level? = null
+    private var highFeltInEpisode = false
 
     /** Feed one guidance command per frame; returns the pattern started now, if any. */
     fun onCommand(cmd: GuidanceCommand, nowMs: Long): HapticPattern? {
@@ -233,17 +308,41 @@ class HapticScheduler(
             if (++clearFrames < config.stopReleaseFrames) return null
             stopLatched = false; stopSide = null
         }
+        var escalated = false
+        if (cmd.kind == CommandKind.OBSTACLE) {
+            if (nowMs - lastObstacleCmdMs > config.obstacleEpisodeGapMs) highFeltInEpisode = false   // a new obstacle episode
+            // possible -> close is a new warning; inside one episode a repeated close <-> possible flicker may only re-warn
+            // at the normal repeat pace (obstacleRepeatMs), the first escalation sooner (escalationGapMs). Measured: allowing
+            // only one escalation per episode cut vibrations but left 19 hazard episodes unfelt (crowds make long episodes).
+            escalated = config.uncapHighObstacle && cmd.level == Level.HIGH && lastObstacleLevel != Level.HIGH
+            if (nowMs - lastObstacleCmdMs > config.obstacleEpisodeGapMs || escalated) {
+                obstacleReminders = 0; if (lastKey?.startsWith("OBSTACLE") == true) lastKey = null
+            }
+            lastObstacleCmdMs = nowMs
+            // the level is remembered as "felt" only once a pattern for it has played (an escalation blocked by the gap waits)
+            if (!escalated) lastObstacleLevel = cmd.level
+        }
+        if (cmd.kind == CommandKind.CAUTION) {
+            if (nowMs - lastCautionCmdMs > config.obstacleEpisodeGapMs) cautionReminders = 0
+            lastCautionCmdMs = nowMs
+            if (config.capCaution && cautionReminders > config.cautionMaxReminders) return null
+        }
         val pattern = language.forCommand(cmd) ?: return null
         val busy = nowMs < playingUntil
         if (busy && pattern.priority <= playingPriority) return null
         val key = when (cmd.kind) {
-            CommandKind.CORRECT, CommandKind.CURVE, CommandKind.OBSTACLE -> "${cmd.kind}_${cmd.side}"
+            CommandKind.CURVE -> if (cmd.corner == CornerPhase.PREPARE_TURN || cmd.corner == CornerPhase.TURNING) "CORNER_${cmd.corner}_${cmd.side}" else "${cmd.kind}_${cmd.side}"
+            CommandKind.CORRECT, CommandKind.OBSTACLE -> "${cmd.kind}_${cmd.side}"
             else -> cmd.kind.name
         }
         val repeat = when (cmd.kind) {
             CommandKind.OBSTACLE -> config.obstacleRepeatMs
             CommandKind.CORRECT -> config.correctRepeatMs.getValue(cmd.level ?: Level.LOW)
-            CommandKind.CURVE -> config.curveRepeatMs
+            CommandKind.CURVE -> when (cmd.corner) {
+                CornerPhase.PREPARE_TURN -> config.cornerPrepareRepeatMs
+                CornerPhase.TURNING -> config.cornerTurnRepeatMs
+                else -> config.curveRepeatMs
+            }
             CommandKind.CAUTION -> config.cautionRepeatMs
             CommandKind.ON_PATH -> when {
                 cmd.confirm -> config.confirmRepeatMs
@@ -252,8 +351,10 @@ class HapticScheduler(
             }
             CommandKind.STOP -> config.stopRepeatMs
         }
-        // A cue never repeats before its previous play has finished, however long the pulses are set.
-        if (since(key, nowMs) < max(repeat, output.playedDurationMs(pattern) + REPEAT_GAP_MS)) return null
+        // A cue never repeats before its previous play has finished, however long the pulses are set. Round 8: an obstacle
+        // that has just become close (escalation) may play again sooner, but never within escalationGapMs of the last one.
+        val minGap = if (escalated) (if (highFeltInEpisode) config.obstacleRepeatMs else config.escalationGapMs) else repeat
+        if (since(key, nowMs) < max(minGap, output.playedDurationMs(pattern) + REPEAT_GAP_MS)) return null
         if (cmd.kind == CommandKind.OBSTACLE && key == lastKey && obstacleReminders >= config.obstacleMaxReminders) return null
         if (cmd.side != null && cmd.side != lastSide && nowMs - lastSideAt < config.oppositeSideGuardMs && cmd.level != Level.HIGH) {
             return null
@@ -262,8 +363,16 @@ class HapticScheduler(
         // second cannot be told apart. More serious ones (obstacle after a correction) and strong
         // corrections (about to leave the path) go at once.
         if (key != lastKey && nowMs - lastKeyAt < config.changeGapMs && pattern.priority <= lastKeyPriority && cmd.level != Level.HIGH) return null
+        // the faint on-path tick and "back on path" taps never start a cooldown (they must not delay a warning)
+        if (config.cooldownAllChanges && key != lastKey && lastKey != null && lastKey != "ON_PATH" && nowMs - lastKeyAt < config.minChangeGapMs) {
+            val urgent = cmd.level == Level.HIGH && (cmd.kind == CommandKind.OBSTACLE || cmd.kind == CommandKind.CORRECT) ||
+                (cmd.kind == CommandKind.CURVE && cmd.corner == CornerPhase.TURNING && lastKey?.startsWith("CORNER_PREPARE") == true)
+            if (!urgent) return null
+        }
         if (cmd.side != null) { lastSide = cmd.side; lastSideAt = nowMs }
         obstacleReminders = if (cmd.kind == CommandKind.OBSTACLE && key == lastKey) obstacleReminders + 1 else 0
+        if (cmd.kind == CommandKind.OBSTACLE) { lastObstacleLevel = cmd.level; if (cmd.level == Level.HIGH) highFeltInEpisode = true }
+        if (cmd.kind == CommandKind.CAUTION) cautionReminders++
         lastKey = key; lastKeyAt = nowMs; lastKeyPriority = pattern.priority
         lastPlayed[key] = nowMs
         return start(pattern, nowMs, preempt = busy)

@@ -127,8 +127,13 @@ class DecisionEngineTest {
         assertEquals(Severity.Warning, d.severity)
         assertEquals(Cue.ObstacleNear, d.cue)
         assertNull(d.moveTo)
-        assertEquals(Cue.HeadLevelStop, DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.HeadLevel)).cue)
-        val drop = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.Drop))
+        // 0.15.0: head level and drops warn on the first frame and stop once they have lasted 260 ms
+        val h = DecisionEngine()
+        assertEquals(Cue.ObstacleNear, h.decide(input(now = 0, obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.HeadLevel)).cue)
+        assertEquals(Cue.HeadLevelStop, h.decide(input(now = 300, obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.HeadLevel)).cue)
+        val de = DecisionEngine()
+        de.decide(input(now = 0, obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.Drop))
+        val drop = de.decide(input(now = 300, obstacle = ObstacleLevel.Hazard, path = tracked(0.3f)).copy(obstacleKind = HazardKind.Drop))
         assertEquals(Cue.DropStop, drop.cue)
         assertEquals(Severity.Critical, drop.severity)
         val near = DecisionEngine().decide(input(obstacle = ObstacleLevel.Possible, path = tracked(0.3f)))
@@ -145,18 +150,24 @@ class DecisionEngineTest {
         assertEquals(Side.Right, d.moveTo)
         assertEquals("obstacle_right", run.basir.engine.HapticLanguage().forCommand(HapticBridge.command(d)!!)!!.name)
         // a head-level obstacle is still a stop, way around or not
-        val head = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel, line = detour))
+        val he = DecisionEngine()
+        assertEquals(Severity.Warning, he.decide(input(now = 0, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel, line = detour)).severity)
+        val head = he.decide(input(now = 300, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel, line = detour))
         assertEquals(Severity.Critical, head.severity)
     }
 
     @Test
     fun headLevelAndDropHazardsHaveTheirOwnStop() {
-        val head = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel))
+        val e = DecisionEngine()
+        val first = e.decide(input(now = 0, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel))
+        assertEquals(Severity.Warning, first.severity)          // a one-frame depth blip never stops the runner
+        val head = e.decide(input(now = 300, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.HeadLevel))
         assertEquals(Cue.HeadLevelStop, head.cue)
         assertEquals(Severity.Critical, head.severity)
         assertNull(head.moveTo)
-        val drop = DecisionEngine().decide(input(obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.Drop))
-        assertEquals(Cue.DropStop, drop.cue)
+        val d = DecisionEngine()
+        d.decide(input(now = 0, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.Drop))
+        assertEquals(Cue.DropStop, d.decide(input(now = 300, obstacle = ObstacleLevel.Hazard).copy(obstacleKind = HazardKind.Drop)).cue)
     }
 
     @Test
@@ -267,7 +278,10 @@ class DecisionEngineTest {
     fun slowProcessingWarnsThenStops() {
         val e = DecisionEngine()
         assertEquals(Cue.LatencySlow, e.decide(input(p90 = 200f)).cue)
-        assertEquals(Cue.LatencyStop, e.decide(input(p90 = 400f)).cue)
+        // 0.15.0: very slow processing slows the runner first and stops only when it lasts 3 s
+        assertEquals(Cue.LatencySlow, e.decide(input(now = 0, p90 = 400f)).cue)
+        assertEquals(Cue.LatencySlow, e.decide(input(now = 2000, p90 = 400f)).cue)
+        assertEquals(Cue.LatencyStop, e.decide(input(now = 3000, p90 = 400f)).cue)
     }
 
     @Test

@@ -1,0 +1,16 @@
+turn90_a vWuqLpN3LO-EyUQ3MEvegQmXAbjkrnfK 75
+turn90_b lE6lpL5lGivGqqik0GIioEA8TUa0JpOo 30
+turn90_c wHbdubn2UcxgoE5qVOtwQhJJw2AlZLzC 30
+turn90_jog PAI-Lzi-G0BTqe-jCoRC3Dj43EsnjGhe 90
+turn90_d NEljbgsZaaSaMyQwCHvre5n0RnVexfzE 30
+turn90_park 80ZDaRCS7DpESeCaXGxviGvDXThZrd77 75
+turn90_crowd TuVcTZxJici8fJC_HpwP-BIzOCBcP4mJ 30
+turn127 bbzUJNHouYQEOhfD0cpXLtDz0c2DSt-e 45
+bend_crowd kg00o09y82-Kgy_XKrS-FBySUm3VSGjW 30
+bend_park_fast AAEOWHxELzR3-s-clycIDujO3gMUcBKH 75
+run_urban oGmaqcOIA2NkQySXCaQe-8b3moo5KiTC 135
+straight_park DsfSwo0BQ9MPdLdhg7Joj7s6Ao_3EXSX 105
+jog_park MAQpSWzA9qHtyW-nWyvdBSU23ZkDzxDz 30
+jog_urban 3ZidwAnpu7FKf37SYJx_VKECzfG_Ftod 30
+park_obstacles V_vRDGdjaTREgQoVCvf_OIEMqvvowUA- 30
+crowd_obstacles VWw2W_obR6zEafYeF_snujhcGroiwb0T 30
