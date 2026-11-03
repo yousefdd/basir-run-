@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.basir.run.belt.BeltState
+import com.basir.run.engine.Phrase
 import java.util.Locale
 import kotlin.math.abs
 import kotlinx.coroutines.Job
@@ -41,8 +42,11 @@ import run.basir.engine.Side
 private class BeltLevel(val value: Int, val name: String)
 
 private val BELT_STRENGTHS = listOf(BeltLevel(55, "خفيف"), BeltLevel(75, "متوسط"), BeltLevel(100, "قوي"))
-private val COOLDOWNS = listOf(BeltLevel(800, "قصيرة، أقل من ثانية"), BeltLevel(1200, "متوسطة، ثانية وخُمس"),
-    BeltLevel(1600, "طويلة، ثانية ونصف"), BeltLevel(2000, "طويلة جداً، ثانيتان"))
+// names = the recorded phrases (Phrase.BeltCooldown*), so they are said in the recorded voice
+private val COOLDOWNS = listOf(BeltLevel(800, "المهلة قصيرة، أقل من ثانية"), BeltLevel(1200, "المهلة متوسطة، ثانية وخُمس"),
+    BeltLevel(1600, "المهلة طويلة، ثانية ونصف"), BeltLevel(2000, "المهلة طويلة جداً، ثانيتان"))
+private val STRENGTH_PHRASES = listOf(Phrase.StrengthLight, Phrase.StrengthMedium, Phrase.StrengthStrong)
+private fun motorName(m: Motor) = "المحرك ${m.ordinal + 1}، ${m.arabic}"
 private const val BELT_QUESTIONS = 6
 private const val BELT_PASS = 5
 
@@ -114,14 +118,15 @@ fun BeltTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, onBack
         answered = true
         val right = choice.meaningAr == asked?.meaningAr
         if (right) correct++
-        voice.sayText(if (right) "صحيح" else "خطأ. المعنى: ${asked?.meaningAr}", interrupt = true)
+        voice.say(if (right) Phrase.QuizCorrect else Phrase.QuizWrong, interrupt = true)
+        if (!right) asked?.let { voice.sayText(it.meaningAr) }
         if (question + 1 < BELT_QUESTIONS) {
             scope.launch { delay(if (right) 1300 else 4000); ask(question + 1) }
         } else {
             val passed = correct >= BELT_PASS
             if (passed) prefs.beltQuizPassed = true
             result = String.format(Locale.US, "%d من %d صحيحة. %s", correct, BELT_QUESTIONS, if (passed) "اجتزت اختبار الحزام" else "لم تجتز الاختبار بعد")
-            voice.sayText(result!!, interrupt = false)
+            voice.say(if (passed) Phrase.QuizPassed else Phrase.QuizFailed, interrupt = false)
             question = -1
             asked = null
         }
@@ -152,11 +157,11 @@ fun BeltTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, onBack
                     Card {
                         Text("فحص المحركات: يجب أن تشعر بكل محرك في مكانه", style = MaterialTheme.typography.titleMedium, color = Ink)
                         Motor.values().forEach { m ->
-                            SpeakButton("المحرك ${m.ordinal + 1}: ${m.arabic}", { playAll(listOf(lang.motorTest(m))) },
+                            SpeakButton(motorName(m), { playAll(listOf(lang.motorTest(m))) },
                                 hint = "اضغط مطولاً ليهتز", sayHowToUse = false, modifier = Modifier.fillMaxWidth())
                         }
                         SpeakButton("المحركات الخمسة بالترتيب من اليسار إلى اليمين",
-                            { playAll(Motor.values().map { lang.motorTest(it) }, Motor.values().map { "${it.ordinal + 1}، ${it.arabic}" }) },
+                            { playAll(Motor.values().map { lang.motorTest(it) }, Motor.values().map { motorName(it) }) },
                             tone = ButtonTone.Accent, sayHowToUse = false, modifier = Modifier.fillMaxWidth())
                     }
 
@@ -168,11 +173,18 @@ fun BeltTrainingScreen(prefs: Prefs, voice: Voice, haptics: HapticEngine, onBack
                                     strength = (strength + step).coerceIn(BELT_STRENGTHS.indices)
                                     prefs.beltIntensityPct = BELT_STRENGTHS[strength].value
                                     belt.applyConfig()
-                                    playAll(listOf(lang.correct(Side.LEFT, Level.MEDIUM), lang.correct(Side.RIGHT, Level.MEDIUM)), listOf(BELT_STRENGTHS[strength].name, null))
+                                    voice.say(STRENGTH_PHRASES[strength], interrupt = true)
+                                    playing.value?.cancel()
+                                    playing.value = scope.launch {
+                                        delay(1800)
+                                        val l = lang.correct(Side.LEFT, Level.MEDIUM)
+                                        haptics.playBelt(l); delay(l.durationMs + 900)
+                                        haptics.playBelt(lang.correct(Side.RIGHT, Level.MEDIUM))
+                                    }
                                 }, hint = null, sayHowToUse = false, modifier = Modifier.weight(1f))
                             }
                         }
-                        Text("المهلة بين الإشارات: ${COOLDOWNS[cooldown].name}", style = MaterialTheme.typography.titleMedium, color = Ink)
+                        Text(COOLDOWNS[cooldown].name, style = MaterialTheme.typography.titleMedium, color = Ink)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             listOf(-1 to "مهلة أقصر", 1 to "مهلة أطول").forEach { (step, label) ->
                                 SpeakButton(label, {

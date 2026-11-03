@@ -127,13 +127,12 @@ class BeltLanguage(private val intensity: Double = 1.0) {
     fun danger() = BeltPattern("danger", BeltPriority.DANGER, quick(m(Motor.M2, Motor.M3, Motor.M4), a(1.0)), "خطر قريب أمامك: خفّف فوراً")
 
     // ---- emergency (priority EMERGENCY) ----------------------------------------------------------------------------
-    /** Stop now: every motor, one long buzz then two short (the phone's stop rhythm). The only all-five cue. */
-    fun stop() = BeltPattern("stop", BeltPriority.EMERGENCY, listOf(
-        BeltStep(Motor.ALL, a(0.9), 700, 200), BeltStep(Motor.ALL, a(0.9), 200, 150), BeltStep(Motor.ALL, a(0.9), 200)), "توقّف فوراً")
+    /** Stop now: every motor, one long continuous buzz with no break (the phone's stop). The only all-five cue. */
+    fun stop() = BeltPattern("stop", BeltPriority.EMERGENCY, listOf(BeltStep(Motor.ALL, a(0.9), 1100)), "توقف فوراً")
 
     /** Stop, then which way the ground goes on: the stop, a pause, then a long pulse on that side's outer motor. */
     fun stopTurn(s: Side) = BeltPattern("stop_turn_${s.key}", BeltPriority.EMERGENCY,
-        stop().steps.dropLast(1) + listOf(BeltStep(Motor.ALL, a(0.9), 200, 600), BeltStep(m(side(s, false)), a(0.8), 400)),
+        listOf(BeltStep(Motor.ALL, a(0.9), 1100, 600), BeltStep(m(side(s, false)), a(0.8), 400)),
         "توقّف، ثم الطريق ${s.ar}")
 
     /** Motor check for the training screen: one motor alone, a clear pulse. */

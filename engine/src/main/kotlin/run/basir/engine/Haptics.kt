@@ -40,7 +40,7 @@ interface HapticOutput {
  * | prepare corner L/R  | 1 / 2 rising pulses (soft -> firm), round 8 |
  * | turn now L/R        | 1 / 2 "short-long" pairs, firm, round 8   |
  * | obstacle            | 3 quick strong pulses                     |
- * | STOP                | long strong buzz + 2-pulse confirmation   |
+ * | STOP                | one long continuous strong buzz (1.1 s)   |
  * | on path (optional)  | faint tick                                |
  *
  * Left = one, right = two everywhere, so a bend and a correction toward the same side share
@@ -63,9 +63,9 @@ class HapticLanguage(private val amplitudeControl: Boolean = true) {
         private val CURVE_AMP = mapOf(Level.LOW to 70, Level.MEDIUM to 110, Level.HIGH to 160)
         private val CORRECT_LEN = mapOf(Level.LOW to 120L, Level.MEDIUM to 170L, Level.HIGH to 240L)
         private val LEN_SCALE = mapOf(Level.LOW to 0.6, Level.MEDIUM to 1.0, Level.HIGH to 1.6) // no amplitude control
-        // Long pulse then two short: 1.1 s of vibration (was 1.6 s; with the pulse-length setting at
-        // its longest it ran 3.2 s and, repeated, never stopped).
-        private val STOP_SEGMENTS = listOf(700L to 255, 200L to 0, 200L to 255, 150L to 0, 200L to 255)
+        // Owner (0.16.0): one long CONTINUOUS buzz, no breaks, so it cannot be mistaken for any pulsed cue. 1.1 s of
+        // vibration, as much as the old long + two short (with the pulse-length setting at its longest: 2.2 s).
+        private val STOP_SEGMENTS = listOf(1100L to 255)
         private const val STOP_TURN_PAUSE_MS = 600L
     }
 
