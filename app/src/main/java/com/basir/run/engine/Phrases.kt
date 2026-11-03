@@ -43,7 +43,7 @@ enum class Phrase(val id: String, val ar: String) {
     SessionResumed("session_resumed", "استؤنف التوجيه"),
     SessionEnded("session_ended", "انتهت الجلسة"),
     ChecksPassed("checks_passed", "كل الفحوص ناجحة. انتظر ثلاث ثوانٍ"),
-    BeltSoon("belt_soon", "قريباً سيتم إنتاج حزام اهتزازات منفصل يعمل بلغة اهتزازات متكاملة وبشدّات دقيقة. للمزيد من المعلومات اضغط 6 ثوانٍ على أيقونة المطوّر هنا بجانبه."),
+    BeltSoon("belt_soon", "سيتم إنتاج نسخة نهائية ومتكاملة من حزام الاهتزازات المنفصل، يعمل بلغة اهتزازات وبشدّات دقيقة. للمزيد من المعلومات اضغط 6 ثوانٍ على أيقونة المطوّر هنا بجانبه."),
     HoldToActivate("hold_to_activate", "اضغط مطولاً للتشغيل"),
     HapticsUnavailable("haptics_unavailable", "الاهتزاز غير متاح في هذا الهاتف. سأعتمد على الصوت"),
 
