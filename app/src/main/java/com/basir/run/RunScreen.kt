@@ -191,7 +191,7 @@ fun RunScreen(
         }
     }
 
-    val showCamera = current == null || developer
+    val showCamera = current == null // owner: never show the camera while running, even in developer mode
     Box(Modifier.fillMaxSize().background(NavyDeep)) {
         if (cameraError == null) {
             CameraHost(

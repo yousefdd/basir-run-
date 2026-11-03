@@ -7,9 +7,7 @@ import java.util.Locale
 
 enum class Check(val label: String) {
     Camera("الكاميرا تعمل"),
-    Speed("سرعة التحليل كافية"),
     Light("الإضاءة ووضوح الصورة"),
-    Steady("ثبات الهاتف"),
     Path("المسار ظاهر بثقة"),
     Obstacles("كاشف العوائق"),
     Depth("تقدير العمق والأرض"),
@@ -66,11 +64,6 @@ object Readiness {
         return listOf(
             CheckResult(Check.Camera, i.framesPerSecond > 0f, if (i.framesPerSecond > 0f) "تصل الصور" else "لا تصل صور من الكاميرا"),
             CheckResult(
-                Check.Speed,
-                i.framesPerSecond >= MIN_FPS && i.processingP90Ms <= MAX_P90_MS,
-                String.format(Locale.US, "%.0f إطار/ث · %.0f ملّي ثانية", i.framesPerSecond, i.processingP90Ms),
-            ),
-            CheckResult(
                 Check.Light,
                 q != null && q.usable,
                 when {
@@ -81,11 +74,6 @@ object Readiness {
                     q.blurry -> "الصورة ضبابية"
                     else -> "جيدة"
                 },
-            ),
-            CheckResult(
-                Check.Steady,
-                i.shakeRadPerS != null && i.shakeRadPerS <= MAX_SHAKE,
-                i.shakeRadPerS?.let { if (it <= MAX_SHAKE) "ثابت" else "يهتز كثيراً" } ?: "حساس الحركة غير متاح",
             ),
             CheckResult(
                 Check.Path,
