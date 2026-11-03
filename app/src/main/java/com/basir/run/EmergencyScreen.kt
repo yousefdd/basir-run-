@@ -140,6 +140,7 @@ fun EmergencyScreen(prefs: Prefs, voice: Voice, onBack: () -> Unit) {
             contacts.firstOrNull()?.let { c ->
                 SpeakButton("اتصال بـ ${c.name}", { dial(c.phone, c.name) }, spoken = Phrase.ButtonCallContact.ar, tone = ButtonTone.Danger, height = 76.dp, modifier = Modifier.fillMaxWidth())
             }
+            SpeakButton("فتح رسالة الطوارئ", { openMessage() }, spoken = Phrase.ButtonOpenMessage.ar, tone = ButtonTone.Danger, modifier = Modifier.fillMaxWidth())
             SpeakButton("مشاركة الموقع بتطبيق آخر", ::share, spoken = Phrase.ButtonShareLocation.ar, modifier = Modifier.fillMaxWidth())
             if (localNumber.isNotBlank()) {
                 SpeakButton("اتصال برقم الطوارئ $localNumber", { dial(localNumber, localNumber) }, spoken = Phrase.ButtonCallLocal.ar, tone = ButtonTone.Danger, modifier = Modifier.fillMaxWidth())
