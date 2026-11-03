@@ -158,7 +158,7 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
             )
             Text(
-                "هذه النسخة النهائية للجهاز المنفصل، وسيتم توفيره قريباً بسعر مناسب. للمساعدة في عملية توفير المنتج وتصنيعه، يرجى التواصل عبر البريد الإلكتروني في الأعلى.",
+                "سيتم إنتاج نسخة نهائية ومتكاملة من الحزام، وسيتم توفيرها قريباً بسعر مناسب. للمساعدة في عملية توفير المنتج وتصنيعه، يرجى التواصل عبر البريد الإلكتروني في الأعلى.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = InkMuted,
             )
@@ -240,6 +240,8 @@ fun LiveVisionScreen(pipeline: GuidancePipeline, motion: MotionMonitor, prefs: P
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ScreenHeader("فحص محرك الاكتشاف", onBack, silent = true)
+            var developer by remember { mutableStateOf(prefs.developerMode) }
+            SpeakSwitch(Phrase.SwitchDeveloper.ar, "يعرض الكاميرا والمسار الافتراضي والأرقام أثناء الجري، للاختبار", developer) { developer = it; prefs.developerMode = it }
             cameraError?.let { Text(it, color = Danger, style = MaterialTheme.typography.titleMedium) }
             val line = snapshot?.line
             Text(

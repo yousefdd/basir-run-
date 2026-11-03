@@ -38,7 +38,7 @@ def phrases_by_part():
     with open(TABLE, encoding="utf-8") as f:
         for row in csv.DictReader(f, delimiter="\t"):
             parts.setdefault(int(row["part"]), []).append(row["id"])
-    return [parts[k] for k in sorted(parts)]
+    return parts
 
 
 def duration(path):
@@ -95,9 +95,10 @@ def export(src, start, end, dst):
 
 
 def main(args):
-    parts = phrases_by_part()
+    parts_by_no = phrases_by_part()
+    parts = [parts_by_no[k] for k in sorted(parts_by_no)]
     if all(re.match(r"^\d+:", a) for a in args):
-        jobs = [(a.split(":", 1)[1], parts[int(a.split(":", 1)[0]) - 1]) for a in args]
+        jobs = [(a.split(":", 1)[1], parts_by_no[int(a.split(":", 1)[0])]) for a in args]
     elif len(args) == len(parts):
         jobs = list(zip(args, parts))
     else:

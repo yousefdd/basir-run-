@@ -288,7 +288,7 @@ fun TrustedContactsEditor(prefs: Prefs, voice: Voice, onChange: (List<Contact>) 
     val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = Ink, unfocusedTextColor = Ink, focusedBorderColor = Teal, unfocusedBorderColor = NavyRaised, focusedLabelColor = Teal, unfocusedLabelColor = InkMuted)
     OutlinedTextField(name, { name = it }, label = { Text("أو اكتب الاسم") }, singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(
-        phone, { phone = it }, label = { Text("رقم الجوال مع رمز الدولة") }, singleLine = true, colors = fieldColors,
+        phone, { phone = it }, label = { Text("رقم الجوال") }, singleLine = true, colors = fieldColors,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
     )
     SpeakButton("إضافة", {
@@ -319,9 +319,7 @@ fun SettingsScreen(
     var vibrate by remember { mutableStateOf(prefs.vibrateOn) }
     var verbose by remember { mutableStateOf(prefs.verboseVoice) }
     var tones by remember { mutableStateOf(prefs.guideTones) }
-    var developer by remember { mutableStateOf(prefs.developerMode) }
     var walking by remember { mutableStateOf(prefs.walkingMode) }
-    var localNumber by remember { mutableStateOf(prefs.localEmergencyNumber) }
     var heightText by remember { mutableStateOf(prefs.runnerHeightCm.toString()) }
 
     BasirBackground {
@@ -354,15 +352,6 @@ fun SettingsScreen(
 
             SectionTitle("الطوارئ")
             TrustedContactsEditor(prefs, voice)
-            OutlinedTextField(
-                localNumber,
-                { localNumber = it; prefs.localEmergencyNumber = it.trim() },
-                label = { Text("رقم الطوارئ في بلدك (اكتبه بنفسك)") },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Ink, unfocusedTextColor = Ink, focusedBorderColor = Teal, unfocusedBorderColor = NavyRaised, focusedLabelColor = Teal, unfocusedLabelColor = InkMuted),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(),
-            )
 
             SectionTitle("الصوت")
             SpeakSwitch(Phrase.SwitchVoice.ar, "يقول التصحيحات والمنحنيات بالكلام أيضاً", verbose) { verbose = it; prefs.verboseVoice = it }
@@ -375,7 +364,6 @@ fun SettingsScreen(
 
             SectionTitle("عام")
             SpeakButton("إرشادات الاستخدام الأول", onGuide, spoken = Phrase.ButtonGuide.ar, modifier = Modifier.fillMaxWidth())
-            SpeakSwitch(Phrase.SwitchDeveloper.ar, "يعرض الكاميرا والمسار الافتراضي والأرقام أثناء الجري، للاختبار", developer) { developer = it; prefs.developerMode = it }
             Text("الإصدار ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, color = InkMuted)
         }
     }
