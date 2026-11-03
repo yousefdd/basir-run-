@@ -119,7 +119,7 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
         ) {
             ScreenHeader("مساحة المطوّر والتحديثات", onBack, silent = true)
             Text(
-                "هذا القسم مخصص للمطوّر لإجراء التجارب والاختبارات، ومتابعة تطوير التطبيق، واستعراض التحديثات الجديدة. كما يتيح تدوين الاقتراحات والأفكار المستقبلية، وتجربة الميزات قبل اعتمادها رسميًا.",
+                "هنا أجرّب التطبيق قبل كل تحديث: أشغّل الكاميرا وأرى ما يكتشفه المحرك وما يقرره، وأصلح ما أجده من أخطاء. إن كان عندك اقتراح أو لاحظت مشكلة، راسلني.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Ink,
             )
@@ -150,7 +150,7 @@ fun DeveloperScreen(onEngineCheck: () -> Unit, onBack: () -> Unit) {
                 silent = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text("يهدف هذا القسم إلى توفير بيئة مرنة للتطوير المستمر، واكتشاف المشكلات ومعالجتها، وتحسين دقة اكتشاف العوائق وكفاءة توجيه المستخدم، بما يساهم في تقديم تجربة أكثر أمانًا وموثوقية واستقرارًا للمكفوفين وضعاف البصر.", style = MaterialTheme.typography.labelMedium, color = InkMuted)
+            Text("كل ملاحظة تصلني تساعدني على تحسين اكتشاف العوائق والتوجيه، حتى يجري المكفوف وضعيف البصر بأمان أكثر.", style = MaterialTheme.typography.labelMedium, color = InkMuted)
             Image(
                 painterResource(R.drawable.basir_belt),
                 contentDescription = "حزام بصير ران للاهتزاز",
